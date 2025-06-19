@@ -1,2 +1,2 @@
-# clada
-common llm actions desktop actuator 💚
+# 💚 clada
+common llm actions desktop actuator

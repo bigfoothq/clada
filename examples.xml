@@ -1,0 +1,138 @@
+other file contents to ignore
+
+<tasks>
+
+    text to ignore
+
+<task>
+<i>
+a brief explanation 
+</i>
+<path>
+Users/stuart/repos/foo/bar/file.txt    
+</path>
+<c>
+overwrite
+</c>
+<x>
+here is 
+the  
+   new 
+file contents ☘️    
+</x>
+</task>
+
+
+<task>
+<i>
+a brief description
+</i>
+<path>
+foo/file2.txt    
+</path>
+<c>
+edit
+</c>
+<search>
+   new 
+   wonderful
+   fantastic!!!!
+        amazing
+  file contents ☘️    
+</search>
+<replace>
+   brand new 
+replacement 
+    contents 🌈
+</replace>
+</task>
+
+<task>
+<i>
+a brief description
+</i>
+<path>
+foo/file2.txt    
+</path>
+<c>
+edit
+</c>
+<search-head>
+new 
+   wonde   
+</search-head>
+<search-tail>
+ing
+  file contents ☘️    
+</search-tail>
+<replace>
+   brand new 
+replacement 
+    contents 🌈
+</replace>
+</task>
+
+
+<task>
+<i>
+another explanation
+</i>
+<path>
+foo/file2.txt    
+</path>
+<c>
+delete
+</c>
+</task>
+
+
+<task>
+<i>
+this is why we're doing this
+</i>
+<path>
+foo/file2.txt    
+</path>
+<c>
+move
+</c>
+<x>
+foo/bar
+</x>
+</task>
+
+more meaningless text
+
+<task>
+<i>
+a brief explanation
+</i>
+<path>
+foo/file2.txt    
+</path>
+<c>
+move
+</c>
+<x>
+foo/bar/file2_new_name.txt 
+</x>
+</task>
+
+
+<task>
+<i>
+another description
+</i>
+<c>
+exec
+</c>
+<x>
+npm run test
+</x>
+</task>
+
+meaningless text
+
+</tasks>
+
+more file contents to ignore

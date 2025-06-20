@@ -1,20 +1,15 @@
-=== PROCESSED: 2025-06-20 10:28:04 ===
-SUCCESS Block 1: Overwrote /Users/stuart/repos/clada/clada/main/components/write/main/core/src/parse.js
+=== PROCESSED: 2025-06-20 10:35:23 ===
+SUCCESS Block 1: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/src/parse.js
 ===
 
 <<<EXPLANATION>>>
-Rewrite parse.js to handle htmlparser2's CDATA representation correctly
+Fix circular reference in debug logging
 <<<FILE>>>
 clada/main/components/write/main/core/src/parse.js
-<<<OVERWRITE>>>
-20250120
-
-/**
- * Parses write XML node to extract path and content
- * @param {Object} node - htmlparser2 node with structure {name, attribs, children}
- * @returns {{ok: true, value: {path: string, content: string}} | {ok: false, error: {type: string, message: string}}}
- */
+<<<SEARCH>>>
 function parseWrite(node) {
+  console.log('DEBUG node:', JSON.stringify(node, null, 2));
+  
   // Validate node structure
   if (!node || !node.attribs) {
     return {
@@ -22,56 +17,19 @@ function parseWrite(node) {
       error: { type: 'malformed_xml', message: 'Invalid node structure' }
     };
   }
-
-  // Check path attribute
-  if (!node.attribs.path) {
-    return {
-      ok: false,
-      error: { type: 'malformed_xml', message: 'Missing required attribute: path' }
-    };
-  }
-
-  if (node.attribs.path === '') {
-    return {
-      ok: false,
-      error: { type: 'path_validation', message: 'Empty path attribute' }
-    };
-  }
-
-  // Check for children
-  if (!node.children || node.children.length === 0) {
-    return {
-      ok: false,
-      error: { type: 'malformed_xml', message: 'Missing content' }
-    };
-  }
-
-  // Check if content is in CDATA
-  // In htmlparser2 with xmlMode, CDATA content appears as text nodes
-  // Non-CDATA text would have been parsed differently
-  const hasTextContent = node.children.some(child => child.type === 'text');
+<<<REPLACE>>>
+function parseWrite(node) {
+  console.log('DEBUG node:', {
+    name: node?.name,
+    attribs: node?.attribs,
+    children: node?.children?.map(c => ({ type: c.type, data: c.data }))
+  });
   
-  if (!hasTextContent) {
+  // Validate node structure
+  if (!node || !node.attribs) {
     return {
       ok: false,
-      error: { type: 'malformed_xml', message: 'Content must be wrapped in CDATA' }
+      error: { type: 'malformed_xml', message: 'Invalid node structure' }
     };
   }
-
-  // Extract all text content
-  const content = node.children
-    .filter(child => child.type === 'text')
-    .map(child => child.data)
-    .join('');
-
-  return {
-    ok: true,
-    value: {
-      path: node.attribs.path,
-      content: content
-    }
-  };
-}
-
-export { parseWrite };
 <<<END>>>

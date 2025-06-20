@@ -6,6 +6,12 @@
  * @returns {{ok: true, value: {path: string, content: string}} | {ok: false, error: {type: string, message: string}}}
  */
 function parseWrite(node) {
+  console.log('DEBUG node:', {
+    name: node?.name,
+    attribs: node?.attribs,
+    children: node?.children?.map(c => ({ type: c.type, data: c.data }))
+  });
+  
   // Validate node structure
   if (!node || !node.attribs) {
     return {

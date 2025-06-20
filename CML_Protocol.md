@@ -203,6 +203,52 @@
 
 ######
 
-IMPORTANT UPDATE --- 
+# CML Protocol Updates
 
-allow multiple matches for search/replace blocks!!!!  if we want to support this, we should makethe LLM stipulate how many matches it is expecting to replace.  and if we find a number that's differnet from that, we abort. 
+## Edit Command Changes
+```xml
+<edit path="file.js" count="3">
+  <search><![CDATA[exact text]]></search>
+  <replace><![CDATA[new text]]></replace>
+</edit>
+```
+- Add optional `count` attribute (default: 1)
+- Error if actual matches != expected count
+- Update error types: `search_not_found` → `match_count_mismatch`
+
+## Path Validation Fix
+Replace "Relative to current working directory" section with:
+- Paths resolved via `path.resolve(workingDir, p)`
+- Validated via `path.relative(workingDir, resolved)`
+- Rejected if relative path starts with `..`
+- Windows paths normalized to forward slashes
+
+## Binary File Handling
+Add to "Not Supported":
+- Binary file operations (read/write/edit)
+- Base64 encoding/decoding
+- Non-UTF8 file content
+
+## Git Integration Clarification
+Replace "Git operations best-effort" with:
+- Git operations abort execution on any failure
+- No automatic conflict resolution
+- Exit code 1 if git commands fail
+
+## Memory Limits
+Add to "Configuration":
+- Document maximum input size: 50MB
+- Fail with `input_too_large` error if exceeded
+
+## Error Types Addition
+| Type | Meaning | Recovery |
+|------|---------|----------|
+| `match_count_mismatch` | Found X matches, expected Y | Adjust count attribute |
+| `input_too_large` | Input exceeds 50MB | Split into smaller batches |
+| `git_operation_failed` | Git command failed | Check git status manually |
+
+## Shell Command Integration
+Add new section:
+- Read operations use whitelisted shell commands
+- See `LLM_COMMANDS_APPROACH.ts` for allowed commands
+- Write operations must use CML syntax only

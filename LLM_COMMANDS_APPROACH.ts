@@ -26,6 +26,10 @@ import yargsParser from 'yargs-parser';
  * - Limited command set (expandable via COMMAND_SPECS)
  * - Some conveniences lost (e.g. can't use "grep -r pattern *")
  * 
+ * Commands here handle most filesystem operations. The exception is search/replace
+ * editing - commands like sed/awk are error-prone for LLMs, so file edits must use
+ * our XML CML syntax instead.
+ * 
  * Why not just use XML for everything?
  * - LLMs trained on vastly more shell examples than custom XML
  * - Read operations are inherently safer than writes

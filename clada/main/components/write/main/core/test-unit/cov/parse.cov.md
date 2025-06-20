@@ -17,7 +17,7 @@ Input:
 ```
 Output:
 ```json
-{"path": "file.txt", "content": "hello"}
+{"ok": true, "value": {"path": "file.txt", "content": "hello"}}
 ```
 
 ### Example 2: Multi-line content
@@ -30,7 +30,7 @@ echo "line 3"]]></write>
 ```
 Output:
 ```json
-{"path": "script.sh", "content": "#!/bin/bash\necho \"line 1\"\necho \"line 2\"\necho \"line 3\""}
+{"ok": true, "value": {"path": "script.sh", "content": "#!/bin/bash\necho \"line 1\"\necho \"line 2\"\necho \"line 3\""}}
 ```
 
 ### Example 3: Empty content
@@ -40,7 +40,7 @@ Input:
 ```
 Output:
 ```json
-{"path": "empty.txt", "content": ""}
+{"ok": true, "value": {"path": "empty.txt", "content": ""}}
 ```
 
 ### Example 4: Content with blank lines
@@ -54,7 +54,7 @@ Second paragraph.]]></write>
 ```
 Output:
 ```json
-{"path": "doc.md", "content": "# Title\n\nFirst paragraph.\n\nSecond paragraph."}
+{"ok": true, "value": {"path": "doc.md", "content": "# Title\n\nFirst paragraph.\n\nSecond paragraph."}}
 ```
 
 ### Example 5: Content with XML-like text
@@ -66,7 +66,7 @@ Input:
 ```
 Output:
 ```json
-{"path": "config.xml", "content": "<root>\n  <item>value</item>\n</root>"}
+{"ok": true, "value": {"path": "config.xml", "content": "<root>\n  <item>value</item>\n</root>"}}
 ```
 
 ### Example 6: Missing path
@@ -76,7 +76,7 @@ Input:
 ```
 Output:
 ```json
-{"error": "malformed_xml", "message": "Missing required attribute: path"}
+{"ok": false, "error": {"type": "malformed_xml", "message": "Missing required attribute: path"}}
 ```
 
 ### Example 7: Empty path
@@ -86,7 +86,7 @@ Input:
 ```
 Output:
 ```json
-{"error": "path_validation", "message": "Empty path attribute"}
+{"ok": false, "error": {"type": "path_validation", "message": "Empty path attribute"}}
 ```
 
 ### Example 8: Non-CDATA content
@@ -96,7 +96,7 @@ Input:
 ```
 Output:
 ```json
-{"error": "malformed_xml", "message": "Content must be wrapped in CDATA"}
+{"ok": false, "error": {"type": "malformed_xml", "message": "Content must be wrapped in CDATA"}}
 ```
 
 ### Example 9: Missing content
@@ -106,5 +106,25 @@ Input:
 ```
 Output:
 ```json
-{"error": "malformed_xml", "message": "Missing content"}
+{"ok": false, "error": {"type": "malformed_xml", "message": "Missing content"}}
+```
+
+### Example 10: Append attribute true
+Input:
+```xml
+<write path="log.txt" append="true"><![CDATA[new line]]></write>
+```
+Output:
+```json
+{"ok": true, "value": {"path": "log.txt", "content": "new line", "append": true}}
+```
+
+### Example 11: Append attribute false
+Input:
+```xml
+<write path="data.txt" append="false"><![CDATA[overwrite]]></write>
+```
+Output:
+```json
+{"ok": true, "value": {"path": "data.txt", "content": "overwrite", "append": false}}
 ```

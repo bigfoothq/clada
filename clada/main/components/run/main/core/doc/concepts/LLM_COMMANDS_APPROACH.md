@@ -1,3 +1,4 @@
+```ts
 import { execFileSync } from 'child_process';
 import { realpathSync, existsSync } from 'fs';
 import * as path from 'path';
@@ -211,3 +212,4 @@ function execute(command: string, args: string[], workingDir: string) {
     return { ok: false, error: e.message };
   }
 }
+```

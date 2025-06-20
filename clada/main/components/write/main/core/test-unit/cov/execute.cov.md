@@ -35,7 +35,7 @@ Context:
 ```
 Output:
 ```json
-{"success": true}
+{"ok": true}
 ```
 
 ### Example 3: Nested directory creation
@@ -49,7 +49,7 @@ Context:
 ```
 Output:
 ```json
-{"success": true}
+{"ok": true}
 ```
 
 ### Example 4: Overwrite existing file
@@ -64,7 +64,7 @@ Context:
 ```
 Output:
 ```json
-{"success": true}
+{"ok": true}
 ```
 
 ### Example 5: Path escape attempt
@@ -78,7 +78,7 @@ Context:
 ```
 Output:
 ```json
-{"error": "path_escape", "message": "Path escapes working directory"}
+{"ok": false, "error": {"type": "path_escape", "message": "Path escapes working directory"}}
 ```
 
 ### Example 6: Absolute path blocked
@@ -92,7 +92,7 @@ Context:
 ```
 Output:
 ```json
-{"error": "path_escape", "message": "Absolute paths not allowed"}
+{"ok": false, "error": {"type": "path_escape", "message": "Absolute paths not allowed"}}
 ```
 
 ### Example 7: Write through symlink
@@ -107,7 +107,7 @@ Context:
 ```
 Output:
 ```json
-{"error": "symlink_not_allowed", "message": "Cannot write through symlink: link.txt"}
+{"ok": false, "error": {"type": "symlink_not_allowed", "message": "Cannot write through symlink: link.txt"}}
 ```
 
 ### Example 8: Permission denied
@@ -122,7 +122,7 @@ Context:
 ```
 Output:
 ```json
-{"error": "permission_denied", "message": "Permission denied: /app/readonly/file.txt"}
+{"ok": false, "error": {"type": "permission_denied", "message": "Permission denied: /app/readonly/file.txt"}}
 ```
 
 ### Example 9: Target is directory
@@ -137,5 +137,15 @@ Context:
 ```
 Output:
 ```json
-{"error": "permission_denied", "message": "Cannot write to directory: existing-dir"}
+{"ok": false, "error": {"type": "permission_denied", "message": "Cannot write to directory: existing-dir"}}
 ```
+
+### Example 10: Append to existing file
+Precondition: `/app/log.txt` exists with content "line1\n"
+Input:
+{"path": "log.txt", "content": "line2\n", "append": true}
+Context:
+{"cwd": "/app", "config": {"allowEscape": false}}
+Output:
+{"ok": true}
+Postcondition: `/app/log.txt` contains "line1\nline2\n"

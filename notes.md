@@ -65,3 +65,26 @@ mv
 rm 
 sed - for single-line stuff only? 
 what else ? 
+
+
+---------
+
+start here:  https://claude.ai/chat/d283ad5e-9348-477c-9aea-94ca8353bb79
+
+we just made the changes but they didnt' all stick:
+
+=== PROCESSED: 2025-06-20 16:38:13 ===
+🚨🚨🚨 ERROR Block 1: 4 matches found in /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/execute.cov.md - ABORTING 🚨🚨🚨
+SUCCESS Block 2: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/execute.cov.md
+SUCCESS Block 3: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/execute.cov.md
+SUCCESS Block 4: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/execute.cov.md
+SUCCESS Block 5: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/parse.cov.md
+SUCCESS Block 6: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/parse.cov.md
+SUCCESS Block 7: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/parse.cov.md
+SUCCESS Block 8: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/parse.cov.md
+SUCCESS Block 9: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/parse.cov.md
+ERROR Block 10: No match found in /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/execute.cov.md
+===
+
+
+let claude know.  fix the changes.  then update the tests and then run them and then update the code only etc. 

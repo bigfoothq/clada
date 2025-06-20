@@ -1,1 +1,0 @@
-// Parse move tasks from DOM

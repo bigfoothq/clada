@@ -1,62 +1,547 @@
-=== PROCESSED: 2025-06-20 10:53:31 ===
-SUCCESS Block 1: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/src/parse.js
-SUCCESS Block 2: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/test/parse.test.js
+=== PROCESSED: 2025-06-20 16:38:13 ===
+🚨🚨🚨 ERROR Block 1: 4 matches found in /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/execute.cov.md - ABORTING 🚨🚨🚨
+SUCCESS Block 2: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/execute.cov.md
+SUCCESS Block 3: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/execute.cov.md
+SUCCESS Block 4: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/execute.cov.md
+SUCCESS Block 5: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/parse.cov.md
+SUCCESS Block 6: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/parse.cov.md
+SUCCESS Block 7: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/parse.cov.md
+SUCCESS Block 8: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/parse.cov.md
+SUCCESS Block 9: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/parse.cov.md
+ERROR Block 10: No match found in /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/execute.cov.md
 ===
 
-The issue: `!node.attribs.path` check treats empty string as falsy.
-
 <<<EXPLANATION>>>
-Fix empty string check
+Fix execute covenant output format to match protocol
+
 <<<FILE>>>
-clada/main/components/write/main/core/src/parse.js
+clada/main/components/write/main/core/test-unit/cov/execute.cov.md
+
 <<<SEARCH>>>
-  // Check path attribute
-  if (!node.attribs.path) {
-    return {
-      ok: false,
-      error: { type: 'malformed_xml', message: 'Missing required attribute: path' }
-    };
-  }
+Output:
+```json
+{"success": true}
+```
 <<<REPLACE>>>
-  // Check path attribute
-  if (!('path' in node.attribs)) {
-    return {
-      ok: false,
-      error: { type: 'malformed_xml', message: 'Missing required attribute: path' }
-    };
-  }
+Output:
+```json
+{"ok": true}
+```
 <<<END>>>
 
 <<<EXPLANATION>>>
-Remove debug from test
+Fix remaining execute success outputs
+
 <<<FILE>>>
-clada/main/components/write/main/core/test-unit/test/parse.test.js
+clada/main/components/write/main/core/test-unit/cov/execute.cov.md
+
 <<<SEARCH>>>
-  it('errors on empty path attribute', () => {
-    const node = xmlToNode('<write path=""><![CDATA[content]]></write>');
-    
-    console.log('TEST NODE:', JSON.stringify({
-      name: node.name,
-      attribs: node.attribs,
-      hasPath: 'path' in node.attribs,
-      pathValue: node.attribs.path,
-      pathType: typeof node.attribs.path,
-      pathLength: node.attribs.path?.length
-    }));
-    
-    const result = parseWrite(node);
-    console.log('RESULT:', result);
-    assert.ok(!result.ok);
-    assert.equal(result.error.type, 'path_validation');
-    assert.match(result.error.message, /Empty path attribute/);
-  });
+### Example 2: Multi-line file
+Input:
+```json
+{"path": "script.py", "content": "#!/usr/bin/env python3\n\ndef main():\n    print('hello')\n\nif __name__ == '__main__':\n    main()"}
+```
+Context:
+```json
+{"cwd": "/app", "config": {"allowEscape": false}}
+```
+Output:
+```json
+{"success": true}
+```
+
+### Example 3: Nested directory creation
+Input:
+```json
+{"path": "a/b/c/file.txt", "content": "deep"}
+```
+Context:
+```json
+{"cwd": "/app", "config": {"allowEscape": false}}
+```
+Output:
+```json
+{"success": true}
+```
+
+### Example 4: Overwrite existing file
+Precondition: `/app/existing.txt` exists with content "old content"
+Input:
+```json
+{"path": "existing.txt", "content": "new content"}
+```
+Context:
+```json
+{"cwd": "/app", "config": {"allowEscape": false}}
+```
+Output:
+```json
+{"success": true}
+```
 <<<REPLACE>>>
-  it('errors on empty path attribute', () => {
-    const node = xmlToNode('<write path=""><![CDATA[content]]></write>');
-    
-    const result = parseWrite(node);
-    assert.ok(!result.ok);
-    assert.equal(result.error.type, 'path_validation');
-    assert.match(result.error.message, /Empty path attribute/);
-  });
+### Example 2: Multi-line file
+Input:
+```json
+{"path": "script.py", "content": "#!/usr/bin/env python3\n\ndef main():\n    print('hello')\n\nif __name__ == '__main__':\n    main()"}
+```
+Context:
+```json
+{"cwd": "/app", "config": {"allowEscape": false}}
+```
+Output:
+```json
+{"ok": true}
+```
+
+### Example 3: Nested directory creation
+Input:
+```json
+{"path": "a/b/c/file.txt", "content": "deep"}
+```
+Context:
+```json
+{"cwd": "/app", "config": {"allowEscape": false}}
+```
+Output:
+```json
+{"ok": true}
+```
+
+### Example 4: Overwrite existing file
+Precondition: `/app/existing.txt` exists with content "old content"
+Input:
+```json
+{"path": "existing.txt", "content": "new content"}
+```
+Context:
+```json
+{"cwd": "/app", "config": {"allowEscape": false}}
+```
+Output:
+```json
+{"ok": true}
+```
+<<<END>>>
+
+<<<EXPLANATION>>>
+Fix execute error output format
+
+<<<FILE>>>
+clada/main/components/write/main/core/test-unit/cov/execute.cov.md
+
+<<<SEARCH>>>
+Output:
+```json
+{"error": "path_escape", "message": "Path escapes working directory"}
+```
+<<<REPLACE>>>
+Output:
+```json
+{"ok": false, "error": {"type": "path_escape", "message": "Path escapes working directory"}}
+```
+<<<END>>>
+
+<<<EXPLANATION>>>
+Fix remaining execute error outputs
+
+<<<FILE>>>
+clada/main/components/write/main/core/test-unit/cov/execute.cov.md
+
+<<<SEARCH>>>
+### Example 6: Absolute path blocked
+Input:
+```json
+{"path": "/etc/passwd", "content": "hacked"}
+```
+Context:
+```json
+{"cwd": "/app", "config": {"allowEscape": false}}
+```
+Output:
+```json
+{"error": "path_escape", "message": "Absolute paths not allowed"}
+```
+
+### Example 7: Write through symlink
+Precondition: `/app/link.txt` is symlink to `/etc/secret`
+Input:
+```json
+{"path": "link.txt", "content": "data"}
+```
+Context:
+```json
+{"cwd": "/app", "config": {"allowEscape": false}}
+```
+Output:
+```json
+{"error": "symlink_not_allowed", "message": "Cannot write through symlink: link.txt"}
+```
+
+### Example 8: Permission denied
+Precondition: `/app/readonly/` directory has mode 0555 (no write permission)
+Input:
+```json
+{"path": "readonly/file.txt", "content": "data"}
+```
+Context:
+```json
+{"cwd": "/app", "config": {"allowEscape": false}}
+```
+Output:
+```json
+{"error": "permission_denied", "message": "Permission denied: /app/readonly/file.txt"}
+```
+
+### Example 9: Target is directory
+Precondition: `/app/existing-dir/` is a directory
+Input:
+```json
+{"path": "existing-dir", "content": "data"}
+```
+Context:
+```json
+{"cwd": "/app", "config": {"allowEscape": false}}
+```
+Output:
+```json
+{"error": "permission_denied", "message": "Cannot write to directory: existing-dir"}
+```
+<<<REPLACE>>>
+### Example 6: Absolute path blocked
+Input:
+```json
+{"path": "/etc/passwd", "content": "hacked"}
+```
+Context:
+```json
+{"cwd": "/app", "config": {"allowEscape": false}}
+```
+Output:
+```json
+{"ok": false, "error": {"type": "path_escape", "message": "Absolute paths not allowed"}}
+```
+
+### Example 7: Write through symlink
+Precondition: `/app/link.txt` is symlink to `/etc/secret`
+Input:
+```json
+{"path": "link.txt", "content": "data"}
+```
+Context:
+```json
+{"cwd": "/app", "config": {"allowEscape": false}}
+```
+Output:
+```json
+{"ok": false, "error": {"type": "symlink_not_allowed", "message": "Cannot write through symlink: link.txt"}}
+```
+
+### Example 8: Permission denied
+Precondition: `/app/readonly/` directory has mode 0555 (no write permission)
+Input:
+```json
+{"path": "readonly/file.txt", "content": "data"}
+```
+Context:
+```json
+{"cwd": "/app", "config": {"allowEscape": false}}
+```
+Output:
+```json
+{"ok": false, "error": {"type": "permission_denied", "message": "Permission denied: /app/readonly/file.txt"}}
+```
+
+### Example 9: Target is directory
+Precondition: `/app/existing-dir/` is a directory
+Input:
+```json
+{"path": "existing-dir", "content": "data"}
+```
+Context:
+```json
+{"cwd": "/app", "config": {"allowEscape": false}}
+```
+Output:
+```json
+{"ok": false, "error": {"type": "permission_denied", "message": "Cannot write to directory: existing-dir"}}
+```
+<<<END>>>
+
+<<<EXPLANATION>>>
+Fix parse covenant success output format
+
+<<<FILE>>>
+clada/main/components/write/main/core/test-unit/cov/parse.cov.md
+
+<<<SEARCH>>>
+Output:
+```json
+{"path": "file.txt", "content": "hello"}
+```
+<<<REPLACE>>>
+Output:
+```json
+{"ok": true, "value": {"path": "file.txt", "content": "hello"}}
+```
+<<<END>>>
+
+<<<EXPLANATION>>>
+Fix remaining parse success outputs
+
+<<<FILE>>>
+clada/main/components/write/main/core/test-unit/cov/parse.cov.md
+
+<<<SEARCH>>>
+### Example 2: Multi-line content
+Input:
+```xml
+<write path="script.sh"><![CDATA[#!/bin/bash
+echo "line 1"
+echo "line 2"
+echo "line 3"]]></write>
+```
+Output:
+```json
+{"path": "script.sh", "content": "#!/bin/bash\necho \"line 1\"\necho \"line 2\"\necho \"line 3\""}
+```
+
+### Example 3: Empty content
+Input:
+```xml
+<write path="empty.txt"><![CDATA[]]></write>
+```
+Output:
+```json
+{"path": "empty.txt", "content": ""}
+```
+
+### Example 4: Content with blank lines
+Input:
+```xml
+<write path="doc.md"><![CDATA[# Title
+
+First paragraph.
+
+Second paragraph.]]></write>
+```
+Output:
+```json
+{"path": "doc.md", "content": "# Title\n\nFirst paragraph.\n\nSecond paragraph."}
+```
+
+### Example 5: Content with XML-like text
+Input:
+```xml
+<write path="config.xml"><![CDATA[<root>
+  <item>value</item>
+</root>]]></write>
+```
+Output:
+```json
+{"path": "config.xml", "content": "<root>\n  <item>value</item>\n</root>"}
+```
+<<<REPLACE>>>
+### Example 2: Multi-line content
+Input:
+```xml
+<write path="script.sh"><![CDATA[#!/bin/bash
+echo "line 1"
+echo "line 2"
+echo "line 3"]]></write>
+```
+Output:
+```json
+{"ok": true, "value": {"path": "script.sh", "content": "#!/bin/bash\necho \"line 1\"\necho \"line 2\"\necho \"line 3\""}}
+```
+
+### Example 3: Empty content
+Input:
+```xml
+<write path="empty.txt"><![CDATA[]]></write>
+```
+Output:
+```json
+{"ok": true, "value": {"path": "empty.txt", "content": ""}}
+```
+
+### Example 4: Content with blank lines
+Input:
+```xml
+<write path="doc.md"><![CDATA[# Title
+
+First paragraph.
+
+Second paragraph.]]></write>
+```
+Output:
+```json
+{"ok": true, "value": {"path": "doc.md", "content": "# Title\n\nFirst paragraph.\n\nSecond paragraph."}}
+```
+
+### Example 5: Content with XML-like text
+Input:
+```xml
+<write path="config.xml"><![CDATA[<root>
+  <item>value</item>
+</root>]]></write>
+```
+Output:
+```json
+{"ok": true, "value": {"path": "config.xml", "content": "<root>\n  <item>value</item>\n</root>"}}
+```
+<<<END>>>
+
+<<<EXPLANATION>>>
+Fix parse error output format
+
+<<<FILE>>>
+clada/main/components/write/main/core/test-unit/cov/parse.cov.md
+
+<<<SEARCH>>>
+Output:
+```json
+{"error": "malformed_xml", "message": "Missing required attribute: path"}
+```
+<<<REPLACE>>>
+Output:
+```json
+{"ok": false, "error": {"type": "malformed_xml", "message": "Missing required attribute: path"}}
+```
+<<<END>>>
+
+<<<EXPLANATION>>>
+Fix remaining parse error outputs
+
+<<<FILE>>>
+clada/main/components/write/main/core/test-unit/cov/parse.cov.md
+
+<<<SEARCH>>>
+### Example 7: Empty path
+Input:
+```xml
+<write path=""><![CDATA[content]]></write>
+```
+Output:
+```json
+{"error": "path_validation", "message": "Empty path attribute"}
+```
+
+### Example 8: Non-CDATA content
+Input:
+```xml
+<write path="file.txt">raw content</write>
+```
+Output:
+```json
+{"error": "malformed_xml", "message": "Content must be wrapped in CDATA"}
+```
+
+### Example 9: Missing content
+Input:
+```xml
+<write path="file.txt"></write>
+```
+Output:
+```json
+{"error": "malformed_xml", "message": "Missing content"}
+```
+<<<REPLACE>>>
+### Example 7: Empty path
+Input:
+```xml
+<write path=""><![CDATA[content]]></write>
+```
+Output:
+```json
+{"ok": false, "error": {"type": "path_validation", "message": "Empty path attribute"}}
+```
+
+### Example 8: Non-CDATA content
+Input:
+```xml
+<write path="file.txt">raw content</write>
+```
+Output:
+```json
+{"ok": false, "error": {"type": "malformed_xml", "message": "Content must be wrapped in CDATA"}}
+```
+
+### Example 9: Missing content
+Input:
+```xml
+<write path="file.txt"></write>
+```
+Output:
+```json
+{"ok": false, "error": {"type": "malformed_xml", "message": "Missing content"}}
+```
+<<<END>>>
+
+<<<EXPLANATION>>>
+Fix parse append output format
+
+<<<FILE>>>
+clada/main/components/write/main/core/test-unit/cov/parse.cov.md
+
+<<<SEARCH>>>
+### Example 10: Append attribute
+Input:
+<write path="log.txt" append="true"><![CDATA[new line]]></write>
+Output:
+{"path": "log.txt", "content": "new line", "append": true}
+<<<REPLACE>>>
+### Example 10: Append attribute true
+Input:
+```xml
+<write path="log.txt" append="true"><![CDATA[new line]]></write>
+```
+Output:
+```json
+{"ok": true, "value": {"path": "log.txt", "content": "new line", "append": true}}
+```
+
+### Example 11: Append attribute false
+Input:
+```xml
+<write path="data.txt" append="false"><![CDATA[overwrite]]></write>
+```
+Output:
+```json
+{"ok": true, "value": {"path": "data.txt", "content": "overwrite", "append": false}}
+```
+<<<END>>>
+
+<<<EXPLANATION>>>
+Fix execute append output format
+
+<<<FILE>>>
+clada/main/components/write/main/core/test-unit/cov/execute.cov.md
+
+<<<SEARCH>>>
+Output:
+```json
+{"ok": true}
+```
+Postcondition: `/app/log.txt` contains "line1\nline2\n"
+<<<REPLACE>>>
+Output:
+```json
+{"ok": true}
+```
+Postcondition: `/app/log.txt` contains "line1\nline2\n"
+
+### Example 11: Append to non-existent file
+Input:
+```json
+{"path": "new-log.txt", "content": "first line\n", "append": true}
+```
+Context:
+```json
+{"cwd": "/app", "config": {"allowEscape": false}}
+```
+Output:
+```json
+{"ok": true}
+```
+Postcondition: `/app/new-log.txt` contains "first line\n"
 <<<END>>>

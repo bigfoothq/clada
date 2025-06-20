@@ -26,7 +26,7 @@ so we need to parse the xml, get our tree of commands, and then execute them.
 supported commands:
 
 edit        
-    - use search/replace blocks. ideally, matches intended text perfectly.  but we'll do a tiny bit of fuzzy search if needed
+    - use search/replace blocks. ideally, matches intended text perfectly.  if that fails we'll try a no-whitespace search to see if htat helps
     - search block can be one complete search block, or it can support two search blocks (search-head and search-tail) to match huge text blocks without having to waste time and tokens listing out every single character in between 
 overwrite  
     -(creates file and path if needed)

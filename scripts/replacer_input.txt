@@ -1,0 +1,125 @@
+=== PROCESSED: 2025-06-19 21:50:31 ===
+SUCCESS Block 1: Updated /Users/stuart/repos/clada/clada/shared/doc/TYPES.md
+SUCCESS Block 2: Updated /Users/stuart/repos/clada/clada/shared/doc/TYPES.md
+SUCCESS Block 3: Updated /Users/stuart/repos/clada/clada/shared/doc/TYPES.md
+SUCCESS Block 4: Updated /Users/stuart/repos/clada/clada/shared/doc/TYPES.md
+SUCCESS Block 5: Updated /Users/stuart/repos/clada/clada/shared/doc/TYPES.md
+===
+
+<<<EXPLANATION>>>
+
+Removing overengineered position tracking since htmlparser2 doesn't provide line/column data and the protocol doesn't require it in error messages.
+
+<<<FILE>>>
+
+clada/shared/doc/TYPES.md
+
+<<<SEARCH>>>
+// Base fields for all tasks
+type TaskBase = {
+  blockIndex?: number      // <tasks> block index (undefined = standalone)
+  taskIndex: number        // Global 1-based numbering for display
+  position: {              // Source location for error reporting
+    line: number
+    column: number
+  }
+}
+<<<REPLACE>>>
+// Base fields for all tasks
+type TaskBase = {
+  blockIndex?: number      // <tasks> block index (undefined = standalone)
+  taskIndex: number        // 0-based internal (display adds 1)
+  node: Element           // DOM node for --error-detail=full
+}
+<<<END>>>
+
+
+<<<EXPLANATION>>>
+
+Removing duration tracking and simplifying TaskResult since protocol doesn't include timing information in output format.
+
+<<<FILE>>>
+
+clada/shared/doc/TYPES.md
+
+<<<SEARCH>>>
+type TaskResult = {
+  taskIndex: number
+  duration: number        // milliseconds
+} & (
+  | {ok: true}
+  | {ok: false, error: ErrorCode, message: string}
+)
+<<<REPLACE>>>
+type TaskResult = {
+  taskIndex: number
+} & (
+  | {ok: true}
+  | {ok: false, error: ErrorCode, message: string}
+)
+<<<END>>>
+
+
+<<<EXPLANATION>>>
+
+Simplifying execution state to only track mutable working directory. Environment is inherited read-only per protocol.
+
+<<<FILE>>>
+
+clada/shared/doc/TYPES.md
+
+<<<SEARCH>>>
+type ExecutionState = {
+  cwd: string            // Current working directory
+  env: NodeJS.ProcessEnv // Process environment
+  startTime: number      // Process.hrtime.bigint()
+}
+<<<REPLACE>>>
+type ExecutionState = {
+  cwd: string            // Current working directory (only mutable state)
+}
+<<<END>>>
+
+
+<<<EXPLANATION>>>
+
+Adding output handler interface for streaming stdout with task prefixes as required by protocol.
+
+<<<FILE>>>
+
+clada/shared/doc/TYPES.md
+
+<<<SEARCH>>>
+type ExecutionState = {
+  cwd: string            // Current working directory (only mutable state)
+}
+<<<REPLACE>>>
+type ExecutionState = {
+  cwd: string            // Current working directory (only mutable state)
+}
+
+type OutputHandler = {
+  write(taskIndex: number, text: string): void  // Handles [task-N:exec] prefixing
+  error(taskIndex: number, error: ErrorCode, message: string): void
+}
+<<<END>>>
+
+
+<<<EXPLANATION>>>
+
+Adding execution-specific result types for run commands since they need exit codes and truncation status.
+
+<<<FILE>>>
+
+clada/shared/doc/TYPES.md
+
+<<<SEARCH>>>
+type Config = {
+<<<REPLACE>>>
+type RunResult = {
+  exitCode: number
+  truncated: boolean
+}
+
+type Config = {
+<<<END>>>

@@ -6,12 +6,6 @@
  * @returns {{ok: true, value: {path: string, content: string}} | {ok: false, error: {type: string, message: string}}}
  */
 function parseWrite(node) {
-  console.log('DEBUG node:', {
-    name: node?.name,
-    attribs: node?.attribs,
-    children: node?.children?.map(c => ({ type: c.type, data: c.data }))
-  });
-  
   // Validate node structure
   if (!node || !node.attribs) {
     return {
@@ -21,7 +15,7 @@ function parseWrite(node) {
   }
 
   // Check path attribute
-  if (!node.attribs.path) {
+  if (!('path' in node.attribs)) {
     return {
       ok: false,
       error: { type: 'malformed_xml', message: 'Missing required attribute: path' }
@@ -43,23 +37,34 @@ function parseWrite(node) {
     };
   }
 
-  // Check if content is in CDATA
-  // In htmlparser2 with xmlMode, CDATA content appears as text nodes
-  // Non-CDATA text would have been parsed differently
-  const hasTextContent = node.children.some(child => child.type === 'text');
-  
-  if (!hasTextContent) {
+  // Check for CDATA content first
+  const cdataNode = node.children.find(child => child.type === 'cdata');
+  if (!cdataNode) {
+    // Check if it's raw text content (not allowed)
+    const textNode = node.children.find(child => child.type === 'text');
+    if (textNode) {
+      return {
+        ok: false,
+        error: { type: 'malformed_xml', message: 'Content must be wrapped in CDATA' }
+      };
+    }
+    // No content at all
     return {
       ok: false,
       error: { type: 'malformed_xml', message: 'Content must be wrapped in CDATA' }
     };
   }
 
-  // Extract all text content
-  const content = node.children
-    .filter(child => child.type === 'text')
-    .map(child => child.data)
-    .join('');
+  // Extract content from CDATA node
+  let content = '';
+  if (cdataNode) {
+    // For CDATA nodes, the content is in the children as text nodes
+    const cdataChildren = cdataNode.children || [];
+    content = cdataChildren
+      .filter(child => child.type === 'text')
+      .map(child => child.data || '')
+      .join('');
+  }
 
   return {
     ok: true,

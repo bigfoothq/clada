@@ -52,3 +52,4 @@ Clada executes supported filesystem and runtime commands embedded in LLM output.
 - No dependency declaration between blocks
 - Memory scales with input size
 - Binary file support undefined
+

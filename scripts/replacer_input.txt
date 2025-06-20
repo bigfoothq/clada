@@ -1,35 +1,62 @@
-=== PROCESSED: 2025-06-20 10:35:23 ===
+=== PROCESSED: 2025-06-20 10:53:31 ===
 SUCCESS Block 1: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/src/parse.js
+SUCCESS Block 2: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/test/parse.test.js
 ===
 
+The issue: `!node.attribs.path` check treats empty string as falsy.
+
 <<<EXPLANATION>>>
-Fix circular reference in debug logging
+Fix empty string check
 <<<FILE>>>
 clada/main/components/write/main/core/src/parse.js
 <<<SEARCH>>>
-function parseWrite(node) {
-  console.log('DEBUG node:', JSON.stringify(node, null, 2));
-  
-  // Validate node structure
-  if (!node || !node.attribs) {
+  // Check path attribute
+  if (!node.attribs.path) {
     return {
       ok: false,
-      error: { type: 'malformed_xml', message: 'Invalid node structure' }
+      error: { type: 'malformed_xml', message: 'Missing required attribute: path' }
     };
   }
 <<<REPLACE>>>
-function parseWrite(node) {
-  console.log('DEBUG node:', {
-    name: node?.name,
-    attribs: node?.attribs,
-    children: node?.children?.map(c => ({ type: c.type, data: c.data }))
-  });
-  
-  // Validate node structure
-  if (!node || !node.attribs) {
+  // Check path attribute
+  if (!('path' in node.attribs)) {
     return {
       ok: false,
-      error: { type: 'malformed_xml', message: 'Invalid node structure' }
+      error: { type: 'malformed_xml', message: 'Missing required attribute: path' }
     };
   }
+<<<END>>>
+
+<<<EXPLANATION>>>
+Remove debug from test
+<<<FILE>>>
+clada/main/components/write/main/core/test-unit/test/parse.test.js
+<<<SEARCH>>>
+  it('errors on empty path attribute', () => {
+    const node = xmlToNode('<write path=""><![CDATA[content]]></write>');
+    
+    console.log('TEST NODE:', JSON.stringify({
+      name: node.name,
+      attribs: node.attribs,
+      hasPath: 'path' in node.attribs,
+      pathValue: node.attribs.path,
+      pathType: typeof node.attribs.path,
+      pathLength: node.attribs.path?.length
+    }));
+    
+    const result = parseWrite(node);
+    console.log('RESULT:', result);
+    assert.ok(!result.ok);
+    assert.equal(result.error.type, 'path_validation');
+    assert.match(result.error.message, /Empty path attribute/);
+  });
+<<<REPLACE>>>
+  it('errors on empty path attribute', () => {
+    const node = xmlToNode('<write path=""><![CDATA[content]]></write>');
+    
+    const result = parseWrite(node);
+    assert.ok(!result.ok);
+    assert.equal(result.error.type, 'path_validation');
+    assert.match(result.error.message, /Empty path attribute/);
+  });
 <<<END>>>

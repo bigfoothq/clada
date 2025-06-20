@@ -40,3 +40,28 @@ clada/components/write/test-unit/test/parse.test.js
 ```
 
 But if you've already established this deeper structure, the tests should follow it. The key question: does `write/main/core/` contain the actual parser/executor implementations? If so, the test location makes sense - tests live near the code they test.
+
+############################
+############################
+############################
+############################
+############################
+############################
+############################
+
+
+
+$$$$$$$$$$$$$$$$
+
+update -- need a way for LLM to request file contents.  or is that outside the scope of clada?  context bundling is the bigfoot0 beast.  but clada maybe needs to just actuate LLM commands.  not handle feedback back to LLM.
+
+but clada is the one outputting stuff for the LLM to read... like test run failures.... so maybe actually this is clada territory... basic responses.... but should we have our own custom command for 'cat' ?  or just tell LLM it can do 'cat'???
+
+but honestly this also goes for mv, rm, ... seems like we should jsut let the LLM dothese commands.  and we can just make sure its' not doing anythnig weird like piping or whatever:
+
+grep 
+cat
+mv 
+rm 
+sed - for single-line stuff only? 
+what else ? 

@@ -310,3 +310,7 @@ When building new systems, resist documenting all components upfront. Instead:
 - Refactor shared contracts after 2-3 components exist
 
 This prevents analysis paralysis while maintaining CDD's architectural clarity.
+
+##############
+
+TEST RUNNER: use node.js test runner. DO NOT USE JEST

@@ -13,7 +13,7 @@ Covenant-Driven Development (CDD) enables 100% LLM-generated codebases through f
 
 **Test-Driven Structure**: Unit tests live with code, integration tests at boundaries. Tests generated from covenants become frozen truth.
 
-**Hierarchical Visibility**: Parents visible to children, siblings isolated. Components see shared utilities and parent docs, not each other.
+**Hierarchical Visibility**: Dependencies flow downward. Core sees components, components see only shared. Siblings isolated. No circular dependencies.
 
 **Single Source of Truth**: Each piece of information lives in exactly one place.
 
@@ -23,14 +23,16 @@ This enables LLMs to read, write, test, and maintain entire codebases through cl
 
 ```
 myproject/
-├── shared/                           # Dependency-free utilities
+├── shared/                          # Zero-dependency foundation (types, utilities, constants)
 │   ├── doc/
 │   │   ├── ABSTRACT.md              # purpose (< 60 words) and overview (< 300 words)
 │   │   ├── API.md                   # Public functions available
 │   │   └── TYPES.md                 # Shared data structures
 │   ├── src/
 │   │   ├── validation.js
-│   │   └── formatting.js
+│   │   ├── formatting.js
+│   │   ├── constants.js             # Project-wide constants
+│   │   └── types.js                 # Type definitions/schemas
 │   └── test-unit/
 │       ├── cov/
 │       │   ├── validation.cov.md    # Frozen behavior contracts
@@ -38,9 +40,8 @@ myproject/
 │       └── test/
 │           ├── validation.test.js   # Generated from covenants
 │           └── formatting.test.js
-│
 └── main/
-    ├── core/                        # Parent-level documentation and logic
+    ├── core/                        # Orchestration layer that uses components
     │   ├── doc/
     │   │   ├── ABSTRACT.md          # purpose (< 60 words) and overview (< 300 words)
     │   │   ├── STORY.md             # End-to-end user journeys
@@ -63,7 +64,7 @@ myproject/
     │           ├── orchestrator.test.js
     │           └── router.test.js
     │
-    ├── components/
+    ├── components/                  # Feature implementations, depend only on shared/
     │   ├── auth/                    # Example component
     │   │   ├── shared/              # Component-local utilities
     │   │   │   ├── doc/
@@ -103,15 +104,15 @@ The structure enforces natural visibility boundaries:
    - `shared/` directories contain dependency-free utilities
    - Visible to all code at their level and below
    - Cannot depend on components
-
+   
 2. **Core visibility**:
-   - `core/` documentation is visible to all components at that level
-   - Components can see parent `core/doc/` but not sibling components
-   - Core cannot see into components
+   - `core/` orchestrates components and can import from them
+   - `core/` documentation describes system architecture and component interactions
+   - Components cannot see or import from `core/` (prevents circular dependencies)
 
 3. **Component isolation**:
    - Components are isolated from siblings
-   - Can only see their own content and parent core docs
+   - Can only see their own content and `shared/`
    - Nested components inherit parent component context
 
 4. **Test boundaries**:
@@ -119,198 +120,119 @@ The structure enforces natural visibility boundaries:
    - `test-intn/` tests interactions between components
    - Tests live as close as possible to what they test
 
-## Workflow
+## Covenants
 
-- Iterate:
-   1. **Explore** → Create rough ideas in optional work directories
-   2. **Define** → Write documentation in `doc/` directories
-   3. **Hone** → iteratively build documentation for all required components until everything makes sense for the entire component
-   4. **Specify** → Create covenants in `test-unit/cov/` with examples
-   5. **Generate Tests** → Create tests from covenants in `test-unit/test/`
-   6. **Implement** → Write code in `src/` to pass frozen tests
-   7. **Integrate** → Add integration tests in `test-intn/`
+Covenants are behavioral contracts that specify function signatures and example input/output pairs. They define what code must do without prescribing how.
 
-repeat steps 1-7 as needed while developing the tool to precise specifications and as high level requirements change   
-
-# covenant
-
-the covs.  its like a high level code instructions.... like specificy function signatures or class interface for code we need to make, and then list some example inputs /outputs that we expect
-
-$$$$$$$$$$$$$$$$$$
-
-## Types in CDD Workflow
-
-**Problem**: Types files (TYPES.md) create circular dependencies when written before implementation. You need code to know what types you need, but feel you need types to write code.
-
-**Solution**: Types emerge from implementation, not precede it.
-
-### When to Write TYPES.md
-
-1. **Never during initial development** - Write inline types in implementation files
-2. **After first working version** - Extract truly shared types 
-3. **Only for cross-component contracts** - Not internal implementation details
-
-### Type Development Workflow
-
+Example covenant:
+```markdown
+parseEdit(xmlNode) → {path: string, search: string, replace: string}
+- parseEdit(<edit path="src/main.js"><search>foo</search><replace>bar</replace></edit>) → {path: "src/main.js", search: "foo", replace: "bar"}
+- parseEdit(<edit path="test.py"><search>old</search><replace>new</replace></edit>) → {path: "test.py", search: "old", replace: "new"}
 ```
+
+Covenants freeze behavior after implementation is complete. During development, refine them as needed.
+
+## Types in CDD
+
+Types emerge from implementation. Write code first, extract types after patterns appear.
+
+### Workflow
+
 1. Write covenant (behavior spec)
-   edit.cov.md: "parseEdit extracts path, search, replace from XML node"
-   
-2. Implement with inline types
-   // edit/src/parser.ts
-   export function parseEdit(node: any) {  // 'any' is fine initially
+   ```markdown
+   parseEdit extracts path, search, replace from XML node
+   ```
+
+2. Implement with minimal types
+   ```typescript
+   export function parseEdit(node: any) {
      return {
        path: node.getAttribute('path'),
        search: extractCDATA(node, 'search'),
        replace: extractCDATA(node, 'replace')
      }
    }
+   ```
 
-3. Add types where needed
-   type EditFields = {path: string, search: string, replace: string}
-   export function parseEdit(node: any): EditFields { ... }
+3. Add types as needed
+   ```typescript
+   type EditTask = {path: string, search: string, replace: string}
+   export function parseEdit(node: any): EditTask { ... }
+   ```
 
-4. Extract shared types after multiple components exist
-   // Only if edit, write, move all need TaskBase
-   // shared/doc/TYPES.md
+4. Extract shared types after duplication
+   ```typescript
+   // shared/doc/TYPES.md - only after multiple components need it
    type TaskBase = {globalIndex: number, blockIndex?: number}
-```
-
-### Anti-patterns
-
-- Writing types for entire execution flow before any code exists
-- Predicting all error cases and states upfront  
-- Creating "complete" type hierarchies speculatively
-- Conflating behavioral contracts (covenants) with implementation types
-
-### Critical Insight
-
-Covenants describe **what** (behavior), not **how** (implementation). Types are implementation details that emerge during coding, not architectural decisions that precede it.
-
-**Counter-argument**: Strong typing from the start catches design flaws early. However, in practice this leads to over-engineering and analysis paralysis, as seen in your TYPES.md iterations. Better to have working code with loose types than perfect types with no code.
-
-> how do you feel about this?  is it what we've learned? would this approach have helped us?
-
-## Assessment
-
-This approach would have prevented the specific pain we experienced, but it's incomplete.
-
-## What Actually Happened
-
-1. We conflated **protocol types** (CML's 8 errors) with **implementation types** (internal error handling)
-2. We tried to model the entire execution pipeline abstractly instead of building one operation
-3. We got trapped debating `Element` vs `rawXml` without any code using either
-
-## Would This Have Helped?
-
-Partially. Starting with `write` component would have revealed:
-- No need for complex error hierarchies initially
-- `node: any` works fine until you need specific methods
-- Most "shared" types aren't actually shared
-
-But it misses key insights:
-
-## Missing Guidance
-
-1. **Protocol boundaries need types first** - The CML protocol defines exact input/output shapes. These contracts should be typed immediately, not discovered.
-
-2. **Component interfaces require early typing** - If orchestrator will call `parseEdit()`, that signature matters upfront.
-
-3. **The real problem wasn't timing** - It was scope. We tried typing the entire application flow instead of component boundaries.
-
-## Better Framing
-
-Instead of "types emerge from code," distinguish:
-- **Contract types**: Protocol boundaries, component interfaces → Define early
-- **Implementation types**: Internal state, helpers → Emerge from code
-- **Shared types**: Cross-component data → Extract after duplication appears
-
-Our mistake wasn't writing types early - it was writing the wrong types (implementation details) instead of the right types (component contracts).
-
-> ok so try again with a new section to add to CDD.md to help future users based on what we've learned.
-
-
-## Types in CDD: Contract vs Implementation
-
-**Problem**: Type definitions can create analysis paralysis when scope is unclear. Writing types for unwritten code forces premature decisions about implementation details.
-
-**Solution**: Distinguish contract types from implementation types.
-
-### Contract Types (Define Early)
-
-1. **Protocol boundaries** - External interfaces that won't change
-   ```typescript
-   // shared/doc/PROTOCOL_TYPES.md
-   type ProtocolError = 'search_not_found' | 'file_not_found' | ...
-   type CMLResult = {blocks: number, tasks: number, ...}
    ```
 
-2. **Component interfaces** - How components interact
-   ```typescript
-   // edit/doc/API.md
-   function parseEdit(node: XMLNode): ParsedEdit | ParseError
-   function executeEdit(task: ParsedEdit, ctx: Context): Result
-   ```
+### Rules
 
-3. **Shared data structures** - Cross-component contracts
-   ```typescript
-   // shared/doc/TYPES.md  
-   type ExecutionContext = {cwd: string, config: Config}
-   ```
+- Never write TYPES.md before implementation
+- Use `any` liberally in first draft
+- Extract types only when shared across components
+- Keep implementation-specific types inline
 
-### Implementation Types (Emerge from Code)
+### Exception
+External protocol types (XML schemas, API contracts, error codes) defined upfront in `shared/doc/TYPES.md` before implementation.
 
-- Internal state representations
-- Helper function signatures  
-- Intermediate processing types
-- Error class hierarchies
+## Development Workflow
 
-### Workflow
+### System Design Phase
+1. Write `main/core/doc/ABSTRACT.md` - what system does
+2. Write `main/core/doc/STORY.md` - key user journeys  
+3. Sketch `main/core/doc/ARCH.md` - list components and their one-sentence responsibilities. No details, no how, just what. Example: "auth: validates user credentials"
+4. If external API/protocol has immutable spec (like XML schema, REST endpoints, error codes), define those types in `shared/doc/TYPES.md`. Skip all internal types - they emerge during implementation.
 
-1. **Define contract types** from protocol/API specifications
-2. **Implement with inline types** using `any` for unknowns
-3. **Refine types** as implementation reveals requirements
-4. **Extract shared types** only after duplication appears across components
-
-### Anti-pattern Recognition
-
-You're over-engineering types when:
-- Debating internal representations before writing code
-- Creating abstract type hierarchies without concrete usage
-- Trying to model entire execution flows upfront
-- Spending more time on types than implementation
-
-### Key Insight
-
-Contract types are promises to other components - define them early. Implementation types are internal details - let them emerge. This distinction prevents both under-typing (missing contracts) and over-typing (premature abstraction).
-
-##############
-
-## Incremental Development
-
-When building new systems, resist documenting all components upfront. Instead:
-
-### Component-First Iteration
-1. Pick ONE component (simplest first)
-2. Write minimal docs (ABSTRACT.md only)
-3. Write minimal covenant (3-5 examples)
-4. Generate tests
-5. Implement until tests pass
-6. Extract shared types/utilities only after duplication appears
-7. Repeat for next component
+### Component-First Implementation
+1. Pick ONE component from ARCH.md
+2. Write component ABSTRACT.md
+3. Create covenant (3-5 examples)
+4. Generate tests from covenant
+5. Implement with `any` types
+6. Extract to shared/ after duplication - when same function/type appears in 2+ components, move to shared/. Don't anticipate reuse.
+7. Write integration tests when component interacts with others
+8. Repeat for next component
 
 ### Documentation Debt
-- Keep a `doc/DEBT.md` listing known gaps
-- Fill documentation after implementation stabilizes
-- Shared docs (ARCH.md, TYPES.md) emerge from patterns, not speculation
+- Keep `main/core/doc/DEBT.md` listing gaps: missing component docs, unclear interfaces, temporary hacks
+- Update during implementation when you skip documentation
+- Review after each component to fill critical gaps
+- Accept that docs grow iteratively - full documentation comes after working code
 
-### Integration Points
-- Define component interfaces minimally (function signatures only)
-- Let orchestration patterns emerge from component integration
-- Refactor shared contracts after 2-3 components exist
+### Integration Phase
+- Update ARCH.md with real patterns
+- Add integration tests
+- Extract shared types/utilities
 
-This prevents analysis paralysis while maintaining CDD's architectural clarity.
+Key: Design identifies components. Implementation reveals types.
 
-##############
+## Common Pitfalls
 
-TEST RUNNER: use node.js test runner. DO NOT USE JEST
+### Over-Engineering Types
+- **Wrong**: Modeling entire execution flow before any code exists
+- **Right**: Define protocol boundaries, let implementation types emerge
+
+### Premature Abstraction
+- **Wrong**: Creating shared utilities speculatively
+- **Right**: Extract to shared/ only after duplication in 2+ components
+
+### Documentation Paralysis
+- **Wrong**: Writing complete ARCH.md before building anything
+- **Right**: Start with ABSTRACT.md, grow docs as system grows
+
+### Circular Dependencies
+- **Wrong**: Components importing from core/
+- **Right**: Core imports components, components import only shared/
+
+### Type Scope Confusion
+- **Wrong**: Debating internal representations (`Element` vs `rawXml`) without implementation
+- **Right**: Use `any`, refine types as implementation reveals needs
+
+## Test Runner
+- Use Node.js built-in test runner. Do not use Jest, Mocha, or other frameworks.
+
+## Debugging process 
+
+so the workflow is we write the cov, then the test, then the code.  and the we run the tests and we'll probably get errors we have to sort through.  VERY IMPORTANT:  during this debugging process, DO NOT ALLOW EDITS ON THE TESTS THEMSELVES.  except under explicit manual human approval.  only stuff like getting things to like compile or import properly etc.  but any changes to business logic kinda stuff may ONLY happen to the implemented code file, not the test.  any automated pipeline must explicity block changes to the tests during this debugging process.

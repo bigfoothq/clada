@@ -1,9 +1,9 @@
 20250119
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { parseWrite } = require('../../src/parser');
-const { parseDocument } = require('htmlparser2');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { parseWrite } from '../../src/parse.js';
+import { parseDocument } from 'htmlparser2';
 
 /**
  * Parse XML string to node using htmlparser2

@@ -1,0 +1,12 @@
+{
+  "name": "clada",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "test:write": "node --test 'clada/main/components/write/main/core/test-unit/test/*.test.js'"
+  },
+  "dependencies": {
+    "htmlparser2": "^10.0.0"
+  }
+}

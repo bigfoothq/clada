@@ -283,3 +283,30 @@ You're over-engineering types when:
 ### Key Insight
 
 Contract types are promises to other components - define them early. Implementation types are internal details - let them emerge. This distinction prevents both under-typing (missing contracts) and over-typing (premature abstraction).
+
+##############
+
+## Incremental Development
+
+When building new systems, resist documenting all components upfront. Instead:
+
+### Component-First Iteration
+1. Pick ONE component (simplest first)
+2. Write minimal docs (ABSTRACT.md only)
+3. Write minimal covenant (3-5 examples)
+4. Generate tests
+5. Implement until tests pass
+6. Extract shared types/utilities only after duplication appears
+7. Repeat for next component
+
+### Documentation Debt
+- Keep a `doc/DEBT.md` listing known gaps
+- Fill documentation after implementation stabilizes
+- Shared docs (ARCH.md, TYPES.md) emerge from patterns, not speculation
+
+### Integration Points
+- Define component interfaces minimally (function signatures only)
+- Let orchestration patterns emerge from component integration
+- Refactor shared contracts after 2-3 components exist
+
+This prevents analysis paralysis while maintaining CDD's architectural clarity.

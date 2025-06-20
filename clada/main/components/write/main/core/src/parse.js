@@ -29,7 +29,7 @@ function parseWrite(node) {
     };
   }
 
-  // Extract content from CDATA
+  // Check for children
   if (!node.children || node.children.length === 0) {
     return {
       ok: false,
@@ -37,17 +37,23 @@ function parseWrite(node) {
     };
   }
 
-  // Find CDATA node
-  const cdataNode = node.children.find(child => child.type === 'cdata');
-  if (!cdataNode) {
+  // Check if content is in CDATA
+  // In htmlparser2 with xmlMode, CDATA content appears as text nodes
+  // Non-CDATA text would have been parsed differently
+  const hasTextContent = node.children.some(child => child.type === 'text');
+  
+  if (!hasTextContent) {
     return {
       ok: false,
       error: { type: 'malformed_xml', message: 'Content must be wrapped in CDATA' }
     };
   }
 
-  // Extract content from CDATA node
-  const content = cdataNode.data || '';
+  // Extract all text content
+  const content = node.children
+    .filter(child => child.type === 'text')
+    .map(child => child.data)
+    .join('');
 
   return {
     ok: true,

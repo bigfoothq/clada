@@ -1,125 +1,172 @@
-=== PROCESSED: 2025-06-19 21:50:31 ===
-SUCCESS Block 1: Updated /Users/stuart/repos/clada/clada/shared/doc/TYPES.md
-SUCCESS Block 2: Updated /Users/stuart/repos/clada/clada/shared/doc/TYPES.md
-SUCCESS Block 3: Updated /Users/stuart/repos/clada/clada/shared/doc/TYPES.md
-SUCCESS Block 4: Updated /Users/stuart/repos/clada/clada/shared/doc/TYPES.md
-SUCCESS Block 5: Updated /Users/stuart/repos/clada/clada/shared/doc/TYPES.md
+=== PROCESSED: 2025-06-19 22:30:28 ===
+SUCCESS Block 1: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/parse.cov.md
+SUCCESS Block 2: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/parse.cov.md
+SUCCESS Block 3: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/parse.cov.md
+SUCCESS Block 4: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/execute.cov.md
+SUCCESS Block 5: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/execute.cov.md
+🚨🚨🚨 ERROR Block 6: 8 matches found in /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/execute.cov.md - ABORTING 🚨🚨🚨
 ===
 
 <<<EXPLANATION>>>
 
-Removing overengineered position tracking since htmlparser2 doesn't provide line/column data and the protocol doesn't require it in error messages.
+Fix CDATA escape example which is technically impossible, correct error types to match protocol semantics, and clarify return structures for orchestration compatibility.
 
 <<<FILE>>>
 
-clada/shared/doc/TYPES.md
+clada/main/components/write/main/core/test-unit/cov/parse.cov.md
 
 <<<SEARCH>>>
-// Base fields for all tasks
-type TaskBase = {
-  blockIndex?: number      // <tasks> block index (undefined = standalone)
-  taskIndex: number        // Global 1-based numbering for display
-  position: {              // Source location for error reporting
-    line: number
-    column: number
-  }
-}
+### Example 5: CDATA escape sequence
+Input:
+```xml
+<write path="tricky.xml"><![CDATA[<data>text]]&gt;</data>]]></write>
+```
+Output:
+```json
+{"path": "tricky.xml", "content": "<data>text]]></data>"}
+```
 <<<REPLACE>>>
-// Base fields for all tasks
-type TaskBase = {
-  blockIndex?: number      // <tasks> block index (undefined = standalone)
-  taskIndex: number        // 0-based internal (display adds 1)
-  node: Element           // DOM node for --error-detail=full
-}
+### Example 5: Content with XML-like text
+Input:
+```xml
+<write path="config.xml"><![CDATA[<root>
+  <item>value</item>
+</root>]]></write>
+```
+Output:
+```json
+{"path": "config.xml", "content": "<root>\n  <item>value</item>\n</root>"}
+```
 <<<END>>>
-
 
 <<<EXPLANATION>>>
 
-Removing duration tracking and simplifying TaskResult since protocol doesn't include timing information in output format.
+Empty path is a validation error, not XML malformation. Protocol defines malformed_xml for XML syntax issues only.
 
 <<<FILE>>>
 
-clada/shared/doc/TYPES.md
+clada/main/components/write/main/core/test-unit/cov/parse.cov.md
 
 <<<SEARCH>>>
-type TaskResult = {
-  taskIndex: number
-  duration: number        // milliseconds
-} & (
-  | {ok: true}
-  | {ok: false, error: ErrorCode, message: string}
-)
+### Example 7: Empty path
+Input:
+```xml
+<write path=""><![CDATA[content]]></write>
+```
+Output:
+```json
+{"error": "malformed_xml", "message": "Empty path attribute"}
+```
 <<<REPLACE>>>
-type TaskResult = {
-  taskIndex: number
-} & (
-  | {ok: true}
-  | {ok: false, error: ErrorCode, message: string}
-)
+### Example 7: Empty path
+Input:
+```xml
+<write path=""><![CDATA[content]]></write>
+```
+Output:
+```json
+{"error": "path_validation", "message": "Empty path attribute"}
+```
 <<<END>>>
-
 
 <<<EXPLANATION>>>
 
-Simplifying execution state to only track mutable working directory. Environment is inherited read-only per protocol.
+Add note about CDATA limitations and return value structure to prevent confusion during test generation.
 
 <<<FILE>>>
 
-clada/shared/doc/TYPES.md
+clada/main/components/write/main/core/test-unit/cov/parse.cov.md
 
 <<<SEARCH>>>
-type ExecutionState = {
-  cwd: string            // Current working directory
-  env: NodeJS.ProcessEnv // Process environment
-  startTime: number      // Process.hrtime.bigint()
-}
-<<<REPLACE>>>
-type ExecutionState = {
-  cwd: string            // Current working directory (only mutable state)
-}
-<<<END>>>
+# Write Parser Covenant
 
+## parseWrite(node) → {path, content} | {error, message}
+
+Extracts path and content from XML node.
+<<<REPLACE>>>
+# Write Parser Covenant
+
+## parseWrite(node) → {path, content} | {error, message}
+
+Extracts path and content from XML node.
+
+Note: CDATA sections cannot contain the literal string `]]>`. If needed in content, users must split across multiple CDATA sections or use different encoding.
+
+Note: Parser-level errors return descriptive error types, not protocol error codes. Orchestrator maps these to protocol errors.
+<<<END>>>
 
 <<<EXPLANATION>>>
 
-Adding output handler interface for streaming stdout with task prefixes as required by protocol.
+Clarify that execute returns results compatible with orchestration layer, not just success boolean.
 
 <<<FILE>>>
 
-clada/shared/doc/TYPES.md
+clada/main/components/write/main/core/test-unit/cov/execute.cov.md
 
 <<<SEARCH>>>
-type ExecutionState = {
-  cwd: string            // Current working directory (only mutable state)
-}
+# Write Executor Covenant
+
+## executeWrite({path, content}, {cwd, allowEscape}) → {success} | {error, message}
+
+Creates file at path with content.
 <<<REPLACE>>>
-type ExecutionState = {
-  cwd: string            // Current working directory (only mutable state)
-}
+# Write Executor Covenant
 
-type OutputHandler = {
-  write(taskIndex: number, text: string): void  // Handles [task-N:exec] prefixing
-  error(taskIndex: number, error: ErrorCode, message: string): void
-}
+## executeWrite(task, context) → {success} | {error, message}
+
+Creates file at path with content. Returns protocol-compatible result.
+
+Parameters:
+- task: {path: string, content: string}
+- context: {cwd: string, config: {allowEscape: boolean}}
 <<<END>>>
-
 
 <<<EXPLANATION>>>
 
-Adding execution-specific result types for run commands since they need exit codes and truncation status.
+Update execute examples to match new parameter structure.
 
 <<<FILE>>>
 
-clada/shared/doc/TYPES.md
+clada/main/components/write/main/core/test-unit/cov/execute.cov.md
 
 <<<SEARCH>>>
-type Config = {
+### Example 1: Basic file creation
+Input: 
+```json
+{"path": "new.txt", "content": "hello world"}
+```
+Context:
+```json
+{"cwd": "/app", "allowEscape": false}
+```
 <<<REPLACE>>>
-type RunResult = {
-  exitCode: number
-  truncated: boolean
-}
+### Example 1: Basic file creation
+Task: 
+```json
+{"path": "new.txt", "content": "hello world"}
+```
+Context:
+```json
+{"cwd": "/app", "config": {"allowEscape": false}}
+```
+<<<END>>>
 
-type Config = {
+<<<EXPLANATION>>>
+
+Apply same context structure fix to remaining examples for consistency.
+
+<<<FILE>>>
+
+clada/main/components/write/main/core/test-unit/cov/execute.cov.md
+
+<<<SEARCH>>>
+Context:
+```json
+{"cwd": "/app", "allowEscape": false}
+```
+<<<REPLACE>>>
+Context:
+```json
+{"cwd": "/app", "config": {"allowEscape": false}}
+```
 <<<END>>>

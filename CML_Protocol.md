@@ -200,3 +200,9 @@
 - `shared/src/` contains pure utilities
 - No nested component structure in shared
 - Components import what they need
+
+######
+
+IMPORTANT UPDATE --- 
+
+allow multiple matches for search/replace blocks!!!!  if we want to support this, we should makethe LLM stipulate how many matches it is expecting to replace.  and if we find a number that's differnet from that, we abort. 

@@ -1,172 +1,282 @@
-=== PROCESSED: 2025-06-19 22:30:28 ===
-SUCCESS Block 1: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/parse.cov.md
-SUCCESS Block 2: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/parse.cov.md
-SUCCESS Block 3: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/parse.cov.md
-SUCCESS Block 4: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/execute.cov.md
-SUCCESS Block 5: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/execute.cov.md
-🚨🚨🚨 ERROR Block 6: 8 matches found in /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/execute.cov.md - ABORTING 🚨🚨🚨
+=== PROCESSED: 2025-06-20 00:24:36 ===
+SUCCESS Block 1: Created /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/test/parse.test.js
+SUCCESS Block 2: Created /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/test/execute.test.js
 ===
 
-<<<EXPLANATION>>>
+=== PROCESSED: 2025-06-20 00:22:17 ===
+SUCCESS Block 1: Created /Users/stuart/repos/clada/clada/components/write/main/test-unit/test/parse.test.js
+SUCCESS Block 2: Created /Users/stuart/repos/clada/clada/components/write/main/test-unit/test/execute.test.js
+===
 
-Fix CDATA escape example which is technically impossible, correct error types to match protocol semantics, and clarify return structures for orchestration compatibility.
+=== PROCESSED: 2025-06-20 00:21:00 ===
+SUCCESS Block 1: Created /Users/stuart/repos/clada/chunker/components/write/main/test-unit/test/parse.test.js
+SUCCESS Block 2: Created /Users/stuart/repos/clada/chunker/components/write/main/test-unit/test/execute.test.js
+===
 
-<<<FILE>>>
+## Additional Thinking Round: Best Practices Analysis
 
-clada/main/components/write/main/core/test-unit/cov/parse.cov.md
+From the search results, key insights emerge:
 
-<<<SEARCH>>>
-### Example 5: CDATA escape sequence
-Input:
-```xml
-<write path="tricky.xml"><![CDATA[<data>text]]&gt;</data>]]></write>
-```
-Output:
-```json
-{"path": "tricky.xml", "content": "<data>text]]></data>"}
-```
-<<<REPLACE>>>
-### Example 5: Content with XML-like text
-Input:
-```xml
-<write path="config.xml"><![CDATA[<root>
-  <item>value</item>
-</root>]]></write>
-```
-Output:
-```json
-{"path": "config.xml", "content": "<root>\n  <item>value</item>\n</root>"}
-```
-<<<END>>>
+**Stack Overflow consensus**: "You should mock things that depend on anything persistent or external in order to prevent the test from depending on anything persistent or external. If the dependency does not depend on anything persistent or external, the only benefit you gain from mocking it is that the test will work properly even if the dependency is wrong"
 
-<<<EXPLANATION>>>
+**Microsoft Engineering Playbook**: "One of the biggest problems with using mocks (and specifically mocking frameworks that allow these verifications), is that it encourages these types of tests to be written" - referring to tests that validate implementation details rather than behavior
 
-Empty path is a validation error, not XML malformation. Protocol defines malformed_xml for XML syntax issues only.
+**Stack Overflow Blog**: "A better alternative is to make the production code itself deterministic... Using a fake is more robust in the face of change"
 
-<<<FILE>>>
+## Critical Analysis: Our Specific Case
 
-clada/main/components/write/main/core/test-unit/cov/parse.cov.md
+htmlparser2 is:
+- Not external (no network/DB calls)
+- Not persistent (no state between calls)
+- Deterministic (same XML always produces same node structure)
+- Part of our explicit interface contract (parseWrite expects htmlparser2 nodes)
 
-<<<SEARCH>>>
-### Example 7: Empty path
-Input:
-```xml
-<write path=""><![CDATA[content]]></write>
-```
-Output:
-```json
-{"error": "malformed_xml", "message": "Empty path attribute"}
-```
-<<<REPLACE>>>
-### Example 7: Empty path
-Input:
-```xml
-<write path=""><![CDATA[content]]></write>
-```
-Output:
-```json
-{"error": "path_validation", "message": "Empty path attribute"}
-```
-<<<END>>>
+The anti-mocking arguments apply when:
+- Dependencies are deterministic and simple
+- Mocking adds complexity without value
+- The dependency IS part of the contract
 
-<<<EXPLANATION>>>
+## Counter-argument Consideration
 
-Add note about CDATA limitations and return value structure to prevent confusion during test generation.
+One could argue: "But what if we switch parsers later?"
+
+Response: The covenant explicitly shows XML examples, not abstract node structures. If we're processing XML with a different parser, we'd need to verify it produces compatible nodes anyway. The test would rightfully fail and force us to update both implementation and tests together - exactly what CDD's "mortal bonds" principle demands.
+
+## Executive Decision
+
+**Use htmlparser2 directly in parse tests**. 
+
+Rationale:
+1. It's deterministic, not external/persistent
+2. Mocking adds complexity without benefit
+3. The node structure IS our contract
+4. Aligns with "keep it lean" principle
+5. Best practices discourage mocking non-external dependencies
+
+## Final Implementation
 
 <<<FILE>>>
+clada/main/components/write/main/core/test-unit/test/parse.test.js
+<<<OVERWRITE>>>
+20250119
 
-clada/main/components/write/main/core/test-unit/cov/parse.cov.md
+const { describe, it } = require('node:test');
+const assert = require('node:assert/strict');
+const { parseWrite } = require('../../src/parser');
+const { parseDocument } = require('htmlparser2');
 
-<<<SEARCH>>>
-# Write Parser Covenant
+/**
+ * Parse XML string to node using htmlparser2
+ * Matches how orchestrator will provide nodes
+ */
+function xmlToNode(xml) {
+  const dom = parseDocument(xml, { xmlMode: true });
+  // Find first element node (skip text nodes)
+  return dom.children.find(child => child.type === 'tag');
+}
 
-## parseWrite(node) → {path, content} | {error, message}
+describe('parseWrite', () => {
+  it('extracts path and content from valid write node', () => {
+    const node = xmlToNode('<write path="file.txt"><![CDATA[hello]]></write>');
+    
+    const result = parseWrite(node);
+    assert.ok(result.ok);
+    assert.equal(result.value.path, 'file.txt');
+    assert.equal(result.value.content, 'hello');
+  });
 
-Extracts path and content from XML node.
-<<<REPLACE>>>
-# Write Parser Covenant
+  it('handles multi-line content preserving newlines', () => {
+    const content = '#!/bin/bash\necho "line 1"\necho "line 2"\necho "line 3"';
+    const node = xmlToNode(`<write path="script.sh"><![CDATA[${content}]]></write>`);
+    
+    const result = parseWrite(node);
+    assert.ok(result.ok);
+    assert.equal(result.value.content, content);
+  });
 
-## parseWrite(node) → {path, content} | {error, message}
+  it('handles empty content', () => {
+    const node = xmlToNode('<write path="empty.txt"><![CDATA[]]></write>');
+    
+    const result = parseWrite(node);
+    assert.ok(result.ok);
+    assert.equal(result.value.content, '');
+  });
 
-Extracts path and content from XML node.
+  it('errors on missing path attribute', () => {
+    const node = xmlToNode('<write><![CDATA[content]]></write>');
+    
+    const result = parseWrite(node);
+    assert.ok(!result.ok);
+    assert.equal(result.error.type, 'malformed_xml');
+    assert.match(result.error.message, /Missing required attribute: path/);
+  });
 
-Note: CDATA sections cannot contain the literal string `]]>`. If needed in content, users must split across multiple CDATA sections or use different encoding.
+  it('errors on empty path attribute', () => {
+    const node = xmlToNode('<write path=""><![CDATA[content]]></write>');
+    
+    const result = parseWrite(node);
+    assert.ok(!result.ok);
+    assert.equal(result.error.type, 'path_validation');
+    assert.match(result.error.message, /Empty path attribute/);
+  });
 
-Note: Parser-level errors return descriptive error types, not protocol error codes. Orchestrator maps these to protocol errors.
+  it('errors on non-CDATA content', () => {
+    const node = xmlToNode('<write path="file.txt">raw content</write>');
+    
+    const result = parseWrite(node);
+    assert.ok(!result.ok);
+    assert.equal(result.error.type, 'malformed_xml');
+    assert.match(result.error.message, /Content must be wrapped in CDATA/);
+  });
+
+  it('errors on missing content', () => {
+    const node = xmlToNode('<write path="file.txt"></write>');
+    
+    const result = parseWrite(node);
+    assert.ok(!result.ok);
+    assert.equal(result.error.type, 'malformed_xml');
+    assert.match(result.error.message, /Missing content/);
+  });
+});
 <<<END>>>
-
-<<<EXPLANATION>>>
-
-Clarify that execute returns results compatible with orchestration layer, not just success boolean.
 
 <<<FILE>>>
+clada/main/components/write/main/core/test-unit/test/execute.test.js
+<<<OVERWRITE>>>
+20250119
 
-clada/main/components/write/main/core/test-unit/cov/execute.cov.md
+const { describe, it, beforeEach, afterEach } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const os = require('node:os');
+const { executeWrite } = require('../../src/executor');
 
-<<<SEARCH>>>
-# Write Executor Covenant
+describe('executeWrite', () => {
+  let tempDir;
+  let context;
 
-## executeWrite({path, content}, {cwd, allowEscape}) → {success} | {error, message}
+  beforeEach(() => {
+    // Create isolated temp directory for each test
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'write-test-'));
+    context = {
+      cwd: tempDir,
+      config: { allowEscape: false }
+    };
+  });
 
-Creates file at path with content.
-<<<REPLACE>>>
-# Write Executor Covenant
+  afterEach(() => {
+    // Clean up temp directory
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  });
 
-## executeWrite(task, context) → {success} | {error, message}
+  it('creates file with content', () => {
+    const task = { path: 'new.txt', content: 'hello world' };
+    
+    const result = executeWrite(task, context);
+    assert.ok(result.ok);
+    
+    const filePath = path.join(tempDir, 'new.txt');
+    assert.ok(fs.existsSync(filePath));
+    assert.equal(fs.readFileSync(filePath, 'utf8'), 'hello world');
+  });
 
-Creates file at path with content. Returns protocol-compatible result.
+  it('creates nested directories as needed', () => {
+    const task = { path: 'a/b/c/file.txt', content: 'deep' };
+    
+    const result = executeWrite(task, context);
+    assert.ok(result.ok);
+    
+    const filePath = path.join(tempDir, 'a/b/c/file.txt');
+    assert.ok(fs.existsSync(filePath));
+    assert.equal(fs.readFileSync(filePath, 'utf8'), 'deep');
+  });
 
-Parameters:
-- task: {path: string, content: string}
-- context: {cwd: string, config: {allowEscape: boolean}}
+  it('overwrites existing files', () => {
+    const filePath = path.join(tempDir, 'existing.txt');
+    fs.writeFileSync(filePath, 'old content');
+    
+    const task = { path: 'existing.txt', content: 'new content' };
+    const result = executeWrite(task, context);
+    
+    assert.ok(result.ok);
+    assert.equal(fs.readFileSync(filePath, 'utf8'), 'new content');
+  });
+
+  it('blocks path traversal without allowEscape', () => {
+    const task = { path: '../escape.txt', content: 'data' };
+    
+    const result = executeWrite(task, context);
+    assert.ok(!result.ok);
+    assert.equal(result.error.type, 'path_escape');
+    assert.match(result.error.message, /Path escapes working directory/);
+  });
+
+  it('blocks absolute paths without allowEscape', () => {
+    const task = { path: '/etc/passwd', content: 'hacked' };
+    
+    const result = executeWrite(task, context);
+    assert.ok(!result.ok);
+    assert.equal(result.error.type, 'path_escape');
+    assert.match(result.error.message, /Absolute paths not allowed/);
+  });
+
+  it('errors on write through symlink', () => {
+    const linkPath = path.join(tempDir, 'link.txt');
+    const targetPath = '/etc/secret';
+    fs.symlinkSync(targetPath, linkPath);
+    
+    const task = { path: 'link.txt', content: 'data' };
+    const result = executeWrite(task, context);
+    
+    assert.ok(!result.ok);
+    assert.equal(result.error.type, 'symlink_not_allowed');
+    assert.match(result.error.message, /Cannot write through symlink: link.txt/);
+  });
+
+  it('errors on permission denied', function() {
+    // Skip on Windows as permission model differs
+    if (process.platform === 'win32') {
+      this.skip();
+      return;
+    }
+    
+    const readonlyDir = path.join(tempDir, 'readonly');
+    fs.mkdirSync(readonlyDir);
+    fs.chmodSync(readonlyDir, 0o555); // no write permission
+    
+    const task = { path: 'readonly/file.txt', content: 'data' };
+    const result = executeWrite(task, context);
+    
+    assert.ok(!result.ok);
+    assert.equal(result.error.type, 'permission_denied');
+    assert.match(result.error.message, /Permission denied/);
+    
+    // Cleanup: restore permissions before afterEach
+    fs.chmodSync(readonlyDir, 0o755);
+  });
+
+  it('errors on target is directory', () => {
+    const dirPath = path.join(tempDir, 'existing-dir');
+    fs.mkdirSync(dirPath);
+    
+    const task = { path: 'existing-dir', content: 'data' };
+    const result = executeWrite(task, context);
+    
+    assert.ok(!result.ok);
+    assert.equal(result.error.type, 'permission_denied');
+    assert.match(result.error.message, /Cannot write to directory: existing-dir/);
+  });
+});
 <<<END>>>
 
-<<<EXPLANATION>>>
+## Summary
 
-Update execute examples to match new parameter structure.
+After multiple rounds of analysis and research, the decision is clear: use htmlparser2 directly in tests. This aligns with:
 
-<<<FILE>>>
+1. **Best practices**: Don't mock non-external dependencies
+2. **CDD principles**: Keep it lean, avoid unnecessary abstraction
+3. **Contract clarity**: htmlparser2 nodes ARE our interface
+4. **Simplicity**: Less code, clearer intent
 
-clada/main/components/write/main/core/test-unit/cov/execute.cov.md
-
-<<<SEARCH>>>
-### Example 1: Basic file creation
-Input: 
-```json
-{"path": "new.txt", "content": "hello world"}
-```
-Context:
-```json
-{"cwd": "/app", "allowEscape": false}
-```
-<<<REPLACE>>>
-### Example 1: Basic file creation
-Task: 
-```json
-{"path": "new.txt", "content": "hello world"}
-```
-Context:
-```json
-{"cwd": "/app", "config": {"allowEscape": false}}
-```
-<<<END>>>
-
-<<<EXPLANATION>>>
-
-Apply same context structure fix to remaining examples for consistency.
-
-<<<FILE>>>
-
-clada/main/components/write/main/core/test-unit/cov/execute.cov.md
-
-<<<SEARCH>>>
-Context:
-```json
-{"cwd": "/app", "allowEscape": false}
-```
-<<<REPLACE>>>
-Context:
-```json
-{"cwd": "/app", "config": {"allowEscape": false}}
-```
-<<<END>>>
+The execute tests use isolated temp directories to ensure clean state - standard practice for filesystem tests. No remaining uncertainties.

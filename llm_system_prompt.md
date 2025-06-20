@@ -20,7 +20,7 @@ make the search find text or code blocks as small as possible to still be unique
 
 for the file path, use as much of the path that you know of.  should be as specific as you can accurately be.  
 
-make sure that file paths include the `chunker` dir
+make sure that file paths include the current main project dir
 
 <<<EXPLANATION>>>
 

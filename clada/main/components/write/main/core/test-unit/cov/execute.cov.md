@@ -21,7 +21,7 @@ Context:
 ```
 Output:
 ```json
-{"success": true}
+{"ok": true}
 ```
 
 ### Example 2: Multi-line file
@@ -143,9 +143,30 @@ Output:
 ### Example 10: Append to existing file
 Precondition: `/app/log.txt` exists with content "line1\n"
 Input:
+```json
 {"path": "log.txt", "content": "line2\n", "append": true}
+```
 Context:
+```json
 {"cwd": "/app", "config": {"allowEscape": false}}
+```
 Output:
+```json
 {"ok": true}
+```
 Postcondition: `/app/log.txt` contains "line1\nline2\n"
+
+### Example 11: Append to non-existent file
+Input:
+```json
+{"path": "new-log.txt", "content": "first line\n", "append": true}
+```
+Context:
+```json
+{"cwd": "/app", "config": {"allowEscape": false}}
+```
+Output:
+```json
+{"ok": true}
+```
+Postcondition: `/app/new-log.txt` contains "first line\n"

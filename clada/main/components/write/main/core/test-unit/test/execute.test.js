@@ -122,4 +122,26 @@ describe('executeWrite', () => {
     assert.equal(result.error.type, 'permission_denied');
     assert.match(result.error.message, /Cannot write to directory: existing-dir/);
   });
+
+  it('appends to existing file', () => {
+    const filePath = path.join(tempDir, 'log.txt');
+    fs.writeFileSync(filePath, 'line1\n');
+    
+    const task = { path: 'log.txt', content: 'line2\n', append: true };
+    const result = executeWrite(task, context);
+    
+    assert.ok(result.ok);
+    assert.equal(fs.readFileSync(filePath, 'utf8'), 'line1\nline2\n');
+  });
+
+  it('appends to non-existent file', () => {
+    const task = { path: 'new-log.txt', content: 'first line\n', append: true };
+    
+    const result = executeWrite(task, context);
+    assert.ok(result.ok);
+    
+    const filePath = path.join(tempDir, 'new-log.txt');
+    assert.ok(fs.existsSync(filePath));
+    assert.equal(fs.readFileSync(filePath, 'utf8'), 'first line\n');
+  });
 });

@@ -77,4 +77,24 @@ describe('parseWrite', () => {
     assert.equal(result.error.type, 'malformed_xml');
     assert.match(result.error.message, /Missing content/);
   });
+
+  it('parses append attribute when true', () => {
+    const node = xmlToNode('<write path="log.txt" append="true"><![CDATA[new line]]></write>');
+    
+    const result = parseWrite(node);
+    assert.ok(result.ok);
+    assert.equal(result.value.path, 'log.txt');
+    assert.equal(result.value.content, 'new line');
+    assert.equal(result.value.append, true);
+  });
+
+  it('parses append attribute when false', () => {
+    const node = xmlToNode('<write path="data.txt" append="false"><![CDATA[overwrite]]></write>');
+    
+    const result = parseWrite(node);
+    assert.ok(result.ok);
+    assert.equal(result.value.path, 'data.txt');
+    assert.equal(result.value.content, 'overwrite');
+    assert.equal(result.value.append, false);
+  });
 });

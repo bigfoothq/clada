@@ -1,67 +1,31 @@
-=== PROCESSED: 2025-06-21 09:20:59 ===
-SUCCESS Block 1: Updated /Users/stuart/repos/clada/clada/main/components/edit/main/core/test-unit/test/parse.test.js
-SUCCESS Block 2: Updated /Users/stuart/repos/clada/clada/main/components/edit/main/core/test-unit/test/parse.test.js
-🚨🚨🚨 ERROR Block 3: 21 matches found in /Users/stuart/repos/clada/clada/main/components/edit/main/core/test-unit/test/parse.test.js - ABORTING 🚨🚨🚨
+=== PROCESSED: 2025-06-21 09:53:47 ===
+SUCCESS Block 1: Updated /Users/stuart/repos/clada/clada/debug-parse.js
 ===
 
-Yes, that approach would work and is actually better. The key issue is that `parse.test.js` is importing from a shared module (`xml-to-dom.js`), which violates the test isolation principle.
-
-Looking at the approach you showed, it directly uses `htmlparser2`'s `parseDocument` function, which is what the orchestrator would use internally. This removes the dependency on shared code while still providing the exact same node structure.
-/Users/stuart/repos/clada/clada/main/components/edit/main/core/test-unit/test/parse.test.js
-Here's the fix:
+This is revealing! The htmlparser2 is creating `cdata` type nodes, not `text` nodes as I expected. But crucially, the CDATA content is NOT in the `data` field of the cdata node. Let me investigate further:
 
 <<<EXPLANATION>>>
-Remove dependency on shared xml-to-dom.js module and use htmlparser2 directly in the test to maintain isolation
-
+The CDATA nodes have empty data fields. The actual content must be in the cdata node's children. Let's check the cdata node structure.
 <<<FILE>>>
-/Users/stuart/repos/clada/clada/main/components/edit/main/core/test-unit/test/parse.test.js
-
+clada/debug-parse.js
 <<<SEARCH>>>
-import { parseEdit } from '../../src/parse.js';
-import { parseXml } from '../../../../../shared/src/xml-to-dom.js';
+  if (searchNode.children.length > 0) {
+    searchNode.children.forEach((child, i) => {
+      console.log(`Child ${i}: type="${child.type}", data="${child.data || ''}", name="${child.name || ''}"`);
+    });
+  }
 <<<REPLACE>>>
-import { parseEdit } from '../../src/parse.js';
-import { parseDocument } from 'htmlparser2';
+  if (searchNode.children.length > 0) {
+    searchNode.children.forEach((child, i) => {
+      console.log(`Child ${i}: type="${child.type}", data="${child.data || ''}", name="${child.name || ''}"`);
+      if (child.type === 'cdata' && child.children) {
+        console.log(`  CDATA has ${child.children.length} children:`);
+        child.children.forEach((cdataChild, j) => {
+          console.log(`    Child ${j}: type="${cdataChild.type}", data="${cdataChild.data || ''}"`);
+        });
+      }
+    });
+  }
 <<<END>>>
 
-<<<EXPLANATION>>>
-Add xmlToNode helper function to replace parseXml usage
-
-<<<FILE>>>
-/Users/stuart/repos/clada/clada/main/components/edit/main/core/test-unit/test/parse.test.js
-
-<<<SEARCH>>>
-import { parseEdit } from '../../src/parse.js';
-import { parseDocument } from 'htmlparser2';
-
-describe('parseEdit', () => {
-<<<REPLACE>>>
-import { parseEdit } from '../../src/parse.js';
-import { parseDocument } from 'htmlparser2';
-
-/**
- * Parse XML string to node using htmlparser2
- * Matches how orchestrator will provide nodes
- */
-function xmlToNode(xml) {
-  const dom = parseDocument(xml, { xmlMode: true });
-  // Find first element node (skip text nodes)
-  return dom.children.find(child => child.type === 'tag');
-}
-
-describe('parseEdit', () => {
-<<<END>>>
-
-<<<EXPLANATION>>>
-Replace all parseXml(xml).children[0] calls with xmlToNode(xml)
-
-<<<FILE>>>
-/Users/stuart/repos/clada/clada/main/components/edit/main/core/test-unit/test/parse.test.js
-
-<<<SEARCH>>>
-    const node = parseXml(xml).children[0];
-<<<REPLACE>>>
-    const node = xmlToNode(xml);
-<<<END>>>
-
-This change makes the test self-contained and removes the cross-component dependency, which aligns with the CDD principle of isolated testing.
+Run this to see where the CDATA content actually lives.

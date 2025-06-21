@@ -83,6 +83,10 @@ maybe we should split up covs... ?  happy path covs vs edge case covs ?  claude 
 
 cos tthese tests honestly are going to be very long.  cos they have to be comprehensive 
 
+--> YES SPLIT UP TESTS.  cos also when long tests have a lot of failures that's too much context for claude at once.
+
+maybe even individual test files should be split up into modules or soemthing?
+
 when claude doesn't say yes to "feel good"?  a coupel times in a row maybe then encourage to take a step back and think about whats best for clada and encourage to modify the covs.  remind that breaking changes are fine.
 
 SHARED CODE? 

@@ -127,7 +127,7 @@ function findElement(elements, name) {
 
 /**
  * Extract CDATA content from element
- * Expects exactly one text node containing the CDATA content
+ * Handles htmlparser2's text node representation of CDATA
  * @param {Object} element - XML element
  * @returns {{ok: true, value: string} | {ok: false, error: string}}
  */
@@ -136,21 +136,21 @@ function extractCDATA(element) {
     return { ok: true, value: '' };
   }
 
-  // Must have exactly one child
-  if (element.children.length !== 1) {
-    return { ok: false, error: 'malformed_xml' };
+  // Validate all children are text nodes (no mixed content)
+  for (const child of element.children) {
+    if (child.type !== 'text') {
+      return { ok: false, error: 'malformed_xml' };
+    }
   }
-
-  const child = element.children[0];
   
-  // Must be text node
-  if (child.type !== 'text') {
-    return { ok: false, error: 'malformed_xml' };
-  }
-
-  // Extract and unescape CDATA content
-  const content = child.data || '';
-  const unescaped = content.replace(/]]&gt;/g, ']]>');
+  // Concatenate all text content
+  // htmlparser2 with xmlMode parses CDATA as regular text nodes
+  const textContent = element.children
+    .map(child => child.data || '')
+    .join('');
+  
+  // Unescape CDATA escape sequences
+  const unescaped = textContent.replace(/]]&gt;/g, ']]>');
   
   return { ok: true, value: unescaped };
 }

@@ -66,13 +66,21 @@ function parseWrite(node) {
       .join('');
   }
 
-  return {
+  // Build result object
+  const result = {
     ok: true,
     value: {
       path: node.attribs.path,
       content: content
     }
   };
+
+  // Parse append attribute if present
+  if ('append' in node.attribs) {
+    result.value.append = node.attribs.append === 'true';
+  }
+
+  return result;
 }
 
 export { parseWrite };

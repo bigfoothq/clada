@@ -1,110 +1,89 @@
-=== PROCESSED: 2025-06-20 21:05:06 ===
-SUCCESS Block 1: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/test/execute.test.js
-SUCCESS Block 2: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/test/parse.test.js
+=== PROCESSED: 2025-06-20 21:12:03 ===
+SUCCESS Block 1: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/src/execute.js
 ===
 
-Looking at the covenant files and test files, I need to add tests for the new behaviors (Examples 10 and 11 for append functionality).
+The test expects `symlink_not_allowed` but gets `permission_denied`. Looking at the error output, there's a typo in the assertion comparison: `'persymlissionk_deniot_allowed'` - this appears to be a formatting issue in the test output display.
+
+The real issue: when writing to a symlink fails, Node.js throws an EACCES/EPERM error, which the code catches and returns as `permission_denied`. But the test expects a specific `symlink_not_allowed` error.
+
+The symlink check happens after the file exists check, but the write attempt fails before our symlink-specific logic can return the expected error. We need to check for symlinks earlier, before attempting any write operation.
 
 <<<EXPLANATION>>>
-Adding tests for append functionality - Example 10 tests appending to existing file, Example 11 tests appending to non-existent file
+Move symlink check before write attempt to ensure correct error type is returned
 
 <<<FILE>>>
-clada/main/components/write/main/core/test-unit/test/execute.test.js
+clada/main/components/write/main/core/src/execute.js
 
 <<<SEARCH>>>
-  it('errors on target is directory', () => {
-    const dirPath = path.join(tempDir, 'existing-dir');
-    fs.mkdirSync(dirPath);
-    
-    const task = { path: 'existing-dir', content: 'data' };
-    const result = executeWrite(task, context);
-    
-    assert.ok(!result.ok);
-    assert.equal(result.error.type, 'permission_denied');
-    assert.match(result.error.message, /Cannot write to directory: existing-dir/);
-  });
-});
+  try {
+    // Check if path exists and is symlink
+    if (fs.existsSync(fullPath)) {
+      const stats = fs.lstatSync(fullPath);
+      if (stats.isSymbolicLink()) {
+        return {
+          ok: false,
+          error: { type: 'symlink_not_allowed', message: `Cannot write through symlink: ${filePath}` }
+        };
+      }
+      if (stats.isDirectory()) {
+        return {
+          ok: false,
+          error: { type: 'permission_denied', message: `Cannot write to directory: ${filePath}` }
+        };
+      }
+    }
+
+    // Create parent directories if needed
+    const dir = path.dirname(fullPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    // Write file
+    if (task.append) {
+      fs.appendFileSync(fullPath, content, 'utf8');
+    } else {
+      fs.writeFileSync(fullPath, content, 'utf8');
+    }
+
+    return { ok: true };
+  } catch (error) {
 <<<REPLACE>>>
-  it('errors on target is directory', () => {
-    const dirPath = path.join(tempDir, 'existing-dir');
-    fs.mkdirSync(dirPath);
-    
-    const task = { path: 'existing-dir', content: 'data' };
-    const result = executeWrite(task, context);
-    
-    assert.ok(!result.ok);
-    assert.equal(result.error.type, 'permission_denied');
-    assert.match(result.error.message, /Cannot write to directory: existing-dir/);
-  });
+  // Check if path exists and is symlink before any operations
+  if (fs.existsSync(fullPath)) {
+    try {
+      const stats = fs.lstatSync(fullPath);
+      if (stats.isSymbolicLink()) {
+        return {
+          ok: false,
+          error: { type: 'symlink_not_allowed', message: `Cannot write through symlink: ${filePath}` }
+        };
+      }
+      if (stats.isDirectory()) {
+        return {
+          ok: false,
+          error: { type: 'permission_denied', message: `Cannot write to directory: ${filePath}` }
+        };
+      }
+    } catch (error) {
+      // If lstat fails, continue to write attempt
+    }
+  }
 
-  it('appends to existing file', () => {
-    const filePath = path.join(tempDir, 'log.txt');
-    fs.writeFileSync(filePath, 'line1\n');
-    
-    const task = { path: 'log.txt', content: 'line2\n', append: true };
-    const result = executeWrite(task, context);
-    
-    assert.ok(result.ok);
-    assert.equal(fs.readFileSync(filePath, 'utf8'), 'line1\nline2\n');
-  });
+  try {
+    // Create parent directories if needed
+    const dir = path.dirname(fullPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
 
-  it('appends to non-existent file', () => {
-    const task = { path: 'new-log.txt', content: 'first line\n', append: true };
-    
-    const result = executeWrite(task, context);
-    assert.ok(result.ok);
-    
-    const filePath = path.join(tempDir, 'new-log.txt');
-    assert.ok(fs.existsSync(filePath));
-    assert.equal(fs.readFileSync(filePath, 'utf8'), 'first line\n');
-  });
-});
-<<<END>>>
+    // Write file
+    if (task.append) {
+      fs.appendFileSync(fullPath, content, 'utf8');
+    } else {
+      fs.writeFileSync(fullPath, content, 'utf8');
+    }
 
-<<<EXPLANATION>>>
-Adding tests for append attribute parsing - Example 10 tests append="true", Example 11 tests append="false"
-
-<<<FILE>>>
-clada/main/components/write/main/core/test-unit/test/parse.test.js
-
-<<<SEARCH>>>
-  it('errors on missing content', () => {
-    const node = xmlToNode('<write path="file.txt"></write>');
-    
-    const result = parseWrite(node);
-    assert.ok(!result.ok);
-    assert.equal(result.error.type, 'malformed_xml');
-    assert.match(result.error.message, /Missing content/);
-  });
-});
-<<<REPLACE>>>
-  it('errors on missing content', () => {
-    const node = xmlToNode('<write path="file.txt"></write>');
-    
-    const result = parseWrite(node);
-    assert.ok(!result.ok);
-    assert.equal(result.error.type, 'malformed_xml');
-    assert.match(result.error.message, /Missing content/);
-  });
-
-  it('parses append attribute when true', () => {
-    const node = xmlToNode('<write path="log.txt" append="true"><![CDATA[new line]]></write>');
-    
-    const result = parseWrite(node);
-    assert.ok(result.ok);
-    assert.equal(result.value.path, 'log.txt');
-    assert.equal(result.value.content, 'new line');
-    assert.equal(result.value.append, true);
-  });
-
-  it('parses append attribute when false', () => {
-    const node = xmlToNode('<write path="data.txt" append="false"><![CDATA[overwrite]]></write>');
-    
-    const result = parseWrite(node);
-    assert.ok(result.ok);
-    assert.equal(result.value.path, 'data.txt');
-    assert.equal(result.value.content, 'overwrite');
-    assert.equal(result.value.append, false);
-  });
-});
+    return { ok: true };
+  } catch (error) {
 <<<END>>>

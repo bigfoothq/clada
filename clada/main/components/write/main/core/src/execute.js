@@ -1,4 +1,4 @@
-20250120
+20250121
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -33,9 +33,9 @@ export function executeWrite(task, context) {
 
   const fullPath = path.resolve(cwd, filePath);
 
-  try {
-    // Check if path exists and is symlink
-    if (fs.existsSync(fullPath)) {
+  // Check if path exists and is symlink before any operations
+  if (fs.existsSync(fullPath)) {
+    try {
       const stats = fs.lstatSync(fullPath);
       if (stats.isSymbolicLink()) {
         return {
@@ -49,8 +49,12 @@ export function executeWrite(task, context) {
           error: { type: 'permission_denied', message: `Cannot write to directory: ${filePath}` }
         };
       }
+    } catch (error) {
+      // If lstat fails, continue to write attempt
     }
+  }
 
+  try {
     // Create parent directories if needed
     const dir = path.dirname(fullPath);
     if (!fs.existsSync(dir)) {
@@ -58,7 +62,11 @@ export function executeWrite(task, context) {
     }
 
     // Write file
-    fs.writeFileSync(fullPath, content, 'utf8');
+    if (task.append) {
+      fs.appendFileSync(fullPath, content, 'utf8');
+    } else {
+      fs.writeFileSync(fullPath, content, 'utf8');
+    }
 
     return { ok: true };
   } catch (error) {

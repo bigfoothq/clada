@@ -69,22 +69,22 @@ what else ?
 
 ---------
 
-start here:  https://claude.ai/chat/d283ad5e-9348-477c-9aea-94ca8353bb79
+cov, test, code dev workflow....
 
-we just made the changes but they didnt' all stick:
+for every change or edit, ask "do you feel good about this"?  and if answer is no, then give it the instructions to think deep 3x time plus internet lookup.... 
 
-=== PROCESSED: 2025-06-20 16:38:13 ===
-🚨🚨🚨 ERROR Block 1: 4 matches found in /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/execute.cov.md - ABORTING 🚨🚨🚨
-SUCCESS Block 2: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/execute.cov.md
-SUCCESS Block 3: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/execute.cov.md
-SUCCESS Block 4: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/execute.cov.md
-SUCCESS Block 5: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/parse.cov.md
-SUCCESS Block 6: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/parse.cov.md
-SUCCESS Block 7: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/parse.cov.md
-SUCCESS Block 8: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/parse.cov.md
-SUCCESS Block 9: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/parse.cov.md
-ERROR Block 10: No match found in /Users/stuart/repos/clada/clada/main/components/write/main/core/test-unit/cov/execute.cov.md
-===
+make sure all covs are covered in tests AND that there are no EXTRA tests!  
 
+keep iterating on completed cov/test combos to claude to make sure everything looks good 
 
-let claude know.  fix the changes.  then update the tests and then run them and then update the code only etc. 
+keep context super minimial so claude can focus on docs, so that covs are correct
+
+maybe we should split up covs... ?  happy path covs vs edge case covs ?  claude is getting distracted and confused.  gotta keep context bare minimum.  yeah i'm leaning towards this honestly.  for every src code file, we need a dir of covs and a dir of tests. cos we need sevearl different concise cov files.  for different types of behaviors and expected results.  (happy paths, expected failures, edge cases? or maybe just two, successes vs failures)
+
+cos tthese tests honestly are going to be very long.  cos they have to be comprehensive 
+
+when claude doesn't say yes to "feel good"?  a coupel times in a row maybe then encourage to take a step back and think about whats best for clada and encourage to modify the covs.  remind that breaking changes are fine.
+
+SHARED CODE? 
+
+follow this advice -- DONT WRITE SHARED CODE FIRST! claude will get confused and hyper and write way too much.  dont extract shared code until its actually written twice! then refactor.  so we actually know what the bare minimum is to refactor.  and we know that each code bit did it the best way for itself.  not contorting to some weird system so as to use shared code awkardly

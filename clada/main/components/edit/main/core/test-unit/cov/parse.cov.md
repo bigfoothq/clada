@@ -2,110 +2,237 @@
 
 # parseEdit Covenant
 
-## Basic exact search/replace
+## parseEdit(node) → Result<EditCommand, Error>
 
-parseEdit(<edit path="src/app.js"><search><![CDATA[hello]]></search><replace><![CDATA[goodbye]]></replace></edit>)
-→
-{ok: true, value: {mode: 'exact', path: 'src/app.js', search: 'hello', replace: 'goodbye', count: 1}}
+Extracts edit command from htmlparser2 node.
 
-## Exact search with count
+### Basic exact search/replace
 
-parseEdit(<edit path="test.py" count="3"><search><![CDATA[foo]]></search><replace><![CDATA[bar]]></replace></edit>)
-→
-{ok: true, value: {mode: 'exact', path: 'test.py', search: 'foo', replace: 'bar', count: 3}}
+Input:
+```xml
+<edit path="src/app.js"><search><![CDATA[hello]]></search><replace><![CDATA[goodbye]]></replace></edit>
+```
+Output:
+```json
+{"ok": true, "value": {"mode": "exact", "path": "src/app.js", "search": "hello", "replace": "goodbye", "count": 1}}
+```
 
-## Range search with start/end
+### Exact search with count
 
-parseEdit(<edit path="main.js"><search-start><![CDATA[function calculate(]]></search-start><search-end><![CDATA[}]]></search-end><replace><![CDATA[function compute() { return 42; }]]></replace></edit>)
-→
-{ok: true, value: {mode: 'range', path: 'main.js', searchStart: 'function calculate(', searchEnd: '}', replace: 'function compute() { return 42; }', count: 1}}
+Input:
+```xml
+<edit path="test.py" count="3"><search><![CDATA[foo]]></search><replace><![CDATA[bar]]></replace></edit>
+```
+Output:
+```json
+{"ok": true, "value": {"mode": "exact", "path": "test.py", "search": "foo", "replace": "bar", "count": 3}}
+```
 
-## Range search with count
+### Range search with start/end
 
-parseEdit(<edit path="config.xml" count="2"><search-start><![CDATA[<item>]]></search-start><search-end><![CDATA[</item>]]></search-end><replace><![CDATA[<item>replaced</item>]]></replace></edit>)
-→
-{ok: true, value: {mode: 'range', path: 'config.xml', searchStart: '<item>', searchEnd: '</item>', replace: '<item>replaced</item>', count: 2}}
+Input:
+```xml
+<edit path="main.js"><search-start><![CDATA[function calculate(]]></search-start><search-end><![CDATA[}]]></search-end><replace><![CDATA[function compute() { return 42; }]]></replace></edit>
+```
+Output:
+```json
+{"ok": true, "value": {"mode": "range", "path": "main.js", "searchStart": "function calculate(", "searchEnd": "}", "replace": "function compute() { return 42; }", "count": 1}}
+```
 
-## CDATA escaping
+### Range search with count
 
-parseEdit(<edit path="data.xml"><search><![CDATA[text with ]]&gt; inside]]></search><replace><![CDATA[new ]]&gt; text]]></replace></edit>)
-→
-{ok: true, value: {mode: 'exact', path: 'data.xml', search: 'text with ]]> inside', replace: 'new ]]> text', count: 1}}
+Input:
+```xml
+<edit path="config.xml" count="2"><search-start><![CDATA[<item>]]></search-start><search-end><![CDATA[</item>]]></search-end><replace><![CDATA[<item>replaced</item>]]></replace></edit>
+```
+Output:
+```json
+{"ok": true, "value": {"mode": "range", "path": "config.xml", "searchStart": "<item>", "searchEnd": "</item>", "replace": "<item>replaced</item>", "count": 2}}
+```
 
-## Missing path attribute
+### CDATA escaping
 
-parseEdit(<edit><search><![CDATA[test]]></search><replace><![CDATA[new]]></replace></edit>)
-→
-{ok: false, error: 'missing_path_attribute'}
+Input:
+```xml
+<edit path="data.xml"><search><![CDATA[text with ]]&gt; inside]]></search><replace><![CDATA[new ]]&gt; text]]></replace></edit>
+```
+Output:
+```json
+{"ok": true, "value": {"mode": "exact", "path": "data.xml", "search": "text with ]]&gt; inside", "replace": "new ]]&gt; text", "count": 1}}
+```
 
-## Empty search element
+### Missing path attribute
 
-parseEdit(<edit path="file.js"><search><![CDATA[]]></search><replace><![CDATA[new]]></replace></edit>)
-→
-{ok: false, error: 'empty_search'}
+Input:
+```xml
+<edit><search><![CDATA[test]]></search><replace><![CDATA[new]]></replace></edit>
+```
+Output:
+```json
+{"ok": false, "error": "missing_path_attribute"}
+```
 
-## Empty replace element
+### Empty search element
 
-parseEdit(<edit path="file.js"><search><![CDATA[old]]></search><replace><![CDATA[]]></replace></edit>)
-→
-{ok: false, error: 'empty_replace'}
+Input:
+```xml
+<edit path="file.js"><search><![CDATA[]]></search><replace><![CDATA[new]]></replace></edit>
+```
+Output:
+```json
+{"ok": false, "error": "empty_search"}
+```
 
-## Missing search element (exact mode)
+### Empty replace element (allowed)
 
-parseEdit(<edit path="file.js"><replace><![CDATA[new]]></replace></edit>)
-→
-{ok: false, error: 'missing_search_element'}
+Input:
+```xml
+<edit path="file.js"><search><![CDATA[old]]></search><replace><![CDATA[]]></replace></edit>
+```
+Output:
+```json
+{"ok": true, "value": {"mode": "exact", "path": "file.js", "search": "old", "replace": "", "count": 1}}
+```
 
-## Missing replace element
+### Missing search element (exact mode)
 
-parseEdit(<edit path="file.js"><search><![CDATA[old]]></search></edit>)
-→
-{ok: false, error: 'missing_replace_element'}
+Input:
+```xml
+<edit path="file.js"><replace><![CDATA[new]]></replace></edit>
+```
+Output:
+```json
+{"ok": false, "error": "missing_search_element"}
+```
 
-## Both search and search-start elements
+### Missing replace element
 
-parseEdit(<edit path="file.js"><search><![CDATA[old]]></search><search-start><![CDATA[start]]></search-start><replace><![CDATA[new]]></replace></edit>)
-→
-{ok: false, error: 'conflicting_search_modes'}
+Input:
+```xml
+<edit path="file.js"><search><![CDATA[old]]></search></edit>
+```
+Output:
+```json
+{"ok": false, "error": "missing_replace_element"}
+```
 
-## Range mode missing search-end
+### Both search and search-start elements
 
-parseEdit(<edit path="file.js"><search-start><![CDATA[start]]></search-start><replace><![CDATA[new]]></replace></edit>)
-→
-{ok: false, error: 'missing_search_end'}
+Input:
+```xml
+<edit path="file.js"><search><![CDATA[old]]></search><search-start><![CDATA[start]]></search-start><replace><![CDATA[new]]></replace></edit>
+```
+Output:
+```json
+{"ok": false, "error": "conflicting_search_modes"}
+```
 
-## Range mode missing search-start
+### Range mode missing search-end
 
-parseEdit(<edit path="file.js"><search-end><![CDATA[end]]></search-end><replace><![CDATA[new]]></replace></edit>)
-→
-{ok: false, error: 'missing_search_start'}
+Input:
+```xml
+<edit path="file.js"><search-start><![CDATA[start]]></search-start><replace><![CDATA[new]]></replace></edit>
+```
+Output:
+```json
+{"ok": false, "error": "missing_search_end"}
+```
 
-## Invalid count attribute
+### Range mode missing search-start
 
-parseEdit(<edit path="file.js" count="abc"><search><![CDATA[old]]></search><replace><![CDATA[new]]></replace></edit>)
-→
-{ok: false, error: 'invalid_count'}
+Input:
+```xml
+<edit path="file.js"><search-end><![CDATA[end]]></search-end><replace><![CDATA[new]]></replace></edit>
+```
+Output:
+```json
+{"ok": false, "error": "missing_search_start"}
+```
 
-## Zero count attribute
+### Invalid count attribute
 
-parseEdit(<edit path="file.js" count="0"><search><![CDATA[old]]></search><replace><![CDATA[new]]></replace></edit>)
-→
-{ok: false, error: 'invalid_count'}
+Input:
+```xml
+<edit path="file.js" count="abc"><search><![CDATA[old]]></search><replace><![CDATA[new]]></replace></edit>
+```
+Output:
+```json
+{"ok": false, "error": "invalid_count"}
+```
 
-## Negative count attribute
+### Zero count attribute
 
-parseEdit(<edit path="file.js" count="-1"><search><![CDATA[old]]></search><replace><![CDATA[new]]></replace></edit>)
-→
-{ok: false, error: 'invalid_count'}
+Input:
+```xml
+<edit path="file.js" count="0"><search><![CDATA[old]]></search><replace><![CDATA[new]]></replace></edit>
+```
+Output:
+```json
+{"ok": false, "error": "invalid_count"}
+```
 
-## Empty search-start element
+### Negative count attribute
 
-parseEdit(<edit path="file.js"><search-start><![CDATA[]]></search-start><search-end><![CDATA[end]]></search-end><replace><![CDATA[new]]></replace></edit>)
-→
-{ok: false, error: 'empty_search_start'}
+Input:
+```xml
+<edit path="file.js" count="-1"><search><![CDATA[old]]></search><replace><![CDATA[new]]></replace></edit>
+```
+Output:
+```json
+{"ok": false, "error": "invalid_count"}
+```
 
-## Empty search-end element
+### Empty search-start element
 
-parseEdit(<edit path="file.js"><search-start><![CDATA[start]]></search-start><search-end><![CDATA[]]></search-end><replace><![CDATA[new]]></replace></edit>)
-→
-{ok: false, error: 'empty_search_end'}
+Input:
+```xml
+<edit path="file.js"><search-start><![CDATA[]]></search-start><search-end><![CDATA[end]]></search-end><replace><![CDATA[new]]></replace></edit>
+```
+Output:
+```json
+{"ok": false, "error": "empty_search_start"}
+```
+
+### Empty search-end element
+
+Input:
+```xml
+<edit path="file.js"><search-start><![CDATA[start]]></search-start><search-end><![CDATA[]]></search-end><replace><![CDATA[new]]></replace></edit>
+```
+Output:
+```json
+{"ok": false, "error": "empty_search_end"}
+```
+
+### Mixed content - text outside CDATA in search
+
+Input:
+```xml
+<edit path="file.js"><search>raw text</search><replace><![CDATA[new]]></replace></edit>
+```
+Output:
+```json
+{"ok": false, "error": "malformed_xml"}
+```
+
+### Mixed content - text outside CDATA in replace
+
+Input:
+```xml
+<edit path="file.js"><search><![CDATA[old]]></search><replace>raw text</replace></edit>
+```
+Output:
+```json
+{"ok": false, "error": "malformed_xml"}
+```
+
+### Mixed content - text and CDATA together
+
+Input:
+```xml
+<edit path="file.js"><search>text<![CDATA[more]]>text</search><replace><![CDATA[new]]></replace></edit>
+```
+Output:
+```json
+{"ok": false, "error": "malformed_xml"}
+```

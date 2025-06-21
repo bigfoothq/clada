@@ -1,73 +1,67 @@
-=== PROCESSED: 2025-06-20 23:50:25 ===
-SUCCESS Block 1: Updated /Users/stuart/repos/clada/clada/main/components/edit/main/core/test-unit/test/execute.test.js
+=== PROCESSED: 2025-06-21 09:20:59 ===
+SUCCESS Block 1: Updated /Users/stuart/repos/clada/clada/main/components/edit/main/core/test-unit/test/parse.test.js
+SUCCESS Block 2: Updated /Users/stuart/repos/clada/clada/main/components/edit/main/core/test-unit/test/parse.test.js
+🚨🚨🚨 ERROR Block 3: 21 matches found in /Users/stuart/repos/clada/clada/main/components/edit/main/core/test-unit/test/parse.test.js - ABORTING 🚨🚨🚨
 ===
 
-Looking at the covenants and tests, I need to identify tests without covenant backing.
+Yes, that approach would work and is actually better. The key issue is that `parse.test.js` is importing from a shared module (`xml-to-dom.js`), which violates the test isolation principle.
 
-**Tests to remove:**
-
-1. **Symlink test** - No covenant example exists for symlink behavior
-2. **Permission denied test** - While mentioned in covenant, it's not implemented in current tests (no removal needed)
-
-**Analysis of current tests against covenants:**
-
-All other tests have direct covenant examples:
-- Basic exact replacement ✓
-- Exact replacement with count ✓
-- Count exceeds matches ✓
-- Range replacement ✓
-- Range with count ✓
-- Case sensitive ✓
-- Multiline exact/range ✓
-- File not found ✓
-- Match count mismatches ✓
-- Range incomplete ✓
-- Non-overlapping matches ✓
-- Empty file ✓
-- Replace with empty string ✓
-- Path with subdirectory ✓
-- Preserve file endings ✓
-- UTF-8 handling ✓
-- Path escape ✓
-
-Only the symlink test lacks covenant backing.
+Looking at the approach you showed, it directly uses `htmlparser2`'s `parseDocument` function, which is what the orchestrator would use internally. This removes the dependency on shared code while still providing the exact same node structure.
+/Users/stuart/repos/clada/clada/main/components/edit/main/core/test-unit/test/parse.test.js
+Here's the fix:
 
 <<<EXPLANATION>>>
-
-Remove symlink test - no covenant example exists for this behavior
+Remove dependency on shared xml-to-dom.js module and use htmlparser2 directly in the test to maintain isolation
 
 <<<FILE>>>
-
-clada/main/components/edit/main/core/test-unit/test/execute.test.js
+/Users/stuart/repos/clada/clada/main/components/edit/main/core/test-unit/test/parse.test.js
 
 <<<SEARCH>>>
-  it('rejects symlink', () => {
-    writeFileSync(join(testDir, 'target.txt'), 'content');
-    symlinkSync('target.txt', join(testDir, 'link.txt'));
-    
-    const result = executeEdit({
-      mode: 'exact',
-      path: 'link.txt',
-      search: 'x',
-      replace: 'y',
-      count: 1
-    }, context);
-    
-    assert.deepEqual(result, { ok: false, error: 'symlink_not_allowed' });
-  });
+import { parseEdit } from '../../src/parse.js';
+import { parseXml } from '../../../../../shared/src/xml-to-dom.js';
 <<<REPLACE>>>
+import { parseEdit } from '../../src/parse.js';
+import { parseDocument } from 'htmlparser2';
 <<<END>>>
 
 <<<EXPLANATION>>>
-
-Remove unused import since symlink test is being removed
+Add xmlToNode helper function to replace parseXml usage
 
 <<<FILE>>>
-
-clada/main/components/edit/main/core/test-unit/test/execute.test.js
+/Users/stuart/repos/clada/clada/main/components/edit/main/core/test-unit/test/parse.test.js
 
 <<<SEARCH>>>
-import { mkdirSync, rmSync, writeFileSync, readFileSync, symlinkSync } from 'node:fs';
+import { parseEdit } from '../../src/parse.js';
+import { parseDocument } from 'htmlparser2';
+
+describe('parseEdit', () => {
 <<<REPLACE>>>
-import { mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
+import { parseEdit } from '../../src/parse.js';
+import { parseDocument } from 'htmlparser2';
+
+/**
+ * Parse XML string to node using htmlparser2
+ * Matches how orchestrator will provide nodes
+ */
+function xmlToNode(xml) {
+  const dom = parseDocument(xml, { xmlMode: true });
+  // Find first element node (skip text nodes)
+  return dom.children.find(child => child.type === 'tag');
+}
+
+describe('parseEdit', () => {
 <<<END>>>
+
+<<<EXPLANATION>>>
+Replace all parseXml(xml).children[0] calls with xmlToNode(xml)
+
+<<<FILE>>>
+/Users/stuart/repos/clada/clada/main/components/edit/main/core/test-unit/test/parse.test.js
+
+<<<SEARCH>>>
+    const node = parseXml(xml).children[0];
+<<<REPLACE>>>
+    const node = xmlToNode(xml);
+<<<END>>>
+
+This change makes the test self-contained and removes the cross-component dependency, which aligns with the CDD principle of isolated testing.

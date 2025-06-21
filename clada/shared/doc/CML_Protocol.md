@@ -82,7 +82,7 @@ For `<run>` commands not in CML whitelist:
 </edit>
 
 <!-- For large blocks, match only start/end to save tokens -->
-<edit path="file.js">
+<edit path="file.js"  count="2">
   <search-start><![CDATA[function calculate(]]></search-start>
   <search-end><![CDATA[return result;
 }]]></search-end>
@@ -94,6 +94,11 @@ For `<run>` commands not in CML whitelist:
 - Use `<search>` for exact match or `<search-start>`/`<search-end>` for partial
 - Content containing `]]>` must escape as `]]&gt;` within CDATA
 - **Errors**: `match_count_mismatch`, `file_not_found`, `symlink_not_allowed`
+
+for range search:
+- Non-overlapping matches only
+- lazy search
+- also supports "count", defaulting to 1
 
 ### write
 ```xml

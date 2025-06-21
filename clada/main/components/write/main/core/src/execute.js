@@ -33,25 +33,23 @@ export function executeWrite(task, context) {
 
   const fullPath = path.resolve(cwd, filePath);
 
-  // Check if path exists and is symlink before any operations
-  if (fs.existsSync(fullPath)) {
-    try {
-      const stats = fs.lstatSync(fullPath);
-      if (stats.isSymbolicLink()) {
-        return {
-          ok: false,
-          error: { type: 'symlink_not_allowed', message: `Cannot write through symlink: ${filePath}` }
-        };
-      }
-      if (stats.isDirectory()) {
-        return {
-          ok: false,
-          error: { type: 'permission_denied', message: `Cannot write to directory: ${filePath}` }
-        };
-      }
-    } catch (error) {
-      // If lstat fails, continue to write attempt
+  // Check if path is a symlink (even if target doesn't exist)
+  try {
+    const stats = fs.lstatSync(fullPath);
+    if (stats.isSymbolicLink()) {
+      return {
+        ok: false,
+        error: { type: 'symlink_not_allowed', message: `Cannot write through symlink: ${filePath}` }
+      };
     }
+    if (stats.isDirectory()) {
+      return {
+        ok: false,
+        error: { type: 'permission_denied', message: `Cannot write to directory: ${filePath}` }
+      };
+    }
+  } catch (error) {
+    // Path doesn't exist, continue to write attempt
   }
 
   try {

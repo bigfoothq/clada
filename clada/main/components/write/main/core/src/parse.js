@@ -37,18 +37,22 @@ function parseWrite(node) {
     };
   }
 
-  // Check for CDATA content first
+  // Check for any text nodes (mixed content is not allowed)
+  const hasTextNode = node.children.some(child => 
+    child.type === 'text' && child.data && child.data.trim() !== ''
+  );
+  
+  // Check for CDATA content
   const cdataNode = node.children.find(child => child.type === 'cdata');
+  
+  if (hasTextNode) {
+    return {
+      ok: false,
+      error: { type: 'malformed_xml', message: 'Content must be wrapped in CDATA' }
+    };
+  }
+  
   if (!cdataNode) {
-    // Check if it's raw text content (not allowed)
-    const textNode = node.children.find(child => child.type === 'text');
-    if (textNode) {
-      return {
-        ok: false,
-        error: { type: 'malformed_xml', message: 'Content must be wrapped in CDATA' }
-      };
-    }
-    // No content at all
     return {
       ok: false,
       error: { type: 'malformed_xml', message: 'Content must be wrapped in CDATA' }
@@ -75,9 +79,14 @@ function parseWrite(node) {
     }
   };
 
-  // Parse append attribute if present
+  // Parse append attribute if present and valid
   if ('append' in node.attribs) {
-    result.value.append = node.attribs.append === 'true';
+    if (node.attribs.append === 'true') {
+      result.value.append = true;
+    } else if (node.attribs.append === 'false') {
+      result.value.append = false;
+    }
+    // Invalid values are ignored (append remains undefined)
   }
 
   return result;

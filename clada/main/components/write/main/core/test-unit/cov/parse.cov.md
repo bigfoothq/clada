@@ -128,3 +128,65 @@ Output:
 ```json
 {"ok": true, "value": {"path": "data.txt", "content": "overwrite", "append": false}}
 ```
+
+### Example 12: CDATA with escaped ]]>
+Input:
+```xml
+<write path="file.txt"><![CDATA[text with ]]&gt; inside]]></write>
+```
+Output:
+```json
+{"ok": true, "value": {"path": "file.txt", "content": "text with ]]&gt; inside"}}
+```
+
+### Example 13: Multiple CDATA sections
+Input:
+```xml
+<write path="file.txt"><![CDATA[part1]]><![CDATA[part2]]></write>
+```
+Output:
+```json
+{"ok": true, "value": {"path": "file.txt", "content": "part1"}}
+```
+
+### Example 14: Mixed content with text and CDATA
+Input:
+```xml
+<write path="file.txt">text<![CDATA[cdata]]>more</write>
+```
+Output:
+```json
+{"ok": false, "error": {"type": "malformed_xml", "message": "Content must be wrapped in CDATA"}}
+```
+
+### Example 15: Invalid append value
+Input:
+```xml
+<write path="file.txt" append="yes"><![CDATA[content]]></write>
+```
+Output:
+```json
+{"ok": true, "value": {"path": "file.txt", "content": "content"}}
+```
+
+### Example 16: Extra unknown attributes
+Input:
+```xml
+<write path="file.txt" mode="755" unknown="value"><![CDATA[content]]></write>
+```
+Output:
+```json
+{"ok": true, "value": {"path": "file.txt", "content": "content"}}
+```
+
+### Example 17: CDATA with only whitespace
+Input:
+```xml
+<write path="file.txt"><![CDATA[   
+  
+   ]]></write>
+```
+Output:
+```json
+{"ok": true, "value": {"path": "file.txt", "content": "   \n  \n   "}}
+```

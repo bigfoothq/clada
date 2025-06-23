@@ -8,7 +8,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "htmlparser2": "^10.0.0"
+    "csl-parser": "git+https://github.com/bigfoothq/csl-parser.git"
   },
   "devDependencies": {
     "@types/node": "^24.0.3",

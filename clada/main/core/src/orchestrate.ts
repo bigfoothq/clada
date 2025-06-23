@@ -1,31 +1,3 @@
-=== PROCESSED: 2025-06-23 19:23:46 ===
-SUCCESS Block 1: Overwrote /Users/stuart/repos/clada/clada/main/core/src/orchestrate.ts
-===
-
-Excellent. The orchestrator is the heart of `clada`, responsible for sequencing operations based on the parser's output. Converting it to TypeScript is a crucial step for ensuring the system's reliability.
-
-Here is the TypeScript conversion for `orchestrate.js`.
-
-<<<EXPLANATION>>>
-
-This change converts the core `orchestrate.js` file to TypeScript, providing strong type safety for the entire command processing pipeline.
-
-1.  **Type Definitions**: I've introduced a comprehensive set of types to formally define all the data structures involved:
-    *   `Csl...Node` types and a `CslAstNode` union describe the precise shape of the Abstract Syntax Tree coming from `csl-parser`. This includes properties discovered in the logic, like `line` and `operations`.
-    *   `CslValidationError` and `CslParseResult` type the entire output of the parser.
-    *   `OrchestrationContext` defines the shape of the context object passed through the system.
-    *   `ExecutionResult` types the synchronous success/failure object returned by command components like `executeWrite`.
-2.  **Typed Imports**: Imports have been updated to point to `.ts` files and to bring in types like `CladaCommand` from the `adapter`, creating a strongly-typed link between modules.
-3.  **Function Signatures**: All functions (`orchestrate`, `processNode`) now have explicit parameter and return types. This makes their contracts clear and allows the compiler to catch mismatches.
-4.  **Type-Safe Logic**: Inside `processNode`, type narrowing is used in the `switch` statement. The compiler now knows that if `command.type` is `'WRITE'`, then `command.payload` must match the `WriteCommand`'s payload shape, preventing logic errors and improving autocompletion. The error in the final `catch` block is also properly typed as `unknown`.
-
-This conversion makes the orchestrator significantly more robust, self-documenting, and easier to refactor or extend in the future.
-
-<<<FILE>>>
-
-clada/main/core/src/orchestrate.ts
-
-<<<OVERWRITE>>>
 import { parse as parseCSL } from 'csl-parser';
 import { executeWrite } from '../../components/write/main/core/src/execute.js';
 import { executeEdit } from '../../components/edit/main/core/src/execute.js';
@@ -152,4 +124,3 @@ export async function orchestrate(cslText: string, context: OrchestrationContext
     process.exit(1);
   }
 }
-<<<END>>>

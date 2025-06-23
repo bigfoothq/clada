@@ -238,3 +238,8 @@ Key: Design identifies components. Implementation reveals types.
 ### mostly future concerns
 
 so the workflow is we write the cov, then the test, then the code.  and the we run the tests and we'll probably get errors we have to sort through.  VERY IMPORTANT:  during this debugging process, DO NOT ALLOW EDITS ON THE TESTS THEMSELVES.  except under explicit manual human approval.  only stuff like getting things to like compile or import properly etc.  but any changes to business logic kinda stuff may ONLY happen to the implemented code file, not the test.  any automated pipeline must explicity block changes to the tests during this debugging process.
+
+
+UPDATE:
+
+index.ts, the public facing entry point, goes in project/main/core/src/index.ts

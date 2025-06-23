@@ -1,28 +1,28 @@
 ## Purpose
 
-Clada executes filesystem and runtime commands embedded in LLM output using a hybrid approach: XML (CML) for file content modifications, shell commands for everything else. Requires exact string matching for edits, includes test command approval system, and provides atomic Git wrapping. Built for LLM coding agents needing deterministic filesystem access without shell injection vulnerabilities.
+Clada executes filesystem and runtime commands embedded in LLM output using CSL (Clada Syntax Language), a purpose-built language parsed by a dedicated state-machine parser. It provides deterministic filesystem access and shell command execution for LLM coding agents.
 
 ## System Overview
 
-**Input**: Mixed text from stdin containing CML blocks and/or shell commands in `<run>` tags.
+**Input**: Text from stdin containing CSL blocks, parsed by `csl-parser`.
 
 **Execution Model**: 
-- Within `<tasks>` blocks: Sequential, fail-fast
-- Across blocks: Independent execution  
-- Standalone tasks: Execute independently
-- Malformed XML aborts that block only
+- Follows the execution model of `csl-parser`:
+  - Fatal syntax errors halt all execution.
+  - Semantic validation errors are collected; valid operations can still run.
+  - Operations within a `<---TASKS--->` block are atomic: if one fails validation, the entire block is skipped.
 
 **Command Types**:
-- **File content ops**: `<write>`, `<edit>` - XML-only
-- **Everything else**: `<run>` wrapping whitelisted shell commands
+- **File content ops**: `<---WRITE--->`, `<---SEARCH--->`
+- **Shell commands**: `<---RUN--->` wrapping whitelisted shell commands
 - **Test commands**: Require first-use approval
 
 **Security**:
-- No shell interpretation (execFile only)
+- No shell interpretation (`execFile` only)
 - Path validation prevents traversal
 - Resource limits: 5s timeout, 10MB output per command
 - Test commands stored in `.clada/allowed-commands.json`
 
-**Git Integration**: Automatic pre/post commits, no rollback (disable with `--no-git`)
+**Git Integration**: Automatic pre/post commits (disable with `--no-git`)
 
-**Output**: Task status prefixed with `[task-N]`, final XML result summary
+**Output**: Task status prefixed with `[task-N]`, final summary.

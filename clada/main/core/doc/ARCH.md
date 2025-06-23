@@ -3,9 +3,9 @@
 ## Execution Flow
 1. CLI parses arguments
 2. Read stdin to string
-3. Parse XML to DOM
-4. Extract all tasks from DOM
-5. Group tasks by block
+
+get commands from csl-parser //TODO update this doc to describe this better
+
 6. Git commit (if enabled)
 7. Execute each block sequentially:
    - Execute tasks within block sequentially

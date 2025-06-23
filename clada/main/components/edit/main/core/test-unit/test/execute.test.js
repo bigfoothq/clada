@@ -284,7 +284,7 @@ clada/main/components/edit/main/core/test-unit/test/execute.test.js
 <<<SEARCH>>>
 import { mkdirSync, rmSync, writeFileSync, readFileSync, symlinkSync } from 'node:fs';
 <<<REPLACE>>>
-import { mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync, readFileSync, symlinkSync } from 'node:fs';
 
   it('performs lazy range matching (nearest end)', () => {
     writeFileSync(join(testDir, 'nested.js'), '{ outer { inner } still outer }');

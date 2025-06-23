@@ -1,31 +1,72 @@
-=== PROCESSED: 2025-06-21 09:53:47 ===
-SUCCESS Block 1: Updated /Users/stuart/repos/clada/clada/debug-parse.js
+=== PROCESSED: 2025-06-22 21:22:14 ===
+ERROR Block 1: No match found in /Users/stuart/repos/clada/clada/main/components/edit/main/core/test-unit/test/execute.test.js
 ===
 
-This is revealing! The htmlparser2 is creating `cdata` type nodes, not `text` nodes as I expected. But crucially, the CDATA content is NOT in the `data` field of the cdata node. Let me investigate further:
+=== PROCESSED: 2025-06-21 10:17:56 ===
+ERROR Block 1: No match found in /Users/stuart/repos/clada/clada/main/components/edit/main/core/test-unit/test/execute.test.js
+===
+
+The edit failed because the lazy range matching test already exists in the file from the first successful edit. Let me search for the correct insertion point:
+
+Let me examine the file directly to understand its current state and find the right insertion point:
 
 <<<EXPLANATION>>>
-The CDATA nodes have empty data fields. The actual content must be in the cdata node's children. Let's check the cdata node structure.
-<<<FILE>>>
-clada/debug-parse.js
-<<<SEARCH>>>
-  if (searchNode.children.length > 0) {
-    searchNode.children.forEach((child, i) => {
-      console.log(`Child ${i}: type="${child.type}", data="${child.data || ''}", name="${child.name || ''}"`);
-    });
-  }
-<<<REPLACE>>>
-  if (searchNode.children.length > 0) {
-    searchNode.children.forEach((child, i) => {
-      console.log(`Child ${i}: type="${child.type}", data="${child.data || ''}", name="${child.name || ''}"`);
-      if (child.type === 'cdata' && child.children) {
-        console.log(`  CDATA has ${child.children.length} children:`);
-        child.children.forEach((cdataChild, j) => {
-          console.log(`    Child ${j}: type="${cdataChild.type}", data="${cdataChild.data || ''}"`);
-        });
-      }
-    });
-  }
-<<<END>>>
 
-Run this to see where the CDATA content actually lives.
+Add the missing symlink rejection test case after the subdirectory test and before the path escape test
+
+<<<FILE>>>
+
+clada/main/components/edit/main/core/test-unit/test/execute.test.js
+
+<<<SEARCH>>>
+  it('handles path with subdirectory', () => {
+    mkdirSync(join(testDir, 'sub', 'dir'), { recursive: true });
+    writeFileSync(join(testDir, 'sub', 'dir', 'file.txt'), 'content');
+    
+    const result = executeEdit({
+      mode: 'exact',
+      path: 'sub/dir/file.txt',
+      search: 'content',
+      replace: 'new content',
+      count: 1
+    }, context);
+    
+    assert.deepEqual(result, { ok: true, value: undefined });
+    assert.equal(readFileSync(join(testDir, 'sub', 'dir', 'file.txt'), 'utf8'), 'new content');
+  });
+
+  it('prevents path escape attempts', () => {
+<<<REPLACE>>>
+  it('handles path with subdirectory', () => {
+    mkdirSync(join(testDir, 'sub', 'dir'), { recursive: true });
+    writeFileSync(join(testDir, 'sub', 'dir', 'file.txt'), 'content');
+    
+    const result = executeEdit({
+      mode: 'exact',
+      path: 'sub/dir/file.txt',
+      search: 'content',
+      replace: 'new content',
+      count: 1
+    }, context);
+    
+    assert.deepEqual(result, { ok: true, value: undefined });
+    assert.equal(readFileSync(join(testDir, 'sub', 'dir', 'file.txt'), 'utf8'), 'new content');
+  });
+
+  it('rejects symlink operations', () => {
+    writeFileSync(join(testDir, 'target.txt'), 'original content');
+    symlinkSync(join(testDir, 'target.txt'), join(testDir, 'link.txt'));
+    
+    const result = executeEdit({
+      mode: 'exact',
+      path: 'link.txt',
+      search: 'x',
+      replace: 'y',
+      count: 1
+    }, context);
+    
+    assert.deepEqual(result, { ok: false, error: 'symlink_not_allowed' });
+  });
+
+  it('prevents path escape attempts', () => {
+<<<END>>>

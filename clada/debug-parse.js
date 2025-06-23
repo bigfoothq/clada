@@ -1,35 +1,37 @@
-// 20250121
-// Debug script to understand htmlparser2 CDATA parsing
+20250121
 
 import { parseDocument } from 'htmlparser2';
 
-// Test cases
-const testCases = [
+function inspectNode(node, depth = 0) {
+  const indent = '  '.repeat(depth);
+  console.log(`${indent}type: "${node.type}", name: "${node.name || ''}", data: ${node.data ? `"${node.data}"` : 'undefined'}`);
+  
+  if (node.children && node.children.length > 0) {
+    console.log(`${indent}children: [`);
+    node.children.forEach((child, i) => {
+      console.log(`${indent}  [${i}]:`);
+      inspectNode(child, depth + 2);
+    });
+    console.log(`${indent}]`);
+  }
+}
+
+// Test actual structure
+const tests = [
   '<search><![CDATA[hello]]></search>',
-  '<search><![CDATA[]]></search>',
+  '<search><![CDATA[text with ]]&gt; inside]]></search>',
   '<search>raw text</search>',
-  '<search>text<![CDATA[more]]>text</search>'
+  '<search>text<![CDATA[more]]></search>',
+  '<search><![CDATA[]]></search>'
 ];
 
-testCases.forEach((xml, index) => {
-  console.log(`\n=== Test ${index + 1}: ${xml} ===`);
+tests.forEach((xml, i) => {
+  console.log(`\n=== Test ${i + 1} ===`);
+  console.log(`XML: ${xml}`);
+  const dom = parseDocument(xml, { xmlMode: true });
+  const searchNode = dom.children.find(c => c.type === 'tag' && c.name === 'search');
   
-  const fullXml = `<edit path="test.js">${xml}<replace><![CDATA[new]]></replace></edit>`;
-  const dom = parseDocument(fullXml, { xmlMode: true });
-  const editNode = dom.children.find(child => child.type === 'tag' && child.name === 'edit');
-  const searchNode = editNode.children.find(child => child.type === 'tag' && child.name === 'search');
-  
-  console.log('Number of children:', searchNode.children.length);
-  
-  if (searchNode.children.length > 0) {
-    searchNode.children.forEach((child, i) => {
-      console.log(`Child ${i}: type="${child.type}", data="${child.data || ''}", name="${child.name || ''}"`);
-      if (child.type === 'cdata' && child.children) {
-        console.log(`  CDATA has ${child.children.length} children:`);
-        child.children.forEach((cdataChild, j) => {
-          console.log(`    Child ${j}: type="${cdataChild.type}", data="${cdataChild.data || ''}"`);
-        });
-      }
-    });
+  if (searchNode) {
+    inspectNode(searchNode);
   }
 });

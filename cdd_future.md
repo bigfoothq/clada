@@ -41,6 +41,8 @@ but make it always very clear to the LLM whether its certain changes were implem
 
 #### the [test -> code] process
 
+    how does this execute.test.ts look?  is it faithfully adhereing to its cov?  think closely and critically and incrementally 
+
     we need to write the parse.js file for the edit component.  do not use any shared code. brainstorm first.  dont write any code yet
         (give it the complete file tree)
 
@@ -60,3 +62,7 @@ but make it always very clear to the LLM whether its certain changes were implem
 
 dont even give claude/llm the test ! just give it the cov and the src code.  so no risk of editing the test.    
 ... eh htis is prob no good.  its needing to see the test code for debugging rn.  we just need strict blocks against editnig the test.  require human to intervene
+
+#### post debugging success
+
+    our "edit" parse code is now passing the tests.  but the concern is that we might have tests that are unfortunatley just validating whatever bad code there is.  think from a high level for whats best for the project, and then carefully examing the covs for this test, and then make sure the tests are actualy testing it, and make sure the code looks good for it too.

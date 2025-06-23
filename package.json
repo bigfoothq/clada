@@ -3,10 +3,16 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "test": "node --test",
-    "test:write": "node --test 'clada/main/components/write/main/core/test-unit/test/*.test.js'"
+    "test:write": "node --test 'clada/main/components/write/main/core/test-unit/test/*.test.js'",
+    "test": "tsx ./path/to/your/test-file.test.ts",
+    "build": "tsc"
   },
   "dependencies": {
     "htmlparser2": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.3",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
   }
 }

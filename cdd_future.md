@@ -66,3 +66,17 @@ dont even give claude/llm the test ! just give it the cov and the src code.  so 
 #### post debugging success
 
     our "edit" parse code is now passing the tests.  but the concern is that we might have tests that are unfortunatley just validating whatever bad code there is.  think from a high level for whats best for the project, and then carefully examing the covs for this test, and then make sure the tests are actualy testing it, and make sure the code looks good for it too.
+
+#### finalizing docs before making covs:
+
+    Scour all of the documentation that I shared for a new project for the custom, syntax, Parker and validator and everything else, etc. Look for any ambiguities or uncertainties or problems or errors among these documents. No code. high level answers only. Only share things that need to be changed among the existing documentation.
+
+    and ignore everythign about cov, test, or code files. we're just focusing on polishing the docs rn
+
+    after you generate your full thoughful response, take a step back and think about and respond to this: "feel good about all this? and remember to ignore everythign about cov, test, or code files. we're just focusing on polishing the docs rn"
+
+    and then after you answer that question, answer this: "Are there any ambiguities or uncertainties? We need to resolve first before we think about what changes to make."
+
+    and then ansewr "wdyt about htese uncertainties? share your executive deiciosns and why"
+
+response -- some of its suggestions are very stupid.  but i thinkthis concept of basically asking the LLM to be an agentic leader is pretty good.  make the list of prompts more clear...

@@ -65,16 +65,4 @@ check anything online when it feels relevant.  good to compare our thoughts/assu
 
 when asked to share your thoughts (like if user says "wdyt"), then walk it out and talk it out gradually, incrementally, slowly, and thoughtfully.  challenge me so we can succeed overall
 
-IMPORTANT:  all files need to start with the date they were last formatted or updated by an LLM in this format:
-
-```
-20250605
-
-# file contents 
-
-bahblah blah
-```
-
-if a file doenst ahve that line, you must add it.  if it does, and it's not today's date, you must udpate it. 
-
 dont fall into the trap of equating "implementation" with "low-level".  implementation decisions can be high-level when they affect the system's fundamental behavior

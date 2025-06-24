@@ -1,46 +1,58 @@
-=== PROCESSED: 2025-06-24 11:00:45 ===
-SUCCESS Block 1: Overwrote /Users/stuart/repos/clada/clada/main/components/run/main/core/doc/ABSTRACT.md
+=== PROCESSED: 2025-06-24 11:31:21 ===
+SUCCESS Block 1: Updated /Users/stuart/repos/clada/clada/main/components/run/main/core/test-unit/cov/execute.cov.md
 ===
 
+Looking at the covenant against the implementation docs, let me check if all shell operators and syntax are covered:Based on the search results and the implementation docs, let me check if the covenant covers all shell operators and syntax that should be blocked:
+
+From the search results, common shell metacharacters include:
+- Pipes (`|`), redirections (`>`, `<`, `>>`, `<<`), command substitution (`` ` ``), variables (`$`), wildcards (`*`, `?`, `[]`), background (`&`), semicolon (`;`), logical operators (`&&`, `||`)
+- Command grouping with parentheses `()` and braces `{}`
+
+Looking at the covenant, it currently shows:
+- Pipes: ✓ `'echo "test" | grep test'`
+- Output redirect: ✓ `'cat file.txt > output.txt'`
+- Logical AND: ✓ `'ls && echo done'`
+- Invalid syntax: ✓ `'echo "unterminated'`
+
+**Missing examples that should fail:**
+1. Input redirection: `<`
+2. Append redirection: `>>`
+3. Here documents: `<<`
+4. Background execution: `&`
+5. Command substitution: `` ` `` or `$()`
+6. Variable expansion: `$VAR`
+7. Wildcards/globs: `*`, `?`, `[abc]`
+8. Semicolon command separator: `;`
+9. Logical OR: `||`
+10. Command grouping: `()` and `{}`
+11. Escape sequences that could be problematic
+
+Here are the missing examples to add:
+
 <<<EXPLANATION>>>
-Expanding ABSTRACT.md to provide a complete high-level overview of all critical components while staying concise
-
+Add missing shell operator examples that should be blocked
 <<<FILE>>>
-clada/main/components/run/main/core/doc/ABSTRACT.md
-
-<<<OVERWRITE>>>
-# Run Component
-
-## Purpose
-Executes shell commands from CSL `RUN` blocks using a two-tier security model that prevents shell injection while allowing controlled filesystem access. Designed for LLM-generated commands where mistakes are expected but malicious intent is not.
-
-## Overview
-
-### Two-Tier Security Model
-1. **Filesystem commands**: Hardcoded whitelist in `COMMAND_SPECS` including `cat`, `ls`, `grep`, `find`, `git`, etc. These execute immediately without prompts.
-2. **Test commands**: Everything else (e.g., `npm test`, `pytest`, `jest`) requires user approval on first use.
-
-### Approval System
-- Unknown commands prompt user: "Allow 'npm test'? (yes/no/always/never):"
-- `yes` - Run once only
-- `always` - Run and save to `.clada/allowed-commands.json`
-- `no` - Don't run
-- `never` - Don't run and save to `.clada/blocked-commands.json`
-- Previously approved/blocked commands skip prompts
-
-### Command Execution
-- **Parser**: `shell-quote` handles proper argument parsing and quote handling
-- **Validation**: Rejects shell operators (pipes, redirects), validates paths stay within working directory
-- **Execution**: `execFile` only - no shell interpretation prevents injection attacks
-- **Limits**: 5 second timeout, 10MB max output per command
-- **Special handling**: Git subcommands have their own validation rules
-
-### Error Handling
-- Invalid shell syntax
-- Disallowed commands or git subcommands
-- Path traversal attempts
-- Failed execution (non-zero exit codes)
-- Timeouts and oversized output
-
-See `concepts/LLM_COMMANDS_APPROACH.md` for detailed implementation and security rationale.
+clada/main/components/run/main/core/test-unit/cov/execute.cov.md
+<<<SEARCH>>>
+- 'ls && echo done' → {ok: false, error: "Shell operators not allowed"}
+- 'echo "unterminated' → {ok: false, error: "Invalid shell syntax"}
+<<<REPLACE>>>
+- 'ls && echo done' → {ok: false, error: "Shell operators not allowed"}
+- 'ls || echo failed' → {ok: false, error: "Shell operators not allowed"}
+- 'cat < input.txt' → {ok: false, error: "Shell operators not allowed"}
+- 'echo test >> output.txt' → {ok: false, error: "Shell operators not allowed"}
+- 'cat << EOF' → {ok: false, error: "Shell operators not allowed"}
+- 'sleep 5 &' → {ok: false, error: "Shell operators not allowed"}
+- 'echo $(date)' → {ok: false, error: "Shell operators not allowed"}
+- 'echo `date`' → {ok: false, error: "Shell operators not allowed"}
+- 'echo $HOME' → {ok: false, error: "Shell operators not allowed"}
+- 'ls *.txt' → {ok: false, error: "Shell operators not allowed"}
+- 'ls file?.txt' → {ok: false, error: "Shell operators not allowed"}
+- 'ls [abc].txt' → {ok: false, error: "Shell operators not allowed"}
+- 'echo test; ls' → {ok: false, error: "Shell operators not allowed"}
+- '(cd /tmp && ls)' → {ok: false, error: "Shell operators not allowed"}
+- '{ echo test; }' → {ok: false, error: "Shell operators not allowed"}
+- 'echo "unterminated' → {ok: false, error: "Invalid shell syntax"}
 <<<END>>>
+
+Now the covenant comprehensively covers all the shell operators and metacharacters that should be blocked by the security model.

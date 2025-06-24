@@ -23,7 +23,7 @@ Clada executes filesystem and runtime commands embedded in LLM output using CSL 
 - No shell interpretation (`execFile` only)
 - Path validation prevents traversal
 - Resource limits: 5s timeout, 10MB output per command
-- Test commands stored in `.clada/allowed-commands.json`
+- Test commands stored in `.clada/commands.json`
 
 **Git Integration**: Automatic pre/post commits (disable with `--no-git`)
 

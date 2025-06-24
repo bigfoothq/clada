@@ -12,13 +12,13 @@ Executes shell commands from CSL `RUN` blocks using a two-tier security model th
 ### Approval System
 - Unknown commands prompt user: "Allow 'npm test'? (yes/no/always/never):"
 - `yes` - Run once only
-- `always` - Run and save to `.clada/cmd-allow-deny-list.json`
+- `always` - Run and save to `.clada/commands.json`
 - `no` - Don't run
-- `never` - Don't run and save to `.clada/cmd-allow-deny-list.json`
+- `never` - Don't run and save to `.clada/commands.json`
 - Previously approved/blocked commands skip prompts
 
 
-### cmd-allow-deny-list.json
+### commands.json
 {
   "allowed": ["npm test", "jest --coverage"],
   "blocked": ["rm -rf /", "npm run deploy:prod"]

@@ -15,7 +15,7 @@ Clada executes filesystem and runtime commands embedded in LLM output using CSL 
 **Command Types**:
 - **File content ops**: 
   - `<---WRITE--->`: Creates/overwrites files
-  - `<---SEARCH--->`: Edit operations with mandatory match validation. The `count` parameter specifies the EXACT number of matches expected - if actual matches differ, the operation fails. This ensures the LLM's understanding matches the file content before making changes.
+  - `<---SEARCH--->`: Edit operations with mandatory match validation. The `count` parameter specifies the EXACT number of matches expected - if actual matches differ, the operation fails. This ensures the LLM's understanding matches the file content before making changes.  
 - **Shell commands**: `<---RUN--->` wrapping whitelisted shell commands
 - **Test commands**: Require first-use approval
 
@@ -86,6 +86,13 @@ Single replacement:
 Multiple replacements:
 ```
 <---SEARCH file="app.js" count="3"--->
+oldValue
+<---REPLACE--->
+newValue
+<---END--->
+
+
+<---SEARCH file="app.js" count="all"--->
 oldValue
 <---REPLACE--->
 newValue

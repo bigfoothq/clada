@@ -1,41 +1,46 @@
-=== PROCESSED: 2025-06-23 22:21:20 ===
-SUCCESS Block 1: Updated /Users/stuart/repos/clada/clada/main/components/write/main/core/src/execute.ts
+=== PROCESSED: 2025-06-24 11:00:45 ===
+SUCCESS Block 1: Overwrote /Users/stuart/repos/clada/clada/main/components/run/main/core/doc/ABSTRACT.md
 ===
 
-An analysis of the test failure shows that the `handles execution failure` test in `orchestrate.test.ts` is failing. This test is designed to verify that the system correctly handles errors when a `WRITE` operation fails. It attempts to write a file to a non-existent directory, expecting this to cause an error.
-
-However, the current implementation of `executeWrite` in `clada/main/components/write/main/core/src/execute.ts` includes logic to automatically create parent directories (`mkdirSync({ recursive: true })`). This "helpful" feature prevents the expected failure from occurring, causing the test's assertion (`assert(!existsSync(...))`) to fail because the file is successfully created.
-
-To fix this, I will modify `executeWrite` to remove the automatic directory creation. This change will make the `WRITE` command fail if the target directory does not exist, aligning the implementation with the test's intent and allowing the error-handling logic to be properly verified.
-
 <<<EXPLANATION>>>
-The `handles execution failure` test in `orchestrate.test.ts` is failing because the `executeWrite` function automatically creates parent directories, preventing the intended write failure. To fix this, I am removing the `mkdirSync` logic. This will cause `writeFileSync` to throw an `ENOENT` error when the directory does not exist, which the existing error handling will catch, allowing the test to pass as expected.
+Expanding ABSTRACT.md to provide a complete high-level overview of all critical components while staying concise
 
 <<<FILE>>>
-clada/main/components/write/main/core/src/execute.ts
-<<<SEARCH>>>
-  try {
-    const dir = path.dirname(fullPath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
+clada/main/components/run/main/core/doc/ABSTRACT.md
 
-    if (task.append) {
-      fs.appendFileSync(fullPath, content, 'utf8');
-    } else {
-      fs.writeFileSync(fullPath, content, 'utf8');
-    }
-<<<REPLACE>>>
-  try {
-    // The automatic directory creation logic (`mkdirSync`) has been removed.
-    // This ensures that the WRITE operation will fail if the parent directory
-    // does not exist, which allows the `handles execution failure` test case
-    // to correctly verify the system's error handling path. The underlying
-    // fs call will throw an 'ENOENT' error, which is caught below.
+<<<OVERWRITE>>>
+# Run Component
 
-    if (task.append) {
-      fs.appendFileSync(fullPath, content, 'utf8');
-    } else {
-      fs.writeFileSync(fullPath, content, 'utf8');
-    }
+## Purpose
+Executes shell commands from CSL `RUN` blocks using a two-tier security model that prevents shell injection while allowing controlled filesystem access. Designed for LLM-generated commands where mistakes are expected but malicious intent is not.
+
+## Overview
+
+### Two-Tier Security Model
+1. **Filesystem commands**: Hardcoded whitelist in `COMMAND_SPECS` including `cat`, `ls`, `grep`, `find`, `git`, etc. These execute immediately without prompts.
+2. **Test commands**: Everything else (e.g., `npm test`, `pytest`, `jest`) requires user approval on first use.
+
+### Approval System
+- Unknown commands prompt user: "Allow 'npm test'? (yes/no/always/never):"
+- `yes` - Run once only
+- `always` - Run and save to `.clada/allowed-commands.json`
+- `no` - Don't run
+- `never` - Don't run and save to `.clada/blocked-commands.json`
+- Previously approved/blocked commands skip prompts
+
+### Command Execution
+- **Parser**: `shell-quote` handles proper argument parsing and quote handling
+- **Validation**: Rejects shell operators (pipes, redirects), validates paths stay within working directory
+- **Execution**: `execFile` only - no shell interpretation prevents injection attacks
+- **Limits**: 5 second timeout, 10MB max output per command
+- **Special handling**: Git subcommands have their own validation rules
+
+### Error Handling
+- Invalid shell syntax
+- Disallowed commands or git subcommands
+- Path traversal attempts
+- Failed execution (non-zero exit codes)
+- Timeouts and oversized output
+
+See `concepts/LLM_COMMANDS_APPROACH.md` for detailed implementation and security rationale.
 <<<END>>>

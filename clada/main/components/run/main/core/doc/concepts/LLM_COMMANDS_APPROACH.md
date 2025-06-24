@@ -1,3 +1,6 @@
+
+this is a conceptual outline of our run command, as code.  this is not the literal code we need to use, but a code-form sort of reference manual
+
 ```ts
 import { execFileSync } from 'child_process';
 import { realpathSync, existsSync } from 'fs';

@@ -1,40 +1,4 @@
-// It's assumed that the 'csl-parser' package exports its AST node types.
-// If not, these local definitions serve as a precise contract.
-// You can replace these with `import { ... } from 'csl-parser';` if types are available.
-
-/** A node representing a WRITE operation in CSL. */
-interface CslWriteNode {
-  type: 'WRITE';
-  file: string;
-  content: string;
-  append?: string; // "true" or undefined
-}
-
-/** A node representing a SEARCH/EDIT operation in CSL. */
-interface CslSearchNode {
-  type: 'SEARCH';
-  file: string;
-  pattern: string;
-  to?: string;
-  replacement: string;
-  count?: string;
-}
-
-/** A node representing a RUN operation in CSL. */
-interface CslRunNode {
-  type: 'RUN';
-  content: string;
-  dir?: string;
-}
-
-/** A node representing a TASKS block in CSL. */
-interface CslTasksNode {
-  type: 'TASKS';
-  // Other properties like version, children, etc. are handled by the orchestrator.
-}
-
-/** A union of all possible CSL AST node types from the parser. */
-type CslAstNode = CslWriteNode | CslSearchNode | CslRunNode | CslTasksNode | { type: string; [key: string]: any };
+import type { Operation } from 'csl-parser';
 
 
 // --- Clada Command Types ---
@@ -94,7 +58,7 @@ export type CladaCommand = WriteCommand | EditCommand | RunCommand;
  * @param astNode - A single node from the csl-parser AST.
  * @returns A clada command object or null if the node type does not map to a command.
  */
-export function mapAstNodeToCommand(astNode: CslAstNode): CladaCommand | null {
+export function mapAstNodeToCommand(astNode: Operation): CladaCommand | null {
   switch (astNode.type) {
     case 'WRITE':
       return {

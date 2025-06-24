@@ -1,4 +1,4 @@
-import { parse as parseCSL } from 'csl-parser';
+import { parse as parseCSL, ParseResult, Operation, ValidationError } from 'csl-parser';
 import { executeWrite } from '../../components/write/main/core/src/execute.js';
 import { executeEdit } from '../../components/edit/main/core/src/execute.js';
 // import { executeRun } from '../../components/run/main/core/src/execute.js';
@@ -17,32 +17,6 @@ export interface OrchestrationContext {
   workingDir: string;
 }
 
-/** Describes a validation error from the csl-parser. */
-interface CslValidationError {
-  line: number;
-  parentTaskLine?: number;
-  error: string;
-}
-
-// --- CSL AST Node Types (from csl-parser) ---
-
-/** The base structure for any node from the CSL parser. */
-interface CslBaseNode {
-  type: string;
-  line: number;
-}
-interface CslWriteNode extends CslBaseNode { type: 'WRITE'; file: string; content: string; append?: string; }
-interface CslSearchNode extends CslBaseNode { type: 'SEARCH'; file: string; pattern: string; to?: string; replacement: string; count?: string; }
-interface CslRunNode extends CslBaseNode { type: 'RUN'; content: string; dir?: string; }
-interface CslTasksNode extends CslBaseNode { type: 'TASKS'; operations: CslAstNode[]; }
-type CslAstNode = CslWriteNode | CslSearchNode | CslRunNode | CslTasksNode;
-
-/** The complete output from the `csl-parser`. */
-interface CslParseResult {
-  ast: CslAstNode[];
-  validationErrors: CslValidationError[];
-}
-
 /**
  * Processes a single AST node, executing it if valid.
  * This function handles the logic for skipping invalid operations or entire TASKS blocks.
@@ -50,7 +24,7 @@ interface CslParseResult {
  * @param context - The global orchestration context.
  * @param validationErrors - A list of all validation errors from the parser.
  */
-async function processNode(astNode: CslAstNode, context: OrchestrationContext, validationErrors: CslValidationError[]): Promise<void> {
+async function processNode(astNode: Operation, context: OrchestrationContext, validationErrors: ValidationError[]): Promise<void> {
   // For standalone operations, check if this specific operation is invalid.
   if (validationErrors.some(err => err.line === astNode.line && err.parentTaskLine === undefined)) {
     const errorInfo = validationErrors.find(e => e.line === astNode.line)!;
@@ -60,16 +34,20 @@ async function processNode(astNode: CslAstNode, context: OrchestrationContext, v
 
   // TASKS are special containers; their execution is atomic.
   if (astNode.type === 'TASKS') {
-    const hasError = astNode.operations.some(() => 
-        validationErrors.some(err => err.parentTaskLine === astNode.line)
-    );
-    if (hasError) {
-      console.warn(`[SKIP] Skipping TASKS block at line ${astNode.line} due to validation errors within it.`);
-      return;
-    }
-    // Execute sub-operations if the whole block is valid.
-    for (const subNode of astNode.operations) {
-      await processNode(subNode, context, validationErrors);
+    // Access operations through the index signature since Operation type is flexible
+    const operations = astNode.operations as Operation[] | undefined;
+    if (operations) {
+      const hasError = operations.some(() => 
+          validationErrors.some(err => err.parentTaskLine === astNode.line)
+      );
+      if (hasError) {
+        console.warn(`[SKIP] Skipping TASKS block at line ${astNode.line} due to validation errors within it.`);
+        return;
+      }
+      // Execute sub-operations if the whole block is valid.
+      for (const subNode of operations) {
+        await processNode(subNode, context, validationErrors);
+      }
     }
     return;
   }
@@ -108,9 +86,8 @@ async function processNode(astNode: CslAstNode, context: OrchestrationContext, v
  */
 export async function orchestrate(cslText: string, context: OrchestrationContext): Promise<void> {
   try {
-    // The `csl-parser` is assumed to return a structure matching CslParseResult.
-    // We cast the return to provide type safety downstream.
-    const { ast, validationErrors } = parseCSL(cslText) as CslParseResult;
+    // Parse CSL text using csl-parser
+    const { ast, validationErrors } = parseCSL(cslText);
 
     // Process the entire AST. The processNode function handles skipping invalid operations.
     for (const astNode of ast) {

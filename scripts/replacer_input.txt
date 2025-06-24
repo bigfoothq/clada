@@ -1,155 +1,546 @@
-=== PROCESSED: 2025-06-23 19:23:46 ===
-SUCCESS Block 1: Overwrote /Users/stuart/repos/clada/clada/main/core/src/orchestrate.ts
+=== PROCESSED: 2025-06-23 19:58:46 ===
+SUCCESS Block 1: Created /Users/stuart/repos/clada/clada/main/core/test-unit/cov/adapter.cov.md
+SUCCESS Block 2: Created /Users/stuart/repos/clada/clada/main/core/test-unit/test/adapter.test.ts
+SUCCESS Block 3: Created /Users/stuart/repos/clada/clada/main/core/test-unit/cov/orchestrate.cov.md
+SUCCESS Block 4: Created /Users/stuart/repos/clada/clada/main/core/test-unit/test/orchestrate.test.ts
 ===
 
-Excellent. The orchestrator is the heart of `clada`, responsible for sequencing operations based on the parser's output. Converting it to TypeScript is a crucial step for ensuring the system's reliability.
+Looking at your code and the CDD structure, yes, we need to write covs and tests for `adapter.ts` and `orchestrate.ts`. Let me analyze what needs testing and create the covenant files.
 
-Here is the TypeScript conversion for `orchestrate.js`.
+## Analysis
+
+1. **adapter.ts** - Pure function that maps AST nodes to command objects
+2. **orchestrate.ts** - Main orchestration logic that processes CSL and executes commands
+
+Let's start with the covenants:
 
 <<<EXPLANATION>>>
-
-This change converts the core `orchestrate.js` file to TypeScript, providing strong type safety for the entire command processing pipeline.
-
-1.  **Type Definitions**: I've introduced a comprehensive set of types to formally define all the data structures involved:
-    *   `Csl...Node` types and a `CslAstNode` union describe the precise shape of the Abstract Syntax Tree coming from `csl-parser`. This includes properties discovered in the logic, like `line` and `operations`.
-    *   `CslValidationError` and `CslParseResult` type the entire output of the parser.
-    *   `OrchestrationContext` defines the shape of the context object passed through the system.
-    *   `ExecutionResult` types the synchronous success/failure object returned by command components like `executeWrite`.
-2.  **Typed Imports**: Imports have been updated to point to `.ts` files and to bring in types like `CladaCommand` from the `adapter`, creating a strongly-typed link between modules.
-3.  **Function Signatures**: All functions (`orchestrate`, `processNode`) now have explicit parameter and return types. This makes their contracts clear and allows the compiler to catch mismatches.
-4.  **Type-Safe Logic**: Inside `processNode`, type narrowing is used in the `switch` statement. The compiler now knows that if `command.type` is `'WRITE'`, then `command.payload` must match the `WriteCommand`'s payload shape, preventing logic errors and improving autocompletion. The error in the final `catch` block is also properly typed as `unknown`.
-
-This conversion makes the orchestrator significantly more robust, self-documenting, and easier to refactor or extend in the future.
-
+Creating covenant file for adapter.ts that specifies the behavioral contract for mapAstNodeToCommand function
 <<<FILE>>>
-
-clada/main/core/src/orchestrate.ts
-
+clada/main/core/test-unit/cov/adapter.cov.md
 <<<OVERWRITE>>>
-import { parse as parseCSL } from 'csl-parser';
-import { executeWrite } from '../../components/write/main/core/src/execute.js';
-import { executeEdit } from '../../components/edit/main/core/src/execute.js';
-// import { executeRun } from '../../components/run/main/core/src/execute.js';
-import { mapAstNodeToCommand, CladaCommand } from './adapter.js';
+# Adapter Covenant
 
-// --- Type Definitions ---
+## mapAstNodeToCommand
 
-/** A generic result object indicating success or failure. */
-interface ExecutionResult {
-  ok: boolean;
-  error?: any;
-}
+Maps CSL AST nodes to Clada command objects.
 
-/** The global context for the orchestration process. */
-export interface OrchestrationContext {
-  workingDir: string;
-}
+### WRITE operations
+- `mapAstNodeToCommand({type: 'WRITE', file: 'test.txt', content: 'hello', line: 1})` → `{type: 'WRITE', payload: {path: 'test.txt', content: 'hello', append: false}}`
+- `mapAstNodeToCommand({type: 'WRITE', file: 'log.txt', content: 'data', append: 'true', line: 2})` → `{type: 'WRITE', payload: {path: 'log.txt', content: 'data', append: true}}`
+- `mapAstNodeToCommand({type: 'WRITE', file: 'out.txt', content: '', append: 'false', line: 3})` → `{type: 'WRITE', payload: {path: 'out.txt', content: '', append: false}}`
 
-/** Describes a validation error from the csl-parser. */
-interface CslValidationError {
-  line: number;
-  parentTaskLine?: number;
-  error: string;
-}
+### SEARCH operations (exact mode)
+- `mapAstNodeToCommand({type: 'SEARCH', file: 'app.js', pattern: 'foo', replacement: 'bar', line: 4})` → `{type: 'EDIT', payload: {mode: 'exact', path: 'app.js', search: 'foo', replace: 'bar', count: 1}}`
+- `mapAstNodeToCommand({type: 'SEARCH', file: 'main.py', pattern: 'old', replacement: 'new', count: '3', line: 5})` → `{type: 'EDIT', payload: {mode: 'exact', path: 'main.py', search: 'old', replace: 'new', count: 3}}`
 
-// --- CSL AST Node Types (from csl-parser) ---
+### SEARCH operations (range mode)
+- `mapAstNodeToCommand({type: 'SEARCH', file: 'config.json', pattern: '{', to: '}', replacement: '{}', line: 6})` → `{type: 'EDIT', payload: {mode: 'range', path: 'config.json', searchStart: '{', searchEnd: '}', replace: '{}', count: 1}}`
+- `mapAstNodeToCommand({type: 'SEARCH', file: 'test.md', pattern: '<!--', to: '-->', replacement: '', count: '2', line: 7})` → `{type: 'EDIT', payload: {mode: 'range', path: 'test.md', searchStart: '<!--', searchEnd: '-->', replace: '', count: 2}}`
 
-/** The base structure for any node from the CSL parser. */
-interface CslBaseNode {
-  type: string;
-  line: number;
-}
-interface CslWriteNode extends CslBaseNode { type: 'WRITE'; file: string; content: string; append?: string; }
-interface CslSearchNode extends CslBaseNode { type: 'SEARCH'; file: string; pattern: string; to?: string; replacement: string; count?: string; }
-interface CslRunNode extends CslBaseNode { type: 'RUN'; content: string; dir?: string; }
-interface CslTasksNode extends CslBaseNode { type: 'TASKS'; operations: CslAstNode[]; }
-type CslAstNode = CslWriteNode | CslSearchNode | CslRunNode | CslTasksNode;
+### RUN operations
+- `mapAstNodeToCommand({type: 'RUN', content: 'echo hello', line: 8})` → `{type: 'RUN', payload: {command: 'echo hello'}}`
+- `mapAstNodeToCommand({type: 'RUN', content: 'npm test', dir: '/app', line: 9})` → `{type: 'RUN', payload: {command: 'npm test', cwd: '/app'}}`
 
-/** The complete output from the `csl-parser`. */
-interface CslParseResult {
-  ast: CslAstNode[];
-  validationErrors: CslValidationError[];
-}
+### TASKS operations
+- `mapAstNodeToCommand({type: 'TASKS', line: 10, operations: []})` → `null`
 
-/**
- * Processes a single AST node, executing it if valid.
- * This function handles the logic for skipping invalid operations or entire TASKS blocks.
- * @param astNode - The AST node to process.
- * @param context - The global orchestration context.
- * @param validationErrors - A list of all validation errors from the parser.
- */
-async function processNode(astNode: CslAstNode, context: OrchestrationContext, validationErrors: CslValidationError[]): Promise<void> {
-  // For standalone operations, check if this specific operation is invalid.
-  if (validationErrors.some(err => err.line === astNode.line && err.parentTaskLine === undefined)) {
-    const errorInfo = validationErrors.find(e => e.line === astNode.line)!;
-    console.warn(`[SKIP] Skipping operation at line ${astNode.line} due to validation error: ${errorInfo.error}`);
-    return;
-  }
-
-  // TASKS are special containers; their execution is atomic.
-  if (astNode.type === 'TASKS') {
-    const hasError = astNode.operations.some(() => 
-        validationErrors.some(err => err.parentTaskLine === astNode.line)
-    );
-    if (hasError) {
-      console.warn(`[SKIP] Skipping TASKS block at line ${astNode.line} due to validation errors within it.`);
-      return;
-    }
-    // Execute sub-operations if the whole block is valid.
-    for (const subNode of astNode.operations) {
-      await processNode(subNode, context, validationErrors);
-    }
-    return;
-  }
-  
-  // The Adapter converts the AST node to a Clada command object.
-  const command = mapAstNodeToCommand(astNode);
-  if (!command) return;
-
-  // Execute the command with the corresponding Clada component.
-  let result: ExecutionResult | undefined;
-  switch (command.type) {
-    case 'WRITE':
-      result = executeWrite(command.payload, { cwd: context.workingDir, config: { allowEscape: false } });
-      break;
-    case 'EDIT':
-      result = executeEdit(command.payload, { workingDir: context.workingDir });
-      break;
-    // case 'RUN':
-    //   result = executeRun(command.payload, context);
-    //   break;
-  }
-
-  if (result && !result.ok) {
-    console.error(`[ERROR] Execution failed for task at line ${astNode.line}: ${JSON.stringify(result.error)}`);
-    // Future: Implement fail-fast logic here if needed.
-  } else {
-    console.log(`[SUCCESS] Task at line ${astNode.line} (${astNode.type}) completed.`);
-  }
-}
-
-/**
- * Orchestrates the parsing and execution of a CSL text.
- * It parses the CSL, then iterates through the AST, processing each node.
- * @param cslText - The raw CSL string to execute.
- * @param context - The global orchestration context (e.g., working directory).
- */
-export async function orchestrate(cslText: string, context: OrchestrationContext): Promise<void> {
-  try {
-    // The `csl-parser` is assumed to return a structure matching CslParseResult.
-    // We cast the return to provide type safety downstream.
-    const { ast, validationErrors } = parseCSL(cslText) as CslParseResult;
-
-    // Process the entire AST. The processNode function handles skipping invalid operations.
-    for (const astNode of ast) {
-      await processNode(astNode, context, validationErrors);
-    }
-
-  } catch (error: unknown) {
-    // Fatal syntax error from the parser
-    const message = error instanceof Error ? error.message : "An unknown parsing error occurred";
-    console.error(`[FATAL] Syntax Error: ${message}`);
-    process.exit(1);
-  }
-}
+### Invalid count handling
+- `mapAstNodeToCommand({type: 'SEARCH', file: 'test.js', pattern: 'x', replacement: 'y', count: 'invalid', line: 11})` → `{type: 'EDIT', payload: {mode: 'exact', path: 'test.js', search: 'x', replace: 'y', count: 1}}`
 <<<END>>>
+
+<<<EXPLANATION>>>
+Creating test file for adapter.ts based on the covenant
+<<<FILE>>>
+clada/main/core/test-unit/test/adapter.test.ts
+<<<OVERWRITE>>>
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { mapAstNodeToCommand } from '../../src/adapter.js';
+
+describe('mapAstNodeToCommand', () => {
+  describe('WRITE operations', () => {
+    it('maps basic WRITE operation without append', () => {
+      const result = mapAstNodeToCommand({
+        type: 'WRITE',
+        file: 'test.txt',
+        content: 'hello',
+        line: 1
+      });
+      assert.deepEqual(result, {
+        type: 'WRITE',
+        payload: {
+          path: 'test.txt',
+          content: 'hello',
+          append: false
+        }
+      });
+    });
+
+    it('maps WRITE operation with append=true', () => {
+      const result = mapAstNodeToCommand({
+        type: 'WRITE',
+        file: 'log.txt',
+        content: 'data',
+        append: 'true',
+        line: 2
+      });
+      assert.deepEqual(result, {
+        type: 'WRITE',
+        payload: {
+          path: 'log.txt',
+          content: 'data',
+          append: true
+        }
+      });
+    });
+
+    it('maps WRITE operation with empty content and append=false', () => {
+      const result = mapAstNodeToCommand({
+        type: 'WRITE',
+        file: 'out.txt',
+        content: '',
+        append: 'false',
+        line: 3
+      });
+      assert.deepEqual(result, {
+        type: 'WRITE',
+        payload: {
+          path: 'out.txt',
+          content: '',
+          append: false
+        }
+      });
+    });
+  });
+
+  describe('SEARCH operations (exact mode)', () => {
+    it('maps basic SEARCH operation without count', () => {
+      const result = mapAstNodeToCommand({
+        type: 'SEARCH',
+        file: 'app.js',
+        pattern: 'foo',
+        replacement: 'bar',
+        line: 4
+      });
+      assert.deepEqual(result, {
+        type: 'EDIT',
+        payload: {
+          mode: 'exact',
+          path: 'app.js',
+          search: 'foo',
+          replace: 'bar',
+          count: 1
+        }
+      });
+    });
+
+    it('maps SEARCH operation with count', () => {
+      const result = mapAstNodeToCommand({
+        type: 'SEARCH',
+        file: 'main.py',
+        pattern: 'old',
+        replacement: 'new',
+        count: '3',
+        line: 5
+      });
+      assert.deepEqual(result, {
+        type: 'EDIT',
+        payload: {
+          mode: 'exact',
+          path: 'main.py',
+          search: 'old',
+          replace: 'new',
+          count: 3
+        }
+      });
+    });
+  });
+
+  describe('SEARCH operations (range mode)', () => {
+    it('maps SEARCH operation with to parameter', () => {
+      const result = mapAstNodeToCommand({
+        type: 'SEARCH',
+        file: 'config.json',
+        pattern: '{',
+        to: '}',
+        replacement: '{}',
+        line: 6
+      });
+      assert.deepEqual(result, {
+        type: 'EDIT',
+        payload: {
+          mode: 'range',
+          path: 'config.json',
+          searchStart: '{',
+          searchEnd: '}',
+          replace: '{}',
+          count: 1
+        }
+      });
+    });
+
+    it('maps SEARCH range operation with count', () => {
+      const result = mapAstNodeToCommand({
+        type: 'SEARCH',
+        file: 'test.md',
+        pattern: '<!--',
+        to: '-->',
+        replacement: '',
+        count: '2',
+        line: 7
+      });
+      assert.deepEqual(result, {
+        type: 'EDIT',
+        payload: {
+          mode: 'range',
+          path: 'test.md',
+          searchStart: '<!--',
+          searchEnd: '-->',
+          replace: '',
+          count: 2
+        }
+      });
+    });
+  });
+
+  describe('RUN operations', () => {
+    it('maps basic RUN operation', () => {
+      const result = mapAstNodeToCommand({
+        type: 'RUN',
+        content: 'echo hello',
+        line: 8
+      });
+      assert.deepEqual(result, {
+        type: 'RUN',
+        payload: {
+          command: 'echo hello'
+        }
+      });
+    });
+
+    it('maps RUN operation with dir', () => {
+      const result = mapAstNodeToCommand({
+        type: 'RUN',
+        content: 'npm test',
+        dir: '/app',
+        line: 9
+      });
+      assert.deepEqual(result, {
+        type: 'RUN',
+        payload: {
+          command: 'npm test',
+          cwd: '/app'
+        }
+      });
+    });
+  });
+
+  describe('TASKS operations', () => {
+    it('returns null for TASKS node', () => {
+      const result = mapAstNodeToCommand({
+        type: 'TASKS',
+        line: 10,
+        operations: []
+      });
+      assert.equal(result, null);
+    });
+  });
+
+  describe('Invalid count handling', () => {
+    it('defaults to 1 for invalid count', () => {
+      const result = mapAstNodeToCommand({
+        type: 'SEARCH',
+        file: 'test.js',
+        pattern: 'x',
+        replacement: 'y',
+        count: 'invalid',
+        line: 11
+      });
+      assert.deepEqual(result, {
+        type: 'EDIT',
+        payload: {
+          mode: 'exact',
+          path: 'test.js',
+          search: 'x',
+          replace: 'y',
+          count: 1
+        }
+      });
+    });
+  });
+});
+<<<END>>>
+
+<<<EXPLANATION>>>
+Creating covenant file for orchestrate.ts focusing on the core orchestration logic
+<<<FILE>>>
+clada/main/core/test-unit/cov/orchestrate.cov.md
+<<<OVERWRITE>>>
+# Orchestrate Covenant
+
+## orchestrate
+
+Orchestrates CSL parsing and execution.
+
+### Basic execution
+- Given CSL with single WRITE operation and mocked executeWrite that returns {ok: true}
+- When `orchestrate('<---WRITE FILE="test.txt"--->\nHello\n<---/WRITE--->', {workingDir: '/tmp'})`
+- Then executeWrite is called with `{path: 'test.txt', content: 'Hello', append: false}` and console logs success
+
+### Multiple operations
+- Given CSL with WRITE and EDIT operations and mocked components that return {ok: true}
+- When `orchestrate('<---WRITE FILE="test.txt"--->\nHello\n<---/WRITE--->\n<---SEARCH FILE="test.txt"--->\nHello\n<---REPLACE--->\nGoodbye\n<---/SEARCH--->', {workingDir: '/tmp'})`
+- Then executeWrite is called once, executeEdit is called once, and console logs two successes
+
+### TASKS block execution
+- Given CSL with TASKS containing two operations and mocked components that return {ok: true}
+- When `orchestrate('<---TASKS VERSION="1.0"--->\n<---WRITE FILE="a.txt"--->\nA\n<---/WRITE--->\n<---WRITE FILE="b.txt"--->\nB\n<---/WRITE--->\n<---/TASKS--->', {workingDir: '/tmp'})`
+- Then executeWrite is called twice and console logs two successes
+
+### Skip invalid operation
+- Given CSL with invalid WRITE (missing FILE) and valid WRITE, and mocked executeWrite
+- When `orchestrate('<---WRITE--->\nInvalid\n<---/WRITE--->\n<---WRITE FILE="valid.txt"--->\nValid\n<---/WRITE--->', {workingDir: '/tmp'})`
+- Then executeWrite is called only once with valid operation, console warns about skipped operation
+
+### Skip entire TASKS block with error
+- Given CSL with TASKS containing one invalid operation and mocked components
+- When `orchestrate('<---TASKS VERSION="1.0"--->\n<---WRITE--->\nNo file\n<---/WRITE--->\n<---WRITE FILE="good.txt"--->\nGood\n<---/WRITE--->\n<---/TASKS--->', {workingDir: '/tmp'})`
+- Then executeWrite is never called, console warns about skipped TASKS block
+
+### Handle execution failure
+- Given CSL with WRITE operation and mocked executeWrite that returns {ok: false, error: 'Permission denied'}
+- When `orchestrate('<---WRITE FILE="test.txt"--->\nHello\n<---/WRITE--->', {workingDir: '/tmp'})`
+- Then console logs error with failure details
+
+### Fatal syntax error
+- Given CSL with syntax error
+- When `orchestrate('<---INVALID SYNTAX', {workingDir: '/tmp'})`
+- Then console logs fatal error and process exits with code 1
+<<<END>>>
+
+<<<EXPLANATION>>>
+Creating test file for orchestrate.ts - this will need mocking of the component execute functions
+<<<FILE>>>
+clada/main/core/test-unit/test/orchestrate.test.ts
+<<<OVERWRITE>>>
+import { describe, it, mock, beforeEach } from 'node:test';
+import assert from 'node:assert/strict';
+import { orchestrate } from '../../src/orchestrate.js';
+
+// Mock the component execute functions
+const mockExecuteWrite = mock.fn();
+const mockExecuteEdit = mock.fn();
+
+// Mock console methods to verify output
+const mockConsoleLog = mock.fn();
+const mockConsoleWarn = mock.fn();
+const mockConsoleError = mock.fn();
+const mockProcessExit = mock.fn();
+
+// Store original methods
+const originalConsoleLog = console.log;
+const originalConsoleWarn = console.warn;
+const originalConsoleError = console.error;
+const originalProcessExit = process.exit;
+
+// Mock the imports before they're used
+mock.module('../../components/write/main/core/src/execute.js', {
+  namedExports: {
+    executeWrite: mockExecuteWrite
+  }
+});
+
+mock.module('../../components/edit/main/core/src/execute.js', {
+  namedExports: {
+    executeEdit: mockExecuteEdit
+  }
+});
+
+describe('orchestrate', () => {
+  beforeEach(() => {
+    // Reset mocks
+    mockExecuteWrite.mock.resetCalls();
+    mockExecuteEdit.mock.resetCalls();
+    mockConsoleLog.mock.resetCalls();
+    mockConsoleWarn.mock.resetCalls();
+    mockConsoleError.mock.resetCalls();
+    mockProcessExit.mock.resetCalls();
+    
+    // Install console mocks
+    console.log = mockConsoleLog;
+    console.warn = mockConsoleWarn;
+    console.error = mockConsoleError;
+    process.exit = mockProcessExit as any;
+  });
+
+  it('executes single WRITE operation', async () => {
+    mockExecuteWrite.mock.mockImplementation(() => ({ ok: true }));
+    
+    const csl = `<---WRITE FILE="test.txt"--->
+Hello
+<---/WRITE--->`;
+    
+    await orchestrate(csl, { workingDir: '/tmp' });
+    
+    assert.equal(mockExecuteWrite.mock.callCount(), 1);
+    assert.deepEqual(mockExecuteWrite.mock.calls[0].arguments[0], {
+      path: 'test.txt',
+      content: 'Hello',
+      append: false
+    });
+    assert.equal(mockConsoleLog.mock.callCount(), 1);
+    assert(mockConsoleLog.mock.calls[0].arguments[0].includes('[SUCCESS]'));
+  });
+
+  it('executes multiple operations', async () => {
+    mockExecuteWrite.mock.mockImplementation(() => ({ ok: true }));
+    mockExecuteEdit.mock.mockImplementation(() => ({ ok: true }));
+    
+    const csl = `<---WRITE FILE="test.txt"--->
+Hello
+<---/WRITE--->
+<---SEARCH FILE="test.txt"--->
+Hello
+<---REPLACE--->
+Goodbye
+<---/SEARCH--->`;
+    
+    await orchestrate(csl, { workingDir: '/tmp' });
+    
+    assert.equal(mockExecuteWrite.mock.callCount(), 1);
+    assert.equal(mockExecuteEdit.mock.callCount(), 1);
+    assert.equal(mockConsoleLog.mock.callCount(), 2);
+  });
+
+  it('executes operations in TASKS block', async () => {
+    mockExecuteWrite.mock.mockImplementation(() => ({ ok: true }));
+    
+    const csl = `<---TASKS VERSION="1.0"--->
+<---WRITE FILE="a.txt"--->
+A
+<---/WRITE--->
+<---WRITE FILE="b.txt"--->
+B
+<---/WRITE--->
+<---/TASKS--->`;
+    
+    await orchestrate(csl, { workingDir: '/tmp' });
+    
+    assert.equal(mockExecuteWrite.mock.callCount(), 2);
+    assert.deepEqual(mockExecuteWrite.mock.calls[0].arguments[0], {
+      path: 'a.txt',
+      content: 'A',
+      append: false
+    });
+    assert.deepEqual(mockExecuteWrite.mock.calls[1].arguments[0], {
+      path: 'b.txt',
+      content: 'B',
+      append: false
+    });
+  });
+
+  it('skips invalid standalone operation', async () => {
+    mockExecuteWrite.mock.mockImplementation(() => ({ ok: true }));
+    
+    const csl = `<---WRITE--->
+Invalid
+<---/WRITE--->
+<---WRITE FILE="valid.txt"--->
+Valid
+<---/WRITE--->`;
+    
+    await orchestrate(csl, { workingDir: '/tmp' });
+    
+    assert.equal(mockExecuteWrite.mock.callCount(), 1);
+    assert.deepEqual(mockExecuteWrite.mock.calls[0].arguments[0], {
+      path: 'valid.txt',
+      content: 'Valid',
+      append: false
+    });
+    assert.equal(mockConsoleWarn.mock.callCount(), 1);
+    assert(mockConsoleWarn.mock.calls[0].arguments[0].includes('[SKIP]'));
+  });
+
+  it('skips entire TASKS block with validation error', async () => {
+    mockExecuteWrite.mock.mockImplementation(() => ({ ok: true }));
+    
+    const csl = `<---TASKS VERSION="1.0"--->
+<---WRITE--->
+No file
+<---/WRITE--->
+<---WRITE FILE="good.txt"--->
+Good
+<---/WRITE--->
+<---/TASKS--->`;
+    
+    await orchestrate(csl, { workingDir: '/tmp' });
+    
+    assert.equal(mockExecuteWrite.mock.callCount(), 0);
+    assert.equal(mockConsoleWarn.mock.callCount(), 1);
+    assert(mockConsoleWarn.mock.calls[0].arguments[0].includes('[SKIP]'));
+    assert(mockConsoleWarn.mock.calls[0].arguments[0].includes('TASKS block'));
+  });
+
+  it('handles execution failure', async () => {
+    mockExecuteWrite.mock.mockImplementation(() => ({ 
+      ok: false, 
+      error: 'Permission denied' 
+    }));
+    
+    const csl = `<---WRITE FILE="test.txt"--->
+Hello
+<---/WRITE--->`;
+    
+    await orchestrate(csl, { workingDir: '/tmp' });
+    
+    assert.equal(mockExecuteWrite.mock.callCount(), 1);
+    assert.equal(mockConsoleError.mock.callCount(), 1);
+    assert(mockConsoleError.mock.calls[0].arguments[0].includes('[ERROR]'));
+    assert(mockConsoleError.mock.calls[0].arguments[0].includes('Permission denied'));
+  });
+
+  it('handles fatal syntax error', async () => {
+    const csl = '<---INVALID SYNTAX';
+    
+    await orchestrate(csl, { workingDir: '/tmp' });
+    
+    assert.equal(mockConsoleError.mock.callCount(), 1);
+    assert(mockConsoleError.mock.calls[0].arguments[0].includes('[FATAL]'));
+    assert.equal(mockProcessExit.mock.callCount(), 1);
+    assert.equal(mockProcessExit.mock.calls[0].arguments[0], 1);
+  });
+  
+  // Restore original methods after tests
+  after(() => {
+    console.log = originalConsoleLog;
+    console.warn = originalConsoleWarn;
+    console.error = originalConsoleError;
+    process.exit = originalProcessExit;
+  });
+});
+<<<END>>>
+
+## Summary
+
+I've created the covenant and test files for both `adapter.ts` and `orchestrate.ts`:
+
+1. **adapter.cov.md** - Defines the behavioral contract for `mapAstNodeToCommand`, covering all operation types (WRITE, SEARCH exact/range, RUN, TASKS) and edge cases like invalid count values.
+
+2. **adapter.test.ts** - Implements tests that verify the mapping behavior matches the covenant exactly, with proper TypeScript types and imports.
+
+3. **orchestrate.cov.md** - Defines the behavioral contract for the main orchestration logic, covering successful execution, error handling, validation skipping, and fatal errors.
+
+4. **orchestrate.test.ts** - Implements tests using Node.js built-in test runner with mocking for the component execute functions and console methods.
+
+The tests follow CDD principles:
+- Focus on behavior, not implementation
+- Use the Node.js built-in test runner (no Jest/Mocha)
+- Mock external dependencies (component execute functions)
+- Test the contract defined in the covenants
+
+You can run these tests with:
+```bash
+npx tsx --test clada/main/core/test-unit/test/adapter.test.ts
+npx tsx --test clada/main/core/test-unit/test/orchestrate.test.ts
+```

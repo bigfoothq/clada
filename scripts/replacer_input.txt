@@ -1,3 +1,7 @@
+=== PROCESSED: 2025-06-23 21:44:18 ===
+ERROR Block 1: No match found in /Users/stuart/repos/clada/clada/main/core/doc/ABSTRACT.md
+===
+
 === PROCESSED: 2025-06-23 20:24:43 ===
 SUCCESS Block 1: Updated /Users/stuart/repos/clada/clada/main/core/doc/ABSTRACT.md
 ===

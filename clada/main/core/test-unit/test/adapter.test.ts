@@ -158,7 +158,8 @@ describe('mapAstNodeToCommand', () => {
       assert.deepEqual(result, {
         type: 'RUN',
         payload: {
-          command: 'echo hello'
+          command: 'echo hello',
+          cwd: undefined
         }
       });
     });

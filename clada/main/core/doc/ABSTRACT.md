@@ -25,4 +25,4 @@ Clada executes filesystem and runtime commands embedded in LLM output using CSL 
 
 **Git Integration**: Automatic pre/post commits (disable with `--no-git`)
 
-**Output**: Task status prefixed with `[task-N]`, final summary.
+**Output**: Task status prefixed with `[task-N]` where N is the operation number. Format: `[task-N] STATUS: OPERATION - details`. TASKS blocks use sub-numbering like `[task-N.M]`. Status values: SUCCESS, ERROR, SKIP, FATAL.

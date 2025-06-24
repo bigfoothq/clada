@@ -1,76 +1,186 @@
-TODO!! NOTE !! this might all be total trash! check ou these commenets:
-
-Looking at these covs and tests more critically:
-
-**adapter.cov.md** - This looks solid. It covers:
-- All operation types (WRITE, SEARCH exact/range, RUN, TASKS)
-- Edge cases (invalid count, missing append)
-- The transformation rules are clear and testable
-
-**adapter.test.ts** - Good implementation, matches the covenant precisely.
-
-**orchestrate.cov.md** - I have some concerns:
-1. The covenant descriptions are too implementation-focused (mentioning mocks, console logs)
-2. It's mixing behavioral specification with test implementation details
-3. The format doesn't follow the clean input→output pattern of the adapter covenant
-
-**orchestrate.test.ts** - The mocking approach might be overly complex. Also, I'm not sure the mock.module() API works the way I've written it.
-
-Let me revise the orchestrate covenant to be cleaner:
-
-<<<EXPLANATION>>>
-Rewriting orchestrate.cov.md to focus on behavioral contracts rather than implementation details
-<<<FILE>>>
-clada/main/core/test-unit/cov/orchestrate.cov.md
-<<<OVERWRITE>>>
 # Orchestrate Covenant
 
-## orchestrate
+## orchestrate(cslText, context) → Promise<void>
 
-Orchestrates CSL parsing and execution, coordinating between
+Parses CSL text and executes operations in order. Skips invalid operations while continuing with valid ones.
 
-@#(*$@(#*$&@#(*$&)))
+Parameters:
+- cslText: string containing CSL operations
+- context: {workingDir: string}
 
-so we might need to probably yes totally rewrite this.  just the cov!! dont do test simultanesouts!
+### Example 1: Single valid WRITE operation
+Input:
+```
+<---WRITE file="test.txt"--->
+hello world
+<---END--->
+```
+Context: `{workingDir: "/tmp/test"}`
+Side effects:
+- Creates `/tmp/test/test.txt` with content "hello world"
+- Logs: `[task-1] SUCCESS: WRITE completed`
 
+### Example 2: Multiple WRITE operations execute in order
+Input:
+```
+<---WRITE file="first.txt"--->
+one
+<---END--->
+<---WRITE file="second.txt"--->
+two
+<---END--->
+```
+Context: `{workingDir: "/tmp/test"}`
+Side effects:
+- Creates `/tmp/test/first.txt` with content "one"
+- Creates `/tmp/test/second.txt` with content "two"
+- Logs: `[task-1] SUCCESS: WRITE completed`
+- Logs: `[task-2] SUCCESS: WRITE completed`
 
-# Orchestrate Covenant
+### Example 3: Invalid operation is skipped
+Input:
+```
+<---WRITE file="good.txt"--->
+valid
+<---END--->
+<---WRITE--->
+missing file attribute
+<---END--->
+<---WRITE file="also-good.txt"--->
+more valid
+<---END--->
+```
+Context: `{workingDir: "/tmp/test"}`
+Side effects:
+- Creates `/tmp/test/good.txt` with content "valid"
+- Creates `/tmp/test/also-good.txt` with content "more valid"
+- Logs: `[task-1] SUCCESS: WRITE completed`
+- Logs: `[task-2] SKIP: WRITE - Missing required attribute: file`
+- Logs: `[task-3] SUCCESS: WRITE completed`
 
-## orchestrate
+### Example 4: TASKS block with all valid operations
+Input:
+```
+<---TASKS--->
+<---WRITE file="one.txt"--->
+1
+<---END--->
+<---WRITE file="two.txt"--->
+2
+<---END--->
+<---END--->
+```
+Context: `{workingDir: "/tmp/test"}`
+Side effects:
+- Creates `/tmp/test/one.txt` with content "1"
+- Creates `/tmp/test/two.txt` with content "2"
+- Logs: `[task-1.1] SUCCESS: WRITE completed`
+- Logs: `[task-1.2] SUCCESS: WRITE completed`
 
-Orchestrates CSL parsing and execution.
+### Example 5: TASKS block skipped if any operation invalid
+Input:
+```
+<---TASKS--->
+<---WRITE file="one.txt"--->
+1
+<---END--->
+<---WRITE--->
+missing file
+<---END--->
+<---WRITE file="three.txt"--->
+3
+<---END--->
+<---END--->
+```
+Context: `{workingDir: "/tmp/test"}`
+Side effects:
+- No files created
+- Logs: `[task-1] SKIP: TASKS - Contains validation errors`
 
-### Basic execution
-- Given CSL with single WRITE operation and mocked executeWrite that returns {ok: true}
-- When `orchestrate('<---WRITE FILE="test.txt"--->\nHello\n<---/WRITE--->', {workingDir: '/tmp'})`
-- Then executeWrite is called with `{path: 'test.txt', content: 'Hello', append: false}` and console logs success
+### Example 6: Execution error handling
+Input:
+```
+<---WRITE file="../escape.txt"--->
+content
+<---END--->
+```
+Context: `{workingDir: "/tmp/test"}`
+Side effects:
+- No file created
+- Logs: `[task-1] ERROR: WRITE - Path escapes working directory`
 
-### Multiple operations
-- Given CSL with WRITE and EDIT operations and mocked components that return {ok: true}
-- When `orchestrate('<---WRITE FILE="test.txt"--->\nHello\n<---/WRITE--->\n<---SEARCH FILE="test.txt"--->\nHello\n<---REPLACE--->\nGoodbye\n<---/SEARCH--->', {workingDir: '/tmp'})`
-- Then executeWrite is called once, executeEdit is called once, and console logs two successes
+### Example 7: Fatal syntax error
+Input:
+```
+<---WRITE file="test.txt"
+unclosed tag
+```
+Context: `{workingDir: "/tmp/test"}`
+Side effects:
+- Logs: `[FATAL] Syntax Error: Unexpected end of input while parsing WRITE operation`
+- Process exits with code 1
 
-### TASKS block execution
-- Given CSL with TASKS containing two operations and mocked components that return {ok: true}
-- When `orchestrate('<---TASKS VERSION="1.0"--->\n<---WRITE FILE="a.txt"--->\nA\n<---/WRITE--->\n<---WRITE FILE="b.txt"--->\nB\n<---/WRITE--->\n<---/TASKS--->', {workingDir: '/tmp'})`
-- Then executeWrite is called twice and console logs two successes
+### Example 8: Mixed WRITE operations with append
+Input:
+```
+<---WRITE file="log.txt"--->
+line 1
+<---END--->
+<---WRITE file="log.txt" append="true"--->
+line 2
+<---END--->
+```
+Context: `{workingDir: "/tmp/test"}`
+Side effects:
+- Creates `/tmp/test/log.txt` with content "line 1\nline 2"
+- Logs: `[task-1] SUCCESS: WRITE completed`
+- Logs: `[task-2] SUCCESS: WRITE completed`
 
-### Skip invalid operation
-- Given CSL with invalid WRITE (missing FILE) and valid WRITE, and mocked executeWrite
-- When `orchestrate('<---WRITE--->\nInvalid\n<---/WRITE--->\n<---WRITE FILE="valid.txt"--->\nValid\n<---/WRITE--->', {workingDir: '/tmp'})`
-- Then executeWrite is called only once with valid operation, console warns about skipped operation
+### Example 9: SEARCH operation not implemented
+Input:
+```
+<---WRITE file="test.txt"--->
+content
+<---END--->
+<---SEARCH file="test.txt"--->
+old
+<---REPLACE--->
+new
+<---END--->
+```
+Context: `{workingDir: "/tmp/test"}`
+Side effects:
+- Creates `/tmp/test/test.txt` with content "content"
+- Logs: `[task-1] SUCCESS: WRITE completed`
+- No log for task-2 (SEARCH operation skipped - executeEdit not implemented)
 
-### Skip entire TASKS block with error
-- Given CSL with TASKS containing one invalid operation and mocked components
-- When `orchestrate('<---TASKS VERSION="1.0"--->\n<---WRITE--->\nNo file\n<---/WRITE--->\n<---WRITE FILE="good.txt"--->\nGood\n<---/WRITE--->\n<---/TASKS--->', {workingDir: '/tmp'})`
-- Then executeWrite is never called, console warns about skipped TASKS block
+### Example 10: Empty CSL text
+Input: ``
+Context: `{workingDir: "/tmp/test"}`
+Side effects: None
 
-### Handle execution failure
-- Given CSL with WRITE operation and mocked executeWrite that returns {ok: false, error: 'Permission denied'}
-- When `orchestrate('<---WRITE FILE="test.txt"--->\nHello\n<---/WRITE--->', {workingDir: '/tmp'})`
-- Then console logs error with failure details
-
-### Fatal syntax error
-- Given CSL with syntax error
-- When `orchestrate('<---INVALID SYNTAX', {workingDir: '/tmp'})`
-- Then console logs fatal error and process exits with code 1
+### Example 11: Mixed operations with TASKS block
+Input:
+```
+<---WRITE file="first.txt"--->
+content
+<---END--->
+<---TASKS--->
+<---WRITE file="second.txt"--->
+content2
+<---END--->
+<---WRITE file="third.txt"--->
+content3
+<---END--->
+<---END--->
+<---WRITE file="fourth.txt"--->
+content4
+<---END--->
+```
+Context: `{workingDir: "/tmp/test"}`
+Side effects:
+- Creates all four files
+- Logs: `[task-1] SUCCESS: WRITE completed`
+- Logs: `[task-2.1] SUCCESS: WRITE completed`
+- Logs: `[task-2.2] SUCCESS: WRITE completed`
+- Logs: `[task-3] SUCCESS: WRITE completed`

@@ -18,17 +18,47 @@ export interface OrchestrationContext {
 }
 
 /**
+ * Extracts a detail string from an operation node for output formatting.
+ * @param astNode - The AST node to extract details from.
+ * @returns A formatted detail string (e.g., " - filename.txt" or empty string).
+ */
+function getOperationDetail(astNode: Operation): string {
+  // Access properties through index signature since Operation type is flexible
+  const node = astNode as any;
+  
+  switch (astNode.type) {
+    case 'WRITE':
+    case 'SEARCH':
+      return node.file ? ` - ${node.file}` : '';
+    case 'RUN':
+      // For RUN commands, we could show a truncated version of the command
+      // but for now just indicate it's a command
+      return node.content ? ' - command' : '';
+    case 'TASKS':
+      return ''; // TASKS blocks don't need additional detail
+    default:
+      return '';
+  }
+}
+
+/**
  * Processes a single AST node, executing it if valid.
  * This function handles the logic for skipping invalid operations or entire TASKS blocks.
  * @param astNode - The AST node to process.
  * @param context - The global orchestration context.
  * @param validationErrors - A list of all validation errors from the parser.
+ * @param taskNumber - The task number for output formatting (e.g., "1" or "1.2")
  */
-async function processNode(astNode: Operation, context: OrchestrationContext, validationErrors: ValidationError[]): Promise<void> {
+async function processNode(
+  astNode: Operation, 
+  context: OrchestrationContext, 
+  validationErrors: ValidationError[],
+  taskNumber: string
+): Promise<void> {
   // For standalone operations, check if this specific operation is invalid.
   if (validationErrors.some(err => err.line === astNode.line && err.parentTaskLine === undefined)) {
     const errorInfo = validationErrors.find(e => e.line === astNode.line)!;
-    console.warn(`[SKIP] Skipping operation at line ${astNode.line} due to validation error: ${errorInfo.error}`);
+    console.warn(`[task-${taskNumber}] SKIP: ${astNode.type} - ${errorInfo.error}`);
     return;
   }
 
@@ -41,12 +71,12 @@ async function processNode(astNode: Operation, context: OrchestrationContext, va
           validationErrors.some(err => err.parentTaskLine === astNode.line)
       );
       if (hasError) {
-        console.warn(`[SKIP] Skipping TASKS block at line ${astNode.line} due to validation errors within it.`);
+        console.warn(`[task-${taskNumber}] SKIP: TASKS - validation errors within block`);
         return;
       }
       // Execute sub-operations if the whole block is valid.
-      for (const subNode of operations) {
-        await processNode(subNode, context, validationErrors);
+      for (let i = 0; i < operations.length; i++) {
+        await processNode(operations[i], context, validationErrors, `${taskNumber}.${i + 1}`);
       }
     }
     return;
@@ -71,10 +101,12 @@ async function processNode(astNode: Operation, context: OrchestrationContext, va
   }
 
   if (result && !result.ok) {
-    console.error(`[ERROR] Execution failed for task at line ${astNode.line}: ${JSON.stringify(result.error)}`);
+    const detail = getOperationDetail(astNode);
+    console.error(`[task-${taskNumber}] ERROR: ${astNode.type}${detail} - ${JSON.stringify(result.error)}`);
     // Future: Implement fail-fast logic here if needed.
-  } else {
-    console.log(`[SUCCESS] Task at line ${astNode.line} (${astNode.type}) completed.`);
+  } else if (result) {
+    const detail = getOperationDetail(astNode);
+    console.log(`[task-${taskNumber}] SUCCESS: ${astNode.type}${detail}`);
   }
 }
 
@@ -90,14 +122,14 @@ export async function orchestrate(cslText: string, context: OrchestrationContext
     const { ast, validationErrors } = parseCSL(cslText);
 
     // Process the entire AST. The processNode function handles skipping invalid operations.
-    for (const astNode of ast) {
-      await processNode(astNode, context, validationErrors);
+    for (let i = 0; i < ast.length; i++) {
+      await processNode(ast[i], context, validationErrors, String(i + 1));
     }
 
   } catch (error: unknown) {
     // Fatal syntax error from the parser
     const message = error instanceof Error ? error.message : "An unknown parsing error occurred";
-    console.error(`[FATAL] Syntax Error: ${message}`);
+    console.error(`[task-1] FATAL: ${message}`);
     process.exit(1);
   }
 }

@@ -2,7 +2,7 @@
 
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { executeEdit } from '../../src/execute';
+import { executeEdit } from '../../src/execute.js';
 import { mkdirSync, rmSync, writeFileSync, readFileSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';

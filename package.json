@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "test:write": "node --test 'clada/main/components/write/main/core/test-unit/test/*.test.js'",
-    "test": "tsx ./path/to/your/test-file.test.ts",
+    "test": "tsx --test",
     "build": "tsc"
   },
   "dependencies": {

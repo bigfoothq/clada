@@ -7,31 +7,33 @@
 Executes file edit operation. Context provides workingDir for path resolution.
 Context structure: `{workingDir: string}`
 
+**Important**: The `count` parameter specifies the EXACT number of matches expected. If the actual number of matches differs from `count`, the operation fails with an error. When successful, ALL matches are replaced.
+
 Note: Both exact and range modes find non-overlapping matches only.
 
 ### Basic exact replacement
 // Given: test.txt contains "hello world hello"
 Input:
 ```json
-{"mode": "exact", "path": "test.txt", "search": "hello", "replace": "hi", "count": 1}
+{"mode": "exact", "path": "test.txt", "search": "hello", "replace": "hi", "count": 2}
 ```
 Output:
 ```json
 {"ok": true, "value": undefined}
 ```
-// Then: test.txt contains "hi world hello"
+// Then: test.txt contains "hi world hi"
 
-### Exact replacement with count
+### Exact replacement with count validation
 // Given: data.txt contains "foo bar foo baz foo"
 Input:
 ```json
-{"mode": "exact", "path": "data.txt", "search": "foo", "replace": "qux", "count": 2}
+{"mode": "exact", "path": "data.txt", "search": "foo", "replace": "qux", "count": 3}
 ```
 Output:
 ```json
 {"ok": true, "value": undefined}
 ```
-// Then: data.txt contains "qux bar qux baz foo"
+// Then: data.txt contains "qux bar qux baz qux"
 
 ### Count exceeds matches - error
 // Given: app.js contains "var x = 1; var y = 2; var z = 3;"

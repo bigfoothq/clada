@@ -1,16 +1,12 @@
-import { describe, it, mock, beforeEach } from 'node:test';
+import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { orchestrate } from '../../src/orchestrate.js';
+import { mkdirSync, rmSync, readFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
-// Mock the component execute functions
-const mockExecuteWrite = mock.fn();
-const mockExecuteEdit = mock.fn();
-
-// Mock console methods to verify output
-const mockConsoleLog = mock.fn();
-const mockConsoleWarn = mock.fn();
-const mockConsoleError = mock.fn();
-const mockProcessExit = mock.fn();
+// Store console output
+let consoleOutput: Array<{type: string, message: string}> = [];
 
 // Store original methods
 const originalConsoleLog = console.log;
@@ -18,28 +14,42 @@ const originalConsoleWarn = console.warn;
 const originalConsoleError = console.error;
 const originalProcessExit = process.exit;
 
-// Mock the imports before they're used
-mock.module('../../components/write/main/core/src/execute.js', {
-  namedExports: {
-    executeWrite: mockExecuteWrite
-  }
-});
+// Mock console methods to capture output
+const mockConsoleLog = (...args: any[]) => {
+  consoleOutput.push({type: 'log', message: args.join(' ')});
+  originalConsoleLog(...args);
+};
 
-mock.module('../../components/edit/main/core/src/execute.js', {
-  namedExports: {
-    executeEdit: mockExecuteEdit
-  }
-});
+const mockConsoleWarn = (...args: any[]) => {
+  consoleOutput.push({type: 'warn', message: args.join(' ')});
+  originalConsoleWarn(...args);
+};
+
+const mockConsoleError = (...args: any[]) => {
+  consoleOutput.push({type: 'error', message: args.join(' ')});
+  originalConsoleError(...args);
+};
+
+let processExitCalled = false;
+let processExitCode: number | undefined;
+const mockProcessExit = (code?: number) => {
+  processExitCalled = true;
+  processExitCode = code;
+  // Don't actually exit during tests
+};
 
 describe('orchestrate', () => {
+  let testDir: string;
+
   beforeEach(() => {
-    // Reset mocks
-    mockExecuteWrite.mock.resetCalls();
-    mockExecuteEdit.mock.resetCalls();
-    mockConsoleLog.mock.resetCalls();
-    mockConsoleWarn.mock.resetCalls();
-    mockConsoleError.mock.resetCalls();
-    mockProcessExit.mock.resetCalls();
+    // Create a unique temp directory for each test
+    testDir = join(tmpdir(), `clada-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    mkdirSync(testDir, { recursive: true });
+    
+    // Reset console output
+    consoleOutput = [];
+    processExitCalled = false;
+    processExitCode = undefined;
     
     // Install console mocks
     console.log = mockConsoleLog;
@@ -48,148 +58,162 @@ describe('orchestrate', () => {
     process.exit = mockProcessExit as any;
   });
 
+  afterEach(() => {
+    // Clean up test directory
+    rmSync(testDir, { recursive: true, force: true });
+    
+    // Restore console methods
+    console.log = originalConsoleLog;
+    console.warn = originalConsoleWarn;
+    console.error = originalConsoleError;
+    process.exit = originalProcessExit;
+  });
+
   it('executes single WRITE operation', async () => {
-    mockExecuteWrite.mock.mockImplementation(() => ({ ok: true }));
-    
-    const csl = `<---WRITE FILE="test.txt"--->
+    const csl = `<---WRITE file="test.txt"--->
 Hello
-<---/WRITE--->`;
+<---END--->`;
     
-    await orchestrate(csl, { workingDir: '/tmp' });
+    await orchestrate(csl, { workingDir: testDir });
     
-    assert.equal(mockExecuteWrite.mock.callCount(), 1);
-    assert.deepEqual(mockExecuteWrite.mock.calls[0].arguments[0], {
-      path: 'test.txt',
-      content: 'Hello',
-      append: false
-    });
-    assert.equal(mockConsoleLog.mock.callCount(), 1);
-    assert(mockConsoleLog.mock.calls[0].arguments[0].includes('[SUCCESS]'));
+    // Check that the file was actually created
+    assert(existsSync(join(testDir, 'test.txt')));
+    assert.equal(readFileSync(join(testDir, 'test.txt'), 'utf8'), 'Hello');
+    
+    // Check console output
+    const logMessages = consoleOutput.filter(o => o.type === 'log');
+    assert.equal(logMessages.length, 1);
+    assert(logMessages[0].message.includes('[task-1] SUCCESS'));
   });
 
   it('executes multiple operations', async () => {
-    mockExecuteWrite.mock.mockImplementation(() => ({ ok: true }));
-    mockExecuteEdit.mock.mockImplementation(() => ({ ok: true }));
-    
-    const csl = `<---WRITE FILE="test.txt"--->
+    const csl = `<---WRITE file="test.txt"--->
 Hello
-<---/WRITE--->
-<---SEARCH FILE="test.txt"--->
+<---END--->
+<---SEARCH file="test.txt" count="1"--->
 Hello
 <---REPLACE--->
 Goodbye
-<---/SEARCH--->`;
+<---END--->`;
     
-    await orchestrate(csl, { workingDir: '/tmp' });
+    await orchestrate(csl, { workingDir: testDir });
     
-    assert.equal(mockExecuteWrite.mock.callCount(), 1);
-    assert.equal(mockExecuteEdit.mock.callCount(), 1);
-    assert.equal(mockConsoleLog.mock.callCount(), 2);
+    // Check that file was created and then modified
+    assert(existsSync(join(testDir, 'test.txt')));
+    assert.equal(readFileSync(join(testDir, 'test.txt'), 'utf8'), 'Goodbye');
+    
+    // Check console output shows both operations
+    const logMessages = consoleOutput.filter(o => o.type === 'log');
+    assert.equal(logMessages.length, 2);
+    assert(logMessages[0].message.includes('[task-1] SUCCESS'));
+    assert(logMessages[0].message.includes('WRITE'));
+    assert(logMessages[1].message.includes('[task-2] SUCCESS'));
+    assert(logMessages[1].message.includes('SEARCH'));
   });
 
   it('executes operations in TASKS block', async () => {
-    mockExecuteWrite.mock.mockImplementation(() => ({ ok: true }));
-    
-    const csl = `<---TASKS VERSION="1.0"--->
-<---WRITE FILE="a.txt"--->
+    const csl = `<---TASKS--->
+<---WRITE file="a.txt"--->
 A
-<---/WRITE--->
-<---WRITE FILE="b.txt"--->
+<---END--->
+<---WRITE file="b.txt"--->
 B
-<---/WRITE--->
-<---/TASKS--->`;
+<---END--->
+<---END--->`;
     
-    await orchestrate(csl, { workingDir: '/tmp' });
+    await orchestrate(csl, { workingDir: testDir });
     
-    assert.equal(mockExecuteWrite.mock.callCount(), 2);
-    assert.deepEqual(mockExecuteWrite.mock.calls[0].arguments[0], {
-      path: 'a.txt',
-      content: 'A',
-      append: false
-    });
-    assert.deepEqual(mockExecuteWrite.mock.calls[1].arguments[0], {
-      path: 'b.txt',
-      content: 'B',
-      append: false
-    });
+    // Check both files were created
+    assert(existsSync(join(testDir, 'a.txt')));
+    assert(existsSync(join(testDir, 'b.txt')));
+    assert.equal(readFileSync(join(testDir, 'a.txt'), 'utf8'), 'A');
+    assert.equal(readFileSync(join(testDir, 'b.txt'), 'utf8'), 'B');
+    
+    // Check console output shows sub-numbered tasks
+    const logMessages = consoleOutput.filter(o => o.type === 'log');
+    assert.equal(logMessages.length, 2);
+    assert(logMessages[0].message.includes('[task-1.1] SUCCESS'));
+    assert(logMessages[1].message.includes('[task-1.2] SUCCESS'));
   });
 
   it('skips invalid standalone operation', async () => {
-    mockExecuteWrite.mock.mockImplementation(() => ({ ok: true }));
-    
     const csl = `<---WRITE--->
 Invalid
-<---/WRITE--->
-<---WRITE FILE="valid.txt"--->
+<---END--->
+<---WRITE file="valid.txt"--->
 Valid
-<---/WRITE--->`;
+<---END--->`;
     
-    await orchestrate(csl, { workingDir: '/tmp' });
+    await orchestrate(csl, { workingDir: testDir });
     
-    assert.equal(mockExecuteWrite.mock.callCount(), 1);
-    assert.deepEqual(mockExecuteWrite.mock.calls[0].arguments[0], {
-      path: 'valid.txt',
-      content: 'Valid',
-      append: false
-    });
-    assert.equal(mockConsoleWarn.mock.callCount(), 1);
-    assert(mockConsoleWarn.mock.calls[0].arguments[0].includes('[SKIP]'));
+    // Check that only valid file was created
+    assert(!existsSync(join(testDir, 'Invalid')));
+    assert(existsSync(join(testDir, 'valid.txt')));
+    assert.equal(readFileSync(join(testDir, 'valid.txt'), 'utf8'), 'Valid');
+    
+    // Check console output shows skip and success
+    const warnMessages = consoleOutput.filter(o => o.type === 'warn');
+    const logMessages = consoleOutput.filter(o => o.type === 'log');
+    assert.equal(warnMessages.length, 1);
+    assert(warnMessages[0].message.includes('[task-1] SKIP'));
+    assert.equal(logMessages.length, 1);
+    assert(logMessages[0].message.includes('[task-2] SUCCESS'));
   });
 
   it('skips entire TASKS block with validation error', async () => {
-    mockExecuteWrite.mock.mockImplementation(() => ({ ok: true }));
-    
-    const csl = `<---TASKS VERSION="1.0"--->
+    const csl = `<---TASKS--->
 <---WRITE--->
 No file
-<---/WRITE--->
-<---WRITE FILE="good.txt"--->
+<---END--->
+<---WRITE file="good.txt"--->
 Good
-<---/WRITE--->
-<---/TASKS--->`;
+<---END--->
+<---END--->`;
     
-    await orchestrate(csl, { workingDir: '/tmp' });
+    await orchestrate(csl, { workingDir: testDir });
     
-    assert.equal(mockExecuteWrite.mock.callCount(), 0);
-    assert.equal(mockConsoleWarn.mock.callCount(), 1);
-    assert(mockConsoleWarn.mock.calls[0].arguments[0].includes('[SKIP]'));
-    assert(mockConsoleWarn.mock.calls[0].arguments[0].includes('TASKS block'));
+    // Check that no files were created (entire block skipped)
+    assert(!existsSync(join(testDir, 'No file')));
+    assert(!existsSync(join(testDir, 'good.txt')));
+    
+    // Check console output shows entire block was skipped
+    const warnMessages = consoleOutput.filter(o => o.type === 'warn');
+    assert.equal(warnMessages.length, 1);
+    assert(warnMessages[0].message.includes('[task-1] SKIP'));
+    assert(warnMessages[0].message.includes('TASKS'));
   });
 
   it('handles execution failure', async () => {
-    mockExecuteWrite.mock.mockImplementation(() => ({ 
-      ok: false, 
-      error: 'Permission denied' 
-    }));
-    
-    const csl = `<---WRITE FILE="test.txt"--->
+    // Try to write to a path that will fail (parent directory doesn't exist)
+    const csl = `<---WRITE file="nonexistent/dir/test.txt"--->
 Hello
-<---/WRITE--->`;
+<---END--->`;
     
-    await orchestrate(csl, { workingDir: '/tmp' });
+    await orchestrate(csl, { workingDir: testDir });
     
-    assert.equal(mockExecuteWrite.mock.callCount(), 1);
-    assert.equal(mockConsoleError.mock.callCount(), 1);
-    assert(mockConsoleError.mock.calls[0].arguments[0].includes('[ERROR]'));
-    assert(mockConsoleError.mock.calls[0].arguments[0].includes('Permission denied'));
+    // Check file was not created
+    assert(!existsSync(join(testDir, 'nonexistent/dir/test.txt')));
+    
+    // Check console output shows error
+    const errorMessages = consoleOutput.filter(o => o.type === 'error');
+    assert.equal(errorMessages.length, 1);
+    assert(errorMessages[0].message.includes('[task-1] ERROR'));
+    assert(errorMessages[0].message.includes('WRITE'));
+    assert(errorMessages[0].message.includes('nonexistent/dir/test.txt'));
   });
 
   it('handles fatal syntax error', async () => {
     const csl = '<---INVALID SYNTAX';
     
-    await orchestrate(csl, { workingDir: '/tmp' });
+    await orchestrate(csl, { workingDir: testDir });
     
-    assert.equal(mockConsoleError.mock.callCount(), 1);
-    assert(mockConsoleError.mock.calls[0].arguments[0].includes('[FATAL]'));
-    assert.equal(mockProcessExit.mock.callCount(), 1);
-    assert.equal(mockProcessExit.mock.calls[0].arguments[0], 1);
-  });
-  
-  // Restore original methods after tests
-  after(() => {
-    console.log = originalConsoleLog;
-    console.warn = originalConsoleWarn;
-    console.error = originalConsoleError;
-    process.exit = originalProcessExit;
+    // Check console output shows fatal error
+    const errorMessages = consoleOutput.filter(o => o.type === 'error');
+    assert.equal(errorMessages.length, 1);
+    assert(errorMessages[0].message.includes('[task-1] FATAL'));
+    
+    // Check process.exit was called
+    assert(processExitCalled);
+    assert.equal(processExitCode, 1);
   });
 });

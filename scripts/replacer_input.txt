@@ -1,25 +1,314 @@
-=== PROCESSED: 2025-06-23 21:44:18 ===
-ERROR Block 1: No match found in /Users/stuart/repos/clada/clada/main/core/doc/ABSTRACT.md
+=== PROCESSED: 2025-06-23 22:03:41 ===
+SUCCESS Block 1: Updated /Users/stuart/repos/clada/clada/main/core/test-unit/test/orchestrate.test.ts
+SUCCESS Block 2: Updated /Users/stuart/repos/clada/clada/main/core/test-unit/test/orchestrate.test.ts
+SUCCESS Block 3: Updated /Users/stuart/repos/clada/clada/main/core/test-unit/test/orchestrate.test.ts
+SUCCESS Block 4: Updated /Users/stuart/repos/clada/clada/main/core/test-unit/test/orchestrate.test.ts
+SUCCESS Block 5: Updated /Users/stuart/repos/clada/clada/main/core/test-unit/test/orchestrate.test.ts
+SUCCESS Block 6: Updated /Users/stuart/repos/clada/clada/main/core/test-unit/test/orchestrate.test.ts
 ===
 
-=== PROCESSED: 2025-06-23 20:24:43 ===
-SUCCESS Block 1: Updated /Users/stuart/repos/clada/clada/main/core/doc/ABSTRACT.md
-===
-
-Let's update the ABSTRACT.md to be more specific about the output format:
+Oh! I see the issue now. The CSL syntax uses `<---END--->` to close operations, not `<---/WRITE--->`. Let me fix all the tests:
 
 <<<EXPLANATION>>>
-
-Update ABSTRACT.md to clarify the task numbering output format, ensuring consistency with the covenant
-
+Fix all CSL syntax in tests to use END instead of closing tags
 <<<FILE>>>
-
-clada/main/core/doc/ABSTRACT.md
-
+clada/main/core/test-unit/test/orchestrate.test.ts
 <<<SEARCH>>>
-**Output**: Task status prefixed with `[task-N]`, final summary.
+  it('executes single WRITE operation', async () => {
+    const csl = `<---WRITE FILE="test.txt"--->
+Hello
+<---/WRITE--->`;
+    
+    await orchestrate(csl, { workingDir: testDir });
+    
+    // Check that the file was actually created
+    assert(existsSync(join(testDir, 'test.txt')));
+    assert.equal(readFileSync(join(testDir, 'test.txt'), 'utf8'), 'Hello\n');
+    
+    // Check console output
+    const logMessages = consoleOutput.filter(o => o.type === 'log');
+    assert.equal(logMessages.length, 1);
+    assert(logMessages[0].message.includes('[task-1] SUCCESS'));
+  });
 <<<REPLACE>>>
-**Output**: Task status prefixed with `[task-N]` where N is the operation number. Format: `[task-N] STATUS: OPERATION - details`. TASKS blocks use sub-numbering like `[task-N.M]`. Status values: SUCCESS, ERROR, SKIP, FATAL.
+  it('executes single WRITE operation', async () => {
+    const csl = `<---WRITE file="test.txt"--->
+Hello
+<---END--->`;
+    
+    await orchestrate(csl, { workingDir: testDir });
+    
+    // Check that the file was actually created
+    assert(existsSync(join(testDir, 'test.txt')));
+    assert.equal(readFileSync(join(testDir, 'test.txt'), 'utf8'), 'Hello');
+    
+    // Check console output
+    const logMessages = consoleOutput.filter(o => o.type === 'log');
+    assert.equal(logMessages.length, 1);
+    assert(logMessages[0].message.includes('[task-1] SUCCESS'));
+  });
 <<<END>>>
 
-This ensures we remember the exact format when implementing. The covenant now matches the documented behavior, and we have a clear specification for the task numbering system.
+<<<EXPLANATION>>>
+Fix multiple operations test CSL syntax
+<<<FILE>>>
+clada/main/core/test-unit/test/orchestrate.test.ts
+<<<SEARCH>>>
+  it('executes multiple operations', async () => {
+    const csl = `<---WRITE FILE="test.txt"--->
+Hello
+<---/WRITE--->
+<---SEARCH FILE="test.txt"--->
+Hello
+<---REPLACE--->
+Goodbye
+<---/SEARCH--->`;
+    
+    await orchestrate(csl, { workingDir: testDir });
+    
+    // Check that file was created and then modified
+    assert(existsSync(join(testDir, 'test.txt')));
+    assert.equal(readFileSync(join(testDir, 'test.txt'), 'utf8'), 'Goodbye\n');
+    
+    // Check console output shows both operations
+    const logMessages = consoleOutput.filter(o => o.type === 'log');
+    assert.equal(logMessages.length, 2);
+    assert(logMessages[0].message.includes('[task-1] SUCCESS'));
+    assert(logMessages[0].message.includes('WRITE'));
+    assert(logMessages[1].message.includes('[task-2] SUCCESS'));
+    assert(logMessages[1].message.includes('SEARCH'));
+  });
+<<<REPLACE>>>
+  it('executes multiple operations', async () => {
+    const csl = `<---WRITE file="test.txt"--->
+Hello
+<---END--->
+<---SEARCH file="test.txt" count="1"--->
+Hello
+<---REPLACE--->
+Goodbye
+<---END--->`;
+    
+    await orchestrate(csl, { workingDir: testDir });
+    
+    // Check that file was created and then modified
+    assert(existsSync(join(testDir, 'test.txt')));
+    assert.equal(readFileSync(join(testDir, 'test.txt'), 'utf8'), 'Goodbye');
+    
+    // Check console output shows both operations
+    const logMessages = consoleOutput.filter(o => o.type === 'log');
+    assert.equal(logMessages.length, 2);
+    assert(logMessages[0].message.includes('[task-1] SUCCESS'));
+    assert(logMessages[0].message.includes('WRITE'));
+    assert(logMessages[1].message.includes('[task-2] SUCCESS'));
+    assert(logMessages[1].message.includes('SEARCH'));
+  });
+<<<END>>>
+
+<<<EXPLANATION>>>
+Fix TASKS block test CSL syntax
+<<<FILE>>>
+clada/main/core/test-unit/test/orchestrate.test.ts
+<<<SEARCH>>>
+  it('executes operations in TASKS block', async () => {
+    const csl = `<---TASKS VERSION="1.0"--->
+<---WRITE FILE="a.txt"--->
+A
+<---/WRITE--->
+<---WRITE FILE="b.txt"--->
+B
+<---/WRITE--->
+<---/TASKS--->`;
+    
+    await orchestrate(csl, { workingDir: testDir });
+    
+    // Check both files were created
+    assert(existsSync(join(testDir, 'a.txt')));
+    assert(existsSync(join(testDir, 'b.txt')));
+    assert.equal(readFileSync(join(testDir, 'a.txt'), 'utf8'), 'A\n');
+    assert.equal(readFileSync(join(testDir, 'b.txt'), 'utf8'), 'B\n');
+    
+    // Check console output shows sub-numbered tasks
+    const logMessages = consoleOutput.filter(o => o.type === 'log');
+    assert.equal(logMessages.length, 2);
+    assert(logMessages[0].message.includes('[task-1.1] SUCCESS'));
+    assert(logMessages[1].message.includes('[task-1.2] SUCCESS'));
+  });
+<<<REPLACE>>>
+  it('executes operations in TASKS block', async () => {
+    const csl = `<---TASKS--->
+<---WRITE file="a.txt"--->
+A
+<---END--->
+<---WRITE file="b.txt"--->
+B
+<---END--->
+<---END--->`;
+    
+    await orchestrate(csl, { workingDir: testDir });
+    
+    // Check both files were created
+    assert(existsSync(join(testDir, 'a.txt')));
+    assert(existsSync(join(testDir, 'b.txt')));
+    assert.equal(readFileSync(join(testDir, 'a.txt'), 'utf8'), 'A');
+    assert.equal(readFileSync(join(testDir, 'b.txt'), 'utf8'), 'B');
+    
+    // Check console output shows sub-numbered tasks
+    const logMessages = consoleOutput.filter(o => o.type === 'log');
+    assert.equal(logMessages.length, 2);
+    assert(logMessages[0].message.includes('[task-1.1] SUCCESS'));
+    assert(logMessages[1].message.includes('[task-1.2] SUCCESS'));
+  });
+<<<END>>>
+
+<<<EXPLANATION>>>
+Fix invalid operation test CSL syntax
+<<<FILE>>>
+clada/main/core/test-unit/test/orchestrate.test.ts
+<<<SEARCH>>>
+  it('skips invalid standalone operation', async () => {
+    const csl = `<---WRITE--->
+Invalid
+<---/WRITE--->
+<---WRITE FILE="valid.txt"--->
+Valid
+<---/WRITE--->`;
+    
+    await orchestrate(csl, { workingDir: testDir });
+    
+    // Check that only valid file was created
+    assert(!existsSync(join(testDir, 'Invalid')));
+    assert(existsSync(join(testDir, 'valid.txt')));
+    assert.equal(readFileSync(join(testDir, 'valid.txt'), 'utf8'), 'Valid\n');
+    
+    // Check console output shows skip and success
+    const warnMessages = consoleOutput.filter(o => o.type === 'warn');
+    const logMessages = consoleOutput.filter(o => o.type === 'log');
+    assert.equal(warnMessages.length, 1);
+    assert(warnMessages[0].message.includes('[task-1] SKIP'));
+    assert.equal(logMessages.length, 1);
+    assert(logMessages[0].message.includes('[task-2] SUCCESS'));
+  });
+<<<REPLACE>>>
+  it('skips invalid standalone operation', async () => {
+    const csl = `<---WRITE--->
+Invalid
+<---END--->
+<---WRITE file="valid.txt"--->
+Valid
+<---END--->`;
+    
+    await orchestrate(csl, { workingDir: testDir });
+    
+    // Check that only valid file was created
+    assert(!existsSync(join(testDir, 'Invalid')));
+    assert(existsSync(join(testDir, 'valid.txt')));
+    assert.equal(readFileSync(join(testDir, 'valid.txt'), 'utf8'), 'Valid');
+    
+    // Check console output shows skip and success
+    const warnMessages = consoleOutput.filter(o => o.type === 'warn');
+    const logMessages = consoleOutput.filter(o => o.type === 'log');
+    assert.equal(warnMessages.length, 1);
+    assert(warnMessages[0].message.includes('[task-1] SKIP'));
+    assert.equal(logMessages.length, 1);
+    assert(logMessages[0].message.includes('[task-2] SUCCESS'));
+  });
+<<<END>>>
+
+<<<EXPLANATION>>>
+Fix TASKS validation error test CSL syntax
+<<<FILE>>>
+clada/main/core/test-unit/test/orchestrate.test.ts
+<<<SEARCH>>>
+  it('skips entire TASKS block with validation error', async () => {
+    const csl = `<---TASKS VERSION="1.0"--->
+<---WRITE--->
+No file
+<---/WRITE--->
+<---WRITE FILE="good.txt"--->
+Good
+<---/WRITE--->
+<---/TASKS--->`;
+    
+    await orchestrate(csl, { workingDir: testDir });
+    
+    // Check that no files were created (entire block skipped)
+    assert(!existsSync(join(testDir, 'No file')));
+    assert(!existsSync(join(testDir, 'good.txt')));
+    
+    // Check console output shows entire block was skipped
+    const warnMessages = consoleOutput.filter(o => o.type === 'warn');
+    assert.equal(warnMessages.length, 1);
+    assert(warnMessages[0].message.includes('[task-1] SKIP'));
+    assert(warnMessages[0].message.includes('TASKS'));
+  });
+<<<REPLACE>>>
+  it('skips entire TASKS block with validation error', async () => {
+    const csl = `<---TASKS--->
+<---WRITE--->
+No file
+<---END--->
+<---WRITE file="good.txt"--->
+Good
+<---END--->
+<---END--->`;
+    
+    await orchestrate(csl, { workingDir: testDir });
+    
+    // Check that no files were created (entire block skipped)
+    assert(!existsSync(join(testDir, 'No file')));
+    assert(!existsSync(join(testDir, 'good.txt')));
+    
+    // Check console output shows entire block was skipped
+    const warnMessages = consoleOutput.filter(o => o.type === 'warn');
+    assert.equal(warnMessages.length, 1);
+    assert(warnMessages[0].message.includes('[task-1] SKIP'));
+    assert(warnMessages[0].message.includes('TASKS'));
+  });
+<<<END>>>
+
+Also, I notice the attribute names should be lowercase (`file` not `FILE`). Let me fix the execution failure test:
+
+<<<EXPLANATION>>>
+Fix execution failure test CSL syntax
+<<<FILE>>>
+clada/main/core/test-unit/test/orchestrate.test.ts
+<<<SEARCH>>>
+  it('handles execution failure', async () => {
+    // Try to write to a path that will fail (parent directory doesn't exist)
+    const csl = `<---WRITE FILE="nonexistent/dir/test.txt"--->
+Hello
+<---/WRITE--->`;
+    
+    await orchestrate(csl, { workingDir: testDir });
+    
+    // Check file was not created
+    assert(!existsSync(join(testDir, 'nonexistent/dir/test.txt')));
+    
+    // Check console output shows error
+    const errorMessages = consoleOutput.filter(o => o.type === 'error');
+    assert.equal(errorMessages.length, 1);
+    assert(errorMessages[0].message.includes('[task-1] ERROR'));
+    assert(errorMessages[0].message.includes('WRITE'));
+    assert(errorMessages[0].message.includes('nonexistent/dir/test.txt'));
+  });
+<<<REPLACE>>>
+  it('handles execution failure', async () => {
+    // Try to write to a path that will fail (parent directory doesn't exist)
+    const csl = `<---WRITE file="nonexistent/dir/test.txt"--->
+Hello
+<---END--->`;
+    
+    await orchestrate(csl, { workingDir: testDir });
+    
+    // Check file was not created
+    assert(!existsSync(join(testDir, 'nonexistent/dir/test.txt')));
+    
+    // Check console output shows error
+    const errorMessages = consoleOutput.filter(o => o.type === 'error');
+    assert.equal(errorMessages.length, 1);
+    assert(errorMessages[0].message.includes('[task-1] ERROR'));
+    assert(errorMessages[0].message.includes('WRITE'));
+    assert(errorMessages[0].message.includes('nonexistent/dir/test.txt'));
+  });
+<<<END>>>

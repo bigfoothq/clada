@@ -9,6 +9,10 @@ Executes shell commands from CSL `RUN` blocks using a two-tier security model th
 1. **Filesystem commands**: Hardcoded whitelist in `COMMAND_SPECS` including `cat`, `ls`, `grep`, `find`, `git`, etc. These execute immediately without prompts.
 2. **Test commands**: Everything else (e.g., `npm test`, `pytest`, `jest`) requires user approval on first use.
 
+### no sandboxing
+
+the allowlist/denylist + execFile approach IS the security model. We're running real commands on the real filesystem, just with careful validation.
+
 ### Approval System
 - Unknown commands prompt user: "Allow 'npm test'? (yes/no/always/never):"
 - `yes` - Run once only
@@ -19,6 +23,9 @@ Executes shell commands from CSL `RUN` blocks using a two-tier security model th
 
 
 ### commands.json
+
+TODO we need to convert this to a system that would never need to quote char escaping i think.  i think toml.  but idk. LLMs are bad at char escaping. 
+
 {
   "allowed": ["npm test", "jest --coverage"],
   "blocked": ["rm -rf /", "npm run deploy:prod"]

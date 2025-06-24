@@ -2,6 +2,20 @@
 
 Executes shell commands from CSL RUN blocks with a two-tier security model.
 
+## Safety Note for Testing
+
+The `rm` command is particularly dangerous to test. To ensure test safety:
+- We NEVER test `rm` with system paths, wildcards, or dangerous flags directly
+- We use `dirname` as a read-only analog to test path validation logic (same restrictions apply)
+- We only test `rm` on files explicitly created by the test itself (prefixed with 'temp-test-')
+- Shell operator rejection is tested with harmless commands like `echo` or `pwd`
+
+This approach ensures we fully test the security model without risk of data loss.
+
+## Implementation Note
+
+The `dirname` command must be included in COMMAND_SPECS to support path validation testing.
+
 ## Function Signature
 ```typescript
 executeRun(command: RunCommand, context: ExecutionContext, options?: {
@@ -42,6 +56,11 @@ interface ExecutionContext {
 - 'touch README.md' → {ok: true, value: {output: ""}}
 - 'cp config.json config.backup.json' → {ok: true, value: {output: ""}}
 - 'mv old-name.js new-name.js' → {ok: true, value: {output: ""}}
+- 'touch temp-test-file.txt' → {ok: true, value: {output: ""}}
+- 'mkdir temp-test-dir' → {ok: true, value: {output: ""}}
+- 'rm temp-test-file.txt' → {ok: true, value: {output: ""}}  # Only rm test-created files
+- 'rm -r temp-test-dir' → {ok: true, value: {output: ""}}   # Only rm test-created dirs
+- 'rm temp-test-nonexistent.txt' → {ok: false, error: "Command failed with exit code 1", output: "rm: cannot remove 'temp-test-nonexistent.txt': No such file or directory\n"}
 
 ### Test commands (first time, prompts user)
 'npm test' prompts "Allow 'npm test'? (yes/no/always/never): "
@@ -65,7 +84,6 @@ interface ExecutionContext {
 - 'pwd' with payload.cwd: '/tmp' → {ok: true, value: {output: "/tmp\n"}}
 
 ### Invalid commands and errors
-- 'rm -rf /' → {ok: false, error: "Invalid path: /"}
 - 'echo "test" | grep test' → {ok: false, error: "Shell operators not allowed"}
 - 'cat file.txt > output.txt' → {ok: false, error: "Shell operators not allowed"}
 - 'ls && echo done' → {ok: false, error: "Shell operators not allowed"}
@@ -80,16 +98,23 @@ interface ExecutionContext {
 - 'ls *.txt' → {ok: false, error: "Shell operators not allowed"}
 - 'ls file?.txt' → {ok: false, error: "Shell operators not allowed"}
 - 'ls [abc].txt' → {ok: false, error: "Shell operators not allowed"}
+- 'echo *' → {ok: false, error: "Shell operators not allowed"}  # Test wildcards without rm
+- 'pwd; pwd' → {ok: false, error: "Shell operators not allowed"}  # Test command chaining safely
 - 'echo test; ls' → {ok: false, error: "Shell operators not allowed"}
 - '(cd /tmp && ls)' → {ok: false, error: "Shell operators not allowed"}
 - '{ echo test; }' → {ok: false, error: "Shell operators not allowed"}
 - 'echo "unterminated' → {ok: false, error: "Invalid shell syntax"}
 - 'npm test' with cwd: '/nonexistent' → {ok: false, error: "Invalid working directory: /nonexistent"}
-- 'cat ../../../etc/passwd' → {ok: false, error: "Invalid path: ../../../etc/passwd"}
+- 'cat ../../../etc/passwd' → {ok: false, error: "Illegal path: ../../../etc/passwd"}
 - 'cat ./src/main.js' → {ok: true, value: {output: "console.log('hello');\n"}}
 - 'ls ../sibling-dir' (within project) → {ok: true, value: {output: "file1.txt\nfile2.txt\n"}}
-- 'cat /etc/passwd' (absolute path outside project) → {ok: false, error: "Invalid path: /etc/passwd"}
-- 'cat symlink-to-etc/passwd' (symlink escape attempt) → {ok: false, error: "Invalid path: symlink-to-etc/passwd"}
+- 'cat /etc/passwd' (absolute path outside project) → {ok: false, error: "Illegal path: /etc/passwd"}
+- 'cat symlink-to-etc/passwd' (symlink escape attempt) → {ok: false, error: "Illegal path: symlink-to-etc/passwd"}
+- 'dirname /' → {ok: false, error: "Illegal path: /"}  # Testing path validation with safe command
+- 'dirname /etc/passwd' → {ok: false, error: "Illegal path: /etc/passwd"}
+- 'dirname /tmp/file' → {ok: false, error: "Illegal path: /tmp/file"}
+- 'dirname ~/Documents/file' → {ok: false, error: "Illegal path: ~/Documents/file"}
+- 'dirname ../../../etc/passwd' → {ok: false, error: "Illegal path: ../../../etc/passwd"}
 - 'git invalid-subcommand' → {ok: false, error: "Git subcommand not allowed: invalid-subcommand"}
 - 'grep' → {ok: false, error: "grep requires pattern"}
 - 'mv file1' → {ok: false, error: "mv requires exactly 2 paths"}

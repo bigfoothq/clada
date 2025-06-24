@@ -41,37 +41,41 @@ import yargsParser from 'yargs-parser';
  */
 
 const COMMAND_SPECS = {
-  cat: { maxPaths: 1 },
-  head: { maxPaths: 1, flags: { n: 'number' } },
-  tail: { maxPaths: 1, flags: { n: 'number' } },
-  grep: { maxPaths: Infinity, flags: { r: 'boolean', i: 'boolean', n: 'boolean', v: 'boolean' }, minArgs: 2 },
-  find: { maxPaths: Infinity, flags: { name: 'string', type: 'string', maxdepth: 'number' } },
-  ls: { maxPaths: 1, flags: { l: 'boolean', a: 'boolean' } },
-  pwd: { maxPaths: 0 },
-  tree: { maxPaths: 1, flags: { L: 'number', a: 'boolean' } },
-  rm: { maxPaths: Infinity },
-  mv: { exactPaths: 2 },
-  cp: { exactPaths: 2 },
-  mkdir: { maxPaths: 1, flags: { p: 'boolean' } },
-  touch: { maxPaths: 1 },
-  wc: { maxPaths: 1, flags: { l: 'boolean', w: 'boolean', c: 'boolean' } },
-  diff: { exactPaths: 2 },
-  file: { maxPaths: 1 },
-  stat: { maxPaths: 1 },
-  realpath: { maxPaths: 1 },
-  xxd: { maxPaths: 1, flags: { l: 'number' } },
-  git: {
+  cat:              { maxPaths: 1 },
+  head:             { maxPaths: 1, flags: { n: 'number' } },
+  tail:             { maxPaths: 1, flags: { n: 'number' } },
+  grep:             { maxPaths: Infinity, flags: { r: 'boolean', i: 'boolean', n: 'boolean', v: 'boolean' }, minArgs: 2 },
+  find:             { maxPaths: Infinity, flags: { name: 'string', type: 'string', maxdepth: 'number' } },
+  ls:               { maxPaths: 1, flags: { l: 'boolean', a: 'boolean' } },
+  pwd:              { maxPaths: 0 },
+  tree:             { maxPaths: 1, flags: { L: 'number', a: 'boolean' } },
+  rm:               { maxPaths: Infinity },
+  dirname:           null,    //dirname exists solely to test 'rm' without risking our filesystem. see below 
+  mv:               { exactPaths: 2 },
+  cp:               { exactPaths: 2 },
+  mkdir:              { maxPaths: 1, flags: { p: 'boolean' } },
+  touch:                { maxPaths: 1 },
+  wc:               { maxPaths: 1, flags: { l: 'boolean', w: 'boolean', c: 'boolean' } },
+  diff:             { exactPaths: 2 },
+  file:             { maxPaths: 1 },
+  stat:             { maxPaths: 1 },
+  realpath:           { maxPaths: 1 },
+  xxd:              { maxPaths: 1, flags: { l: 'number' } },
+  git:              {
     subcommands: {
-      status: {},
-      diff: { maxPaths: Infinity },
-      log: { flags: { n: 'number', oneline: 'boolean' } },
-      show: { maxPaths: 1 },
-      branch: { flags: { a: 'boolean' } },
-      stash: {},
-      'ls-files': {}
+      status:       {},
+      diff:           { maxPaths: Infinity },
+      log:            { flags: { n: 'number', oneline: 'boolean' } },
+      show:           { maxPaths: 1 },
+      branch:         { flags: { a: 'boolean' } },
+      stash:          {},
+      'ls-files':    {}
     }
   }
 };
+
+COMMAND_SPECS.dirname = { ...COMMAND_SPECS.rm };
+
 
 function executeCommand(cmd: string, workingDir: string) {
   // Parse shell syntax
@@ -115,7 +119,7 @@ function executeCommand(cmd: string, workingDir: string) {
     // Validate paths
     for (const p of paths) {
       if (!validatePath(String(p), workingDir)) {
-        return { ok: false, error: `Invalid path: ${p}` };
+        return { ok: false, error: `Illegal path: ${p}` };
       }
     }
 
@@ -176,7 +180,7 @@ function executeCommand(cmd: string, workingDir: string) {
     }
 
     if (!validatePath(p, workingDir)) {
-      return { ok: false, error: `Invalid path: ${p}` };
+      return { ok: false, error: `Illegal path: ${p}` };
     }
   }
 

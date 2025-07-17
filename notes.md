@@ -106,3 +106,14 @@ TODO- add "type" and "version" attributes to CSL RUN blocks
 TODO - make separate run-posix and run-node CLADA components i think 
 TODO - use node permissions 
 TODO - hook into modules or whatever to whitelist allowed node modules.  start by only allowing fs, path, glob, and some read-only stuff
+
+______________________
+july 17
+
+july 17/unified-design.yaml
+
+next we need to get the SHAM up and running, like pullable into repo. and usable. and try using it.  and then just start coding up fucntions for the tools in july 17/unified-design.yaml.  think baout unified error reporting.  and also i think we need a standardized way to report back to the LLM what operations were done.  like it needs a report of all operaion results, successful or error.  v brief and concise ofc. 
+
+https://claude.ai/chat/c7ff8880-0bd5-4715-a0a2-5c905e722707
+
+i think we should take all the new background and studies and experiments from nesl-js and put it in nesl-background with the other old crap from csl-parser.  and then totally clean out nesl-js

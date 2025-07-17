@@ -117,3 +117,8 @@ next we need to get the SHAM up and running, like pullable into repo. and usable
 https://claude.ai/chat/c7ff8880-0bd5-4715-a0a2-5c905e722707
 
 i think we should take all the new background and studies and experiments from nesl-js and put it in nesl-background with the other old crap from csl-parser.  and then totally clean out nesl-js
+
+
+...
+
+ok nesl-js is isntalled in clada package.  next step... probably wiping/overhauling clada and then writing the functiosn.  cdd ?  yes.  then we can build tool to automatically build context snapshot targeted for a given file based on what file edited last.... can be watching files... maybe it watches for some string content like "snap" and then it bundles all the correct files according to dependency tree stuff data built with CDD.... yes definitely do this.  or is it total overkill?  maybe overkill but good way to test it.  cos will def need for bigfoot right... ?

@@ -92,3 +92,17 @@ when claude doesn't say yes to "feel good"?  a coupel times in a row maybe then 
 SHARED CODE? 
 
 follow this advice -- DONT WRITE SHARED CODE FIRST! claude will get confused and hyper and write way too much.  dont extract shared code until its actually written twice! then refactor.  so we actually know what the bare minimum is to refactor.  and we know that each code bit did it the best way for itself.  not contorting to some weird system so as to use shared code awkardly
+
+
+___________
+jun 25
+
+ok we have defined our final safety plan in clada/main/core/doc/adr/safety/final_security_approach.md
+
+
+TODO- add "type" and "version" attributes to CSL RUN blocks 
+    - allow multiple commands in node run blocks 
+    - or just have seaprate commands for NODE22
+TODO - make separate run-posix and run-node CLADA components i think 
+TODO - use node permissions 
+TODO - hook into modules or whatever to whitelist allowed node modules.  start by only allowing fs, path, glob, and some read-only stuff

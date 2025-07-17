@@ -165,3 +165,6 @@ ok so to clarify, we're using:
 and if we do all that .... then LLM can be full-functioned autonomous coder who wont nuke my computer or photo albums.  yes?
 
 yes.  still vulnerable to evil packages ofc.  but it'll do best-faith searches for every package it wants to install.  better than a human coder. 
+
+https://claude.ai/chat/51dfdffd-e383-4a52-8b97-2882b5df4bac
+https://claude.ai/chat/2d0f1482-670a-47d3-a14b-f8c05703e3b5

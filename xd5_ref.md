@@ -28,22 +28,25 @@ standard | types-only
 ## Dependencies
 [Provisional - updated via STOP protocol when implementation reveals actual needs]
 
+Mark internal component status: [PLANNED], [IN-PROGRESS], or [IMPLEMENTED]
+External dependencies do not need status markers.
+
 ```yaml
 dependencies:
   # Initial hypothesis based on design
-  proj/comp/payment:
-    functions: [validateCard, processRefund]  # May change
+  proj/comp/payment:                                       # [PLANNED]
+    functions: [validateCard, processRefund] # may change
     types: [PaymentResult, CardType]
     errors: [PaymentError]
   
-  proj/comp/auth:
+  proj/comp/auth:                                          # [IMPLEMENTED]
     functions: [checkPermission, validateToken]
     types: [User, TokenPayload]
   
-  proj/comp/logger:
+  proj/comp/logger:                                        # [IN-PROGRESS]
     functions: [logTransaction]  # Audit requirement
   
-  proj/comp/payment-types: "*"  # Wildcard for types-only
+  proj/comp/payment-types: "*"  # Wildcard for types-only  # [IMPLEMENTED] 
   
   external/lodash:
     functions: [groupBy, mapValues]
@@ -70,7 +73,7 @@ exports:
 - **Signature**: `{functionName}(param: Type) -> ReturnType`
 - **Purpose**: Single sentence.
 - **Throws**: `{ErrorType}` when {condition}
-- **Test-data**: `test-data/{path}/{functionName}.json`
+- **Test-data**: `test-data/{path}/{functionName}.json` [PLANNED|IMPLEMENTED]
 
 
 

@@ -1,0 +1,24 @@
+{
+  "cases": [
+    {
+      "name": "action exists",
+      "input": ["file_create", {"file_create": {"parameters": {}}, "file_write": {"parameters": {}}}],
+      "expected": true
+    },
+    {
+      "name": "action does not exist",
+      "input": ["file_destroy", {"file_create": {"parameters": {}}, "file_write": {"parameters": {}}}],
+      "expected": false
+    },
+    {
+      "name": "empty schemas",
+      "input": ["file_create", {}],
+      "expected": false
+    },
+    {
+      "name": "case sensitive check",
+      "input": ["FILE_CREATE", {"file_create": {"parameters": {}}}],
+      "expected": false
+    }
+  ]
+}

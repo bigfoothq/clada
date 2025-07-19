@@ -8,11 +8,16 @@ standard
 ```yaml
 dependencies:
   proj/comp/sham-ast-converter:
-    functions: [convertToActions]
-    types: [CladaAction, ConversionError]
+    functions: [convertToAction]
+    types: [ConversionError]
+  
+  proj/comp/sham-validator:
+    functions: [validateAction]
+    types: [ValidationError, ValidationResult]
   
   proj/comp/fs-ops:
-    functions: [executeFileOperation]
+    functions: [createFile, writeFile, deleteFile, moveFile, readFile,
+                createDir, deleteDir, listDir, searchFiles, globFiles]
     types: [FileOpResult]
   
   proj/comp/exec:
@@ -22,10 +27,6 @@ dependencies:
   proj/comp/git-tx:
     functions: [ensureCleanRepo, commitChanges]
     types: [GitError]
-  
-  proj/comp/context:
-    functions: [addPath, removePath, listPaths, clearContext]
-    types: [ContextError]
   
   external/nesl-js:
     functions: [parseSHAM]
@@ -49,7 +50,6 @@ exports:
 ### Clada (class)
 - **Purpose**: Main orchestrator executing SHAM blocks from LLM output
 - **Constructor**: `new Clada(options?: CladaOptions)`
-- **State**: Maintains working directory and context set across execute() calls
 
 ### execute
 - **Signature**: `async execute(llmOutput: string): Promise<ExecutionResult>`
@@ -81,8 +81,8 @@ interface ExecutionResult {
 interface ActionResult {
   seq: number                  // Execution order
   blockId: string             // SHAM block ID
-  action: string              // Action type
-  params: Record<string, any> // Input parameters
+  action: string              // Action type (duplicated from params for clarity)
+  params: Record<string, any> // All SHAM properties including 'action'
   success: boolean
   error?: string              // Error message if failed
   data?: any                  // Action-specific output
@@ -112,8 +112,8 @@ interface CladaOptions {
 execute(llmOutput)
   → parseSHAM(llmOutput) → ShamParseResult
   → for each valid block:
-    → convertToActions(block) → CladaAction[]
-    → for each action:
+    → convertToAction(block) → Record<string, any> | null
+    → if valid action (has 'action' field):
       → route to appropriate executor
       → capture result
   → commitChanges(results)
@@ -121,11 +121,18 @@ execute(llmOutput)
 ```
 
 ### Action Routing
-- file_* → fs-ops
-- dir_* → fs-ops
-- exec → exec
-- context_* → context
-- ls, grep, glob → fs-ops (read operations)
+Direct function mapping:
+- `file_create` → `createFile(params)`
+- `file_write` → `writeFile(params)`
+- `file_delete` → `deleteFile(params)`
+- `file_move` → `moveFile(params)`
+- `file_read` → `readFile(params)`
+- `dir_create` → `createDir(params)`
+- `dir_delete` → `deleteDir(params)`
+- `ls` → `listDir(params)`
+- `grep` → `searchFiles(params)`
+- `glob` → `globFiles(params)`
+- `exec` → `executeCommand(params)`
 
 ### Error Handling
 - Parser errors: Skip block, record error

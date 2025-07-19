@@ -53,11 +53,8 @@ interface ShamError {
 ### Action Mapping
 - SHAM `action` property maps directly to tool names from unified-design.yaml
 - Use canonical names: `file_create`, `file_write`, `exec`, etc.
-
-### Context Management
-- **V1**: Simple `Set<string>` of file paths
-- **Storage**: In-memory only, no persistence across sessions
-- **V2 Future**: Sub-file references (lines, functions, sections)
+- Converter passes through SHAM properties unchanged (validates 'action' field exists)
+- Each executor function extracts needed parameters from the properties object
 
 ### Execution Model
 - **Synchronous**: All operations block until complete
@@ -92,8 +89,7 @@ clada/
 │   │   ├── sham-ast-converter/  # AST → Actions
 │   │   ├── fs-ops/              # File/directory operations
 │   │   ├── exec/                # Command execution
-│   │   ├── git-tx/              # Git transaction management
-│   │   └── context/             # Working set management
+│   │   └── git-tx/              # Git transaction management
 │   └── doc/
 │       ├── API.md               # Main orchestrator API
 │       ├── ARCH.md              # This document
@@ -105,25 +101,27 @@ clada/
 2. `fs-ops` - Core functionality
 3. `exec` - Command execution
 4. `git-tx` - Transaction wrapper
-5. `context` - Working set (may be simple enough to inline)
 
 ## Open Questions
 
 ### Critical
-1. **SHAM parser package**: `nesl-js` from `github:nesl-lang/nesl-js`
+1. **SHAM parser package**: `nesl-js` from GitHub
+   - Install: `npm install github:nesl-lang/nesl-js`
    - Import: `const { parseSHAM } = require('nesl-js')`
+   - Returns empty blocks/errors for malformed input (not partial parsing)
 2. **Transaction API**: Single `execute()` method processes SHAM block array
 
 ### Design
-1. **Parser error handling**: Execute blocks with parser errors or skip?
+1. **Parser error handling**: Skip blocks with parser errors entirely
 2. **Git conflict handling**: How to handle conflicts during manual rollback?
 3. **Concurrent access**: Multiple clada instances on same repo?
-4. **Partial failure behavior**: Continue executing after first failure or abort?
+4. **Partial failure behavior**: Continue executing after first failure
+5. **Parameter validation**: Each executor validates its own required parameters
+6. **Error messages**: Node.js fs errors pass through unchanged
 
 ### Future
-1. **Context references**: Syntax for line ranges and functions
-2. **Execution isolation**: Container/VM strategy for V2
-3. **Streaming results**: Return results as actions complete or batch at end?
+1. **Execution isolation**: Container/VM strategy for V2
+2. **Streaming results**: Return results as actions complete or batch at end?
 
 ## Design Rationale
 
@@ -139,9 +137,3 @@ Traditional transaction systems rollback on failure to maintain consistency. Cla
 2. **Sequential dependencies** - Later actions may depend on earlier ones
 3. **Simpler implementation** - No async state management
 4. **Git compatibility** - Git operations are inherently synchronous
-
-### Why In-Memory Context
-1. **Session isolation** - Each LLM conversation is independent
-2. **No persistence complexity** - No file format versioning
-3. **Git is the source of truth** - Files on disk matter, not context
-4. **Quick reset** - New session = clean slate

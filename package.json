@@ -1,0 +1,35 @@
+{
+  "name": "clada",
+  "version": "0.1.0",
+  "description": "Common LLM Actions Desktop Actuator",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch proj/src/index.ts",
+    "start": "node dist/src/index.js",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint proj/**/*.ts",
+    "lint:fix": "eslint proj/**/*.ts --fix",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "nesl-js": "github:nesl-lang/nesl-js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.56.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  },
+  "keywords": ["llm", "actions", "filesystem", "sham"],
+  "author": "",
+  "license": "MIT"
+}

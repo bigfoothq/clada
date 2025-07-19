@@ -5,7 +5,7 @@
 import { ParseResult, CladaAction, ParseError, ValidationResult, TransformError, ActionDefinition } from './types.js';
 import { validateShamBlock } from './validateShamBlock.js';
 import { transformToAction } from './transformToAction.js';
-import { parseSham, type Block, type ParseResult as NeslParseResult, type ParseError as NeslParseError } from 'nesl-js';
+import { parseSham, type Block, type ParseResult as NeslParseResult } from 'nesl-js';
 import { load as loadYaml } from 'js-yaml';
 import { readFile } from 'fs/promises';
 import { fileURLToPath } from 'url';

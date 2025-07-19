@@ -10,6 +10,14 @@ export function transformToAction(
   actionDef: ActionDefinition
 ): CladaAction {
   const action = block.properties.action;
+  if (!action) {
+    throw new TransformError(
+      'Block missing action property',
+      'action',
+      'string',
+      'undefined'
+    );
+  }
   const parameters: Record<string, any> = {};
 
   // Process each parameter defined in the schema
@@ -23,6 +31,11 @@ export function transformToAction(
     }
 
     const rawValue = block.properties[paramName];
+    
+    // Skip if value is undefined (shouldn't happen if we got here, but TypeScript needs this)
+    if (rawValue === undefined) {
+      continue;
+    }
 
     try {
       // Convert based on parameter type
@@ -85,7 +98,7 @@ export function transformToAction(
     metadata: {
       blockId: block.id,
       startLine: block.startLine,
-      endLine: block.endLine
+      endLine: block.endLine ?? block.startLine // Use startLine if endLine is null
     }
   };
 }

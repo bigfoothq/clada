@@ -1,87 +1,49 @@
-=== PROCESSED: 2025-07-19 17:19:13 ===
-SUCCESS Block 1: Updated /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/index.ts
-SUCCESS Block 2: Updated /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/transformToAction.ts
-SUCCESS Block 3: Updated /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/transformToAction.ts
-SUCCESS Block 4: Updated /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/transformToAction.ts
+=== PROCESSED: 2025-07-19 17:26:46 ===
+SUCCESS Block 1: Updated /Users/stuart/repos/clada/proj/comp/sham-action-parser/test/parseShamResponse.test.ts
+SUCCESS Block 2: Updated /Users/stuart/repos/clada/proj/comp/sham-action-parser/test/parseShamResponse.test.ts
 ===
 
-Good! TypeScript is now catching real issues. Let's fix them:
+Perfect! This confirms that `marked.Tokens` doesn't exist as an export. The tokens are just plain objects with a `type` property.
+
+Since:
+1. `npm run build` passes (no actual TypeScript errors)
+2. The tests pass
+3. It's just an IDE issue
+
+Let's check if the issue persists with my last fix applied. If the IDE is still complaining after the type assertion approach, we have a few options:
+
+1. **Ignore the IDE** - if `npm run build` passes, the code is fine
+2. **Add explicit type annotations** to help the IDE:
 
 <<<EXPLANATION>>>
-Remove unused import and handle the fact that Block properties are Record<string, string | undefined>
+Add explicit type imports to help the IDE understand marked better
 
 <<<FILE>>>
-./proj/comp/sham-action-parser/src/index.ts
+./proj/comp/sham-action-parser/test/parseShamResponse.test.ts
 <<<SEARCH>>>
-import { parseSham, type Block, type ParseResult as NeslParseResult, type ParseError as NeslParseError } from 'nesl-js';
+import { marked } from 'marked';
 <<<REPLACE>>>
-import { parseSham, type Block, type ParseResult as NeslParseResult } from 'nesl-js';
+import { marked, Token } from 'marked';
 <<<END>>>
 
 <<<EXPLANATION>>>
-Handle that block.properties values can be undefined and block.endLine can be null
+Use the Token type explicitly
 
 <<<FILE>>>
-./proj/comp/sham-action-parser/src/transformToAction.ts
+./proj/comp/sham-action-parser/test/parseShamResponse.test.ts
 <<<SEARCH>>>
-    const rawValue = block.properties[paramName];
-
-    try {
-      // Convert based on parameter type
-      switch (paramDef.type) {
+const tokens = marked.lexer(mdContent);
+const codeBlocks = tokens.filter(t => t.type === 'code') as Array<{type: 'code', text: string}>;
 <<<REPLACE>>>
-    const rawValue = block.properties[paramName];
-    
-    // Skip if value is undefined (shouldn't happen if we got here, but TypeScript needs this)
-    if (rawValue === undefined) {
-      continue;
-    }
-
-    try {
-      // Convert based on parameter type
-      switch (paramDef.type) {
+const tokens: Token[] = marked.lexer(mdContent);
+const codeBlocks = tokens.filter(t => t.type === 'code') as Array<Token & {type: 'code', text: string}>;
 <<<END>>>
 
-<<<EXPLANATION>>>
-Handle that action can be undefined and endLine can be null
+But honestly, if `npm run build` works and tests pass, this is just IDE noise. The TypeScript compiler (which is what matters for the build) is happy with the code.
 
-<<<FILE>>>
-./proj/comp/sham-action-parser/src/transformToAction.ts
-<<<SEARCH>>>
-  const action = block.properties.action;
-  const parameters: Record<string, any> = {};
-<<<REPLACE>>>
-  const action = block.properties.action;
-  if (!action) {
-    throw new TransformError(
-      'Block missing action property',
-      'action',
-      'string',
-      'undefined'
-    );
-  }
-  const parameters: Record<string, any> = {};
-<<<END>>>
+What's your preference:
+1. Leave it as is since the build works
+2. Add `// @ts-ignore` comments for the IDE
+3. Try more type gymnastics
 
-<<<EXPLANATION>>>
-Handle endLine being null by using a default value
-
-<<<FILE>>>
-./proj/comp/sham-action-parser/src/transformToAction.ts
-<<<SEARCH>>>
-    metadata: {
-      blockId: block.id,
-      startLine: block.startLine,
-      endLine: block.endLine
-    }
-<<<REPLACE>>>
-    metadata: {
-      blockId: block.id,
-      startLine: block.startLine,
-      endLine: block.endLine ?? block.startLine // Use startLine if endLine is null
-    }
-<<<END>>>
-
-These changes handle the actual types from nesl-js where:
-- `properties` is `Record<string, string | undefined>` (values can be undefined)
-- `endLine` is `LineNumber | null` (can be null for unclosed blocks)
+I'd vote for #1 - if the official TypeScript compiler is happy, we should trust it over the IDE.

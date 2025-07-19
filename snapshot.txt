@@ -3,15 +3,17 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { marked } from 'marked';
+import { marked, Token } from 'marked';
 import { parseShamResponse } from '../src/index';
 
 const testPath = join(__dirname, '../test-data/parseShamResponse.md');
 const mdContent = readFileSync(testPath, 'utf8');
 
-const tokens = marked.lexer(mdContent);
-const codeBlocks = tokens.filter(t => t.type === 'code');
-const testNames = tokens.filter(t => t.type === 'heading' && t.depth === 3).map(t => t.text);
+const tokens: Token[] = marked.lexer(mdContent);
+const codeBlocks = tokens.filter(t => t.type === 'code') as Array<Token & {type: 'code', text: string}>;
+const testNames = tokens
+  .filter(t => t.type === 'heading' && 'depth' in t && t.depth === 3)
+  .map(t => (t as any).text as string);
 
 describe('parseShamResponse', () => {
   testNames.forEach((name, i) => {
@@ -509,7 +511,7 @@ standard
 dependencies:
   external/nesl-js:
     functions: [parseSham]
-    types: [ShamBlock, ShamParseResult, ShamError]
+    types: [Block, ParseResult, ParseError]
   
   external/js-yaml:
     functions: [load]
@@ -740,16 +742,25 @@ SHAM actions map directly to clada tool names from unified-design.yaml:
 
 === START FILE: ./proj/comp/sham-action-parser/src/transformToAction.ts ===
 import { CladaAction, TransformError, ActionDefinition } from './types.js';
+import type { Block } from 'nesl-js';
 
 /**
  * Transform validated SHAM block into typed clada action
  * Converts string values to proper types based on schema
  */
 export function transformToAction(
-  block: any, // TODO: ShamBlock type
+  block: Block,
   actionDef: ActionDefinition
 ): CladaAction {
   const action = block.properties.action;
+  if (!action) {
+    throw new TransformError(
+      'Block missing action property',
+      'action',
+      'string',
+      'undefined'
+    );
+  }
   const parameters: Record<string, any> = {};
 
   // Process each parameter defined in the schema
@@ -763,6 +774,11 @@ export function transformToAction(
     }
 
     const rawValue = block.properties[paramName];
+    
+    // Skip if value is undefined (shouldn't happen if we got here, but TypeScript needs this)
+    if (rawValue === undefined) {
+      continue;
+    }
 
     try {
       // Convert based on parameter type
@@ -825,7 +841,7 @@ export function transformToAction(
     metadata: {
       blockId: block.id,
       startLine: block.startLine,
-      endLine: block.endLine
+      endLine: block.endLine ?? block.startLine // Use startLine if endLine is null
     }
   };
 }
@@ -929,13 +945,14 @@ export interface ParameterDef {
 
 === START FILE: ./proj/comp/sham-action-parser/src/validateShamBlock.ts ===
 import { ValidationResult, ActionDefinition } from './types.js';
+import type { Block } from 'nesl-js';
 
 /**
  * Validate a single SHAM block against action schema
  * Checks action exists and required params present
  */
 export function validateShamBlock(
-  block: any, // TODO: ShamBlock type from nesl-js
+  block: Block,
   actionSchema: ActionDefinition | null
 ): ValidationResult {
   // Check if block has properties object
@@ -998,7 +1015,7 @@ export function validateShamBlock(
 import { ParseResult, CladaAction, ParseError, ValidationResult, TransformError, ActionDefinition } from './types.js';
 import { validateShamBlock } from './validateShamBlock.js';
 import { transformToAction } from './transformToAction.js';
-import { parseSham } from 'nesl-js';
+import { parseSham, type Block, type ParseResult as NeslParseResult } from 'nesl-js';
 import { load as loadYaml } from 'js-yaml';
 import { readFile } from 'fs/promises';
 import { fileURLToPath } from 'url';
@@ -1019,7 +1036,7 @@ export async function parseShamResponse(shamText: string): Promise<ParseResult> 
   const errors: ParseError[] = [];
 
   // Parse SHAM blocks using nesl-js
-  let parseResult;
+  let parseResult: NeslParseResult;
   try {
     parseResult = parseSham(shamText);
     
@@ -1164,7 +1181,7 @@ async function loadActionSchema(): Promise<Map<string, ActionDefinition>> {
 /**
  * Reconstruct SHAM block text for error context
  */
-function reconstructShamBlock(block: any): string {
+function reconstructShamBlock(block: Block): string {
   const lines: string[] = [];
   
   // Start line
@@ -1515,7 +1532,7 @@ Documentation maintains dependency graphs for deterministic context assembly. In
     ├── test/             # Minimal harnesses loading test-data
     ├── test-intn/        # Integration tests for dependencies
     ├── src/              # Implementation
-    └── comp/             # Sub-components (recursive)
+    └── comp/             # Sub-components (recursive) - do not need 'proj' dirs
 ```
 
 ## API.md Template
@@ -1723,6 +1740,54 @@ During implementation:
 === START FILE: ./.nvmrc ===
 20.11.0
 === END FILE: ./.nvmrc ===
+
+=== START FILE: ./scripts/checks/check-marked-types.ts ===
+import { marked } from 'marked';
+import type * as MarkedTypes from 'marked';
+
+// Try to see what's available
+console.log('marked keys:', Object.keys(marked));
+console.log('marked.Tokens exists?', 'Tokens' in marked);
+
+// The tokens are likely under a different export
+const tokens = marked.lexer('# test\n```js\ncode\n```');
+console.log('First token type:', tokens[0]?.type);
+console.log('First token constructor:', tokens[0]?.constructor?.name);
+=== END FILE: ./scripts/checks/check-marked-types.ts ===
+
+=== START FILE: ./scripts/checks/check-nesl.js ===
+import { parseSham } from 'nesl-js';
+import * as nesl from 'nesl-js';
+
+console.log('nesl-js exports:', Object.keys(nesl));
+console.log('\nparseSham type:', typeof parseSham);
+
+const result = parseSham(`#!SHAM [@three-char-SHA-256: abc]
+action = "test"
+#!END_SHAM_abc`);
+
+console.log('\nResult:', JSON.stringify(result, null, 2));
+console.log('\nResult type:', typeof result);
+console.log('Result constructor:', result?.constructor?.name);
+console.log('Blocks type:', Array.isArray(result?.blocks) ? 'array' : typeof result?.blocks);
+=== END FILE: ./scripts/checks/check-nesl.js ===
+
+=== START FILE: ./scripts/checks/check-marked.js ===
+import { marked } from 'marked';
+
+const md = `# Test
+\`\`\`js
+code here
+\`\`\`
+`;
+
+const tokens = marked.lexer(md);
+console.log('Token types:', tokens.map(t => ({
+  type: t.type,
+  hasText: 'text' in t,
+  props: Object.keys(t)
+})));
+=== END FILE: ./scripts/checks/check-marked.js ===
 
 === START FILE: ./tsconfig.json ===
 {

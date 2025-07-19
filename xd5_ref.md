@@ -171,3 +171,8 @@ During implementation:
 **Path conventions**: All relative to `<repo>/`
 - Component: `proj/comp/{name}`
 - Nested: `proj/comp/{parent}/comp/{child}`
+
+
+# update 
+
+need to update this so that we save our pseudocde in some sort of documetnation, maybe temp documentation.  so if we implement the fucntiosn to unit test, we dont get confused later about how theyre supposed to be used.

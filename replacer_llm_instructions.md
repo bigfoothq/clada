@@ -95,3 +95,5 @@ dont fall into the trap of equating "implementation" with "low-level".  implemen
 IMPORTANT EDIT INSTRUCTIONS NOTE:
 
 always use full absolute file paths for edit instructions
+
+make the search and replace blocks each as small as possible to still do the unique edit correctly

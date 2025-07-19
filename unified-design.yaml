@@ -108,8 +108,14 @@ tools:
       path: {type: string, required: true, format: absolute_path}
     returns: 
       success: boolean
-      data?: array of {name: string, type: file|directory, size: integer, modified: timestamp}
-      error?: string
+      data:
+        type: array
+        items:
+          name: string
+          type: string  # file|directory
+          size: integer
+          modified: timestamp
+      error: string
     
   grep:
     type: read
@@ -121,8 +127,13 @@ tools:
       include: {type: string, required: false}
     returns: 
       success: boolean
-      data?: array of {file: string, line_number: integer, line: string}
-      error?: string
+      data:
+        type: array
+        items:
+          file: string
+          line_number: integer
+          line: string
+      error: string
     
   glob:
     type: read
@@ -133,8 +144,10 @@ tools:
       base_path: {type: string, required: true, format: absolute_path}
     returns: 
       success: boolean
-      data?: array of strings
-      error?: string
+      data:
+        type: array
+        items: string
+      error: string
     
   # Execution
   exec:
@@ -172,8 +185,12 @@ tools:
     parameters: {}
     returns: 
       success: boolean
-      data?: array of {path: string, size: integer}
-      error?: string
+      data:
+        type: array
+        items:
+          path: string
+          size: integer
+      error: string
     
   context_prune:
     type: meta

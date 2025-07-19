@@ -5,7 +5,7 @@
 import { ParseResult, CladaAction, ParseError, ValidationResult, TransformError, ActionDefinition } from './types.js';
 import { validateShamBlock } from './validateShamBlock.js';
 import { transformToAction } from './transformToAction.js';
-import { parseSHAM } from 'nesl-js';
+import { parseSham } from 'nesl-js';
 import { load as loadYaml } from 'js-yaml';
 import { readFile } from 'fs/promises';
 import { fileURLToPath } from 'url';
@@ -28,7 +28,12 @@ export async function parseShamResponse(shamText: string): Promise<ParseResult> 
   // Parse SHAM blocks using nesl-js
   let parseResult;
   try {
-    parseResult = parseSHAM(shamText);
+    parseResult = parseSham(shamText);
+    
+    // Handle case where parseSham returns undefined or null
+    if (!parseResult) {
+      parseResult = { blocks: [], errors: [] };
+    }
   } catch (error) {
     return {
       actions: [],
@@ -51,6 +56,20 @@ export async function parseShamResponse(shamText: string): Promise<ParseResult> 
 
   // Process each SHAM block
   const blocks = parseResult.blocks || [];
+  
+  // If no blocks found, return empty result
+  if (blocks.length === 0) {
+    return {
+      actions: [],
+      errors: [],
+      summary: {
+        totalBlocks: 0,
+        successCount: 0,
+        errorCount: 0
+      }
+    };
+  }
+  
   for (const block of blocks) {
     const blockId = block.id || 'unknown';
     
@@ -165,8 +184,8 @@ function reconstructShamBlock(block: any): string {
       lines.push(value);
       lines.push(`EOT_SHAM_${block.id}`);
     } else {
-      // Single line value
-      lines.push(`${key} = "${value}"`);
+      // Single line value - use JSON.stringify to handle quotes properly
+      lines.push(`${key} = ${JSON.stringify(value)}`);
     }
   }
   

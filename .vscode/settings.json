@@ -5,13 +5,6 @@
   },
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
-  "files.exclude": {
-    "**/.git": true,
-    "**/.DS_Store": true,
-    "**/node_modules": true,
-    "dist": true,
-    "*.tsbuildinfo": true
-  },
   "search.exclude": {
     "**/node_modules": true,
     "**/dist": true,

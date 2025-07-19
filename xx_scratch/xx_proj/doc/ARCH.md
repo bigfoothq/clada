@@ -107,7 +107,7 @@ clada/
 ### Critical
 1. **SHAM parser package**: `nesl-js` from GitHub
    - Install: `npm install github:nesl-lang/nesl-js`
-   - Import: `const { parseSHAM } = require('nesl-js')`
+   - Import: `const { parseSham } = require('nesl-js')`
    - Returns empty blocks/errors for malformed input (not partial parsing)
 2. **Transaction API**: Single `execute()` method processes SHAM block array
 

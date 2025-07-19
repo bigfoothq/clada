@@ -1,9 +1,7 @@
 # XD5 LLM Quick Reference
 
-"supplemental context reference materials" or soemtihgn. SCRM. use this term instead of "context" or "working context"
-
 ## Core Principle
-Documentation maintains dependency graphs for deterministic SCRM assembly. Track dependencies as discovered during implementation.
+Documentation maintains dependency graphs for deterministic context assembly. Initial dependencies are hypotheses - implementation discovers reality. The STOP protocol ensures documentation evolves to match actual dependencies.
 
 ## File Structure
 ```
@@ -27,19 +25,14 @@ Documentation maintains dependency graphs for deterministic SCRM assembly. Track
 ## Component Type
 standard | types-only
 
-## Documentation Debt
-[Must be empty before implementation]
-- [ ] Undefined interfaces
-- [ ] Missing function signatures
-- [ ] Unspecified types
-
 ## Dependencies
-[Update as implementation reveals needs]
+[Provisional - updated via STOP protocol when implementation reveals actual needs]
 
 ```yaml
 dependencies:
+  # Initial hypothesis based on design
   proj/comp/payment:
-    functions: [validateCard, processRefund]
+    functions: [validateCard, processRefund]  # May change
     types: [PaymentResult, CardType]
     errors: [PaymentError]
   
@@ -61,6 +54,18 @@ dependencies:
 ```
 
 ## Exports
+[Structured YAML for dependency graph tooling, then prose descriptions]
+
+```yaml
+exports:
+  functions: [functionName1, functionName2]
+  types: [Type1, Type2, Type3]
+  classes:
+    ClassName:
+      methods: [method1, method2]
+  errors: [CustomError1, CustomError2]
+```
+
 ### {functionName}
 - **Signature**: `{functionName}(param: Type) -> ReturnType`
 - **Purpose**: Single sentence.
@@ -73,9 +78,9 @@ dependencies:
 
 ### Core Flow: Design → Test → Implement
 
-1. **Write docs**: ABSTRACT.md → ARCH.md → API.md
+1. **Write docs**: ABSTRACT.md → ARCH.md → API.md (provisional)
 2. **Design tests**: E2E hypothesis → Decompose → Unit tests  
-3. **Implement**: Functions (red/green) → Revise E2E → Wire component
+3. **Implement**: Discover real dependencies → Update docs → Complete code
 
 ### Test Authority & Evolution
 
@@ -93,10 +98,6 @@ dependencies:
 3. **Extract Functions** - Identify & extract all pure functions
 4. **Unit Tests** - Write test-data for each function
 5. **Implement Functions** - Red/green/debug (fix code, not tests)
-   - **CHECKPOINT: Any discoveries? → Update docs before continuing**
-   - New dependencies? Update API.md
-   - Wrong signatures? Fix documentation
-   - Missing types? Define them first
 6. **Revise E2E Tests** - Align with discovered behavior (ask human)
 7. **Wire Component** - Connect tested functions
 8. **Debug E2E** - Fix code until green
@@ -109,7 +110,13 @@ dependencies:
 
 ### Critical Implementation Rules
 
-**🛑 STOP Protocol**: If implementation reveals doc errors:
+**Initial Docs Are Hypotheses**: 
+- First API.md contains best guesses
+- Dependencies WILL be wrong
+- This is expected and healthy
+- Discovery through implementation is the goal
+
+**🛑 STOP Protocol**: When implementation reveals doc errors:
 1. STOP immediately
 2. Update API.md/ARCH.md
 3. Continue with correct docs
@@ -138,28 +145,12 @@ dependencies:
 }
 ```
 
-## Pre-Implementation Checkpoint
+## Quick Checks
 
-**Before writing ANY code, verify:**
-- [ ] All function signatures fully specified in API.md?
-- [ ] All types defined with complete field lists?
-- [ ] All dependencies declared with specific imports?
+Before implementing:
+- [ ] API.md declares all exports?
+- [ ] Dependencies section updated?
 - [ ] Test data files created?
-- [ ] Documentation Debt section is EMPTY?
-
-**If ANY unchecked → STOP, complete specifications first**
-
-## Implementation Gates
-
-**HARD STOP if incomplete:**
-1. **Specification completeness** - No undefined types, no TBD signatures
-2. **Dependency accuracy** - Every import must be in API.md
-3. **Test data existence** - Files must exist before code
-
-**During implementation:**
-- New dependency needed? → STOP, update API.md first
-- Signature doesn't match? → STOP, fix documentation first
-- Missing type definition? → STOP, define it first
 
 During implementation:
 - [ ] Tests fail first (red phase)?
@@ -180,10 +171,3 @@ During implementation:
 **Path conventions**: All relative to `<repo>/`
 - Component: `proj/comp/{name}`
 - Nested: `proj/comp/{parent}/comp/{child}`
-
-## CRITICAL LLM RULE
-**Never suggest implementation without complete specifications**
-- Missing function signatures? → Refuse to implement
-- Undefined types? → Demand specification first
-- "We'll figure it out during coding" → VIOLATION
-- User asks to implement with gaps? → Point to Documentation Debt

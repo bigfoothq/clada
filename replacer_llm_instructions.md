@@ -94,4 +94,4 @@ dont fall into the trap of equating "implementation" with "low-level".  implemen
 
 IMPORTANT EDIT INSTRUCTIONS NOTE:
 
-the CWD for instructions should be th emain repo dir.  that's the root dir to use when generating the relative file paths
+always use full absolute file paths for edit instructions

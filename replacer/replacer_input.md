@@ -1,136 +1,242 @@
-=== PROCESSED: 2025-07-18 15:46:18 ===
-SUCCESS Block 1: Created /Users/stuart/repos/clada/proj/comp/sham-validator/proj/test/checkActionExists.test.ts
-SUCCESS Block 2: Created /Users/stuart/repos/clada/proj/comp/sham-validator/proj/test/validateParamType.test.ts
-SUCCESS Block 3: Created /Users/stuart/repos/clada/proj/comp/sham-validator/proj/test/getRequiredParams.test.ts
-SUCCESS Block 4: Created /Users/stuart/repos/clada/proj/comp/sham-validator/proj/test/getMissingParams.test.ts
-SUCCESS Block 5: Updated /Users/stuart/repos/clada/proj/comp/sham-validator/proj/src/index.ts
+=== PROCESSED: 2025-07-19 15:58:55 ===
+SUCCESS Block 1: Updated /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/validateShamBlock.ts
+SUCCESS Block 2: Updated /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/transformToAction.ts
 ===
 
-<<<EXPLANATION>>>
-Create test harness for checkActionExists function using vitest dynamic test pattern
+Looking at the pseudocode and test data, I understand the flow now. Yes, I'm ready to implement `validateShamBlock` and `transformToAction`. These aren't just helper functions - they're the core exported functions that `parseShamResponse` will use.
 
-<<<FILE>>>
-proj/comp/sham-validator/proj/test/checkActionExists.test.ts
-<<<OVERWRITE>>>
-import { checkActionExists } from '../src/index.js';
-import testData from '../test-data/checkActionExists.json' assert { type: 'json' };
-
-describe('checkActionExists', () => {
-  testData.cases.forEach((testCase) => {
-    it(testCase.name, () => {
-      const [action, schemas] = testCase.input;
-      const result = checkActionExists(action, schemas);
-      expect(result).toBe(testCase.expected);
-    });
-  });
-});
-<<<END>>>
+Let me start with `validateShamBlock` since it's simpler and `transformToAction` depends on having valid blocks.
 
 <<<EXPLANATION>>>
-Create test harness for validateParamType function
+Implementing validateShamBlock function to check if a SHAM block has valid action and required parameters
 
 <<<FILE>>>
-proj/comp/sham-validator/proj/test/validateParamType.test.ts
-<<<OVERWRITE>>>
-import { validateParamType } from '../src/index.js';
-import testData from '../test-data/validateParamType.json' assert { type: 'json' };
+/Users/stuart/repos/clada/proj/comp/sham-action-parser/src/validateShamBlock.ts
 
-describe('validateParamType', () => {
-  testData.cases.forEach((testCase) => {
-    it(testCase.name, () => {
-      const [value, paramSchema] = testCase.input;
-      const result = validateParamType(value, paramSchema);
-      expect(result).toBe(testCase.expected);
-    });
-  });
-});
-<<<END>>>
-
-<<<EXPLANATION>>>
-Create test harness for getRequiredParams function
-
-<<<FILE>>>
-proj/comp/sham-validator/proj/test/getRequiredParams.test.ts
-<<<OVERWRITE>>>
-import { getRequiredParams } from '../src/index.js';
-import testData from '../test-data/getRequiredParams.json' assert { type: 'json' };
-
-describe('getRequiredParams', () => {
-  testData.cases.forEach((testCase) => {
-    it(testCase.name, () => {
-      const [actionSchema] = testCase.input;
-      const result = getRequiredParams(actionSchema);
-      expect(result).toEqual(testCase.expected);
-    });
-  });
-});
-<<<END>>>
-
-<<<EXPLANATION>>>
-Create test harness for getMissingParams function
-
-<<<FILE>>>
-proj/comp/sham-validator/proj/test/getMissingParams.test.ts
-<<<OVERWRITE>>>
-import { getMissingParams } from '../src/index.js';
-import testData from '../test-data/getMissingParams.json' assert { type: 'json' };
-
-describe('getMissingParams', () => {
-  testData.cases.forEach((testCase) => {
-    it(testCase.name, () => {
-      const [properties, requiredParams] = testCase.input;
-      const result = getMissingParams(properties, requiredParams);
-      expect(result).toEqual(testCase.expected);
-    });
-  });
-});
-<<<END>>>
-
-<<<EXPLANATION>>>
-Update index.ts to export the internal functions for testing
-
-<<<FILE>>>
-proj/comp/sham-validator/proj/src/index.ts
 <<<SEARCH>>>
-// Stub implementation - will fail all tests
-export function validateAction(_block: any, _schemas: ActionSchemas): ValidationResult {
+import { ValidationResult } from './types.js';
+
+/**
+ * Validate a single SHAM block against action schema
+ * Checks action exists and required params present
+ */
+export function validateShamBlock(
+  _block: any, // TODO: ShamBlock type from nesl-js
+  _actionSchema: any // TODO: ActionDefinition type
+): ValidationResult {
   throw new Error('Not implemented');
 }
 <<<REPLACE>>>
-// Internal functions (exported for testing)
-export function checkActionExists(action: string, schemas: ActionSchemas): boolean {
-  throw new Error('Not implemented');
-}
+import { ValidationResult } from './types.js';
 
-export function validateParamType(value: any, paramSchema: ParameterSchema): boolean {
-  throw new Error('Not implemented');
-}
-
-export function getRequiredParams(actionSchema: ActionSchema): string[] {
-  throw new Error('Not implemented');
-}
-
-export function getMissingParams(properties: Record<string, any>, requiredParams: string[]): string[] {
-  throw new Error('Not implemented');
-}
-
-// Main validation function
-export function validateAction(_block: any, _schemas: ActionSchemas): ValidationResult {
-  throw new Error('Not implemented');
-}
-
-// Type additions
-export interface ActionSchema {
-  parameters: {
-    [paramName: string]: ParameterSchema
+/**
+ * Validate a single SHAM block against action schema
+ * Checks action exists and required params present
+ */
+export function validateShamBlock(
+  block: any, // TODO: ShamBlock type from nesl-js
+  actionSchema: any // TODO: ActionDefinition type
+): ValidationResult {
+  // Check if block has properties object
+  if (!block.properties) {
+    return {
+      valid: false,
+      errors: ['Block missing properties object']
+    };
   }
-}
 
-export interface ParameterSchema {
-  type: 'string' | 'integer' | 'boolean' | 'enum';
-  required: boolean;
-  values?: string[];
+  // Check if action field exists
+  if (!block.properties.action) {
+    return {
+      valid: false,
+      errors: ['Missing \'action\' field in SHAM block']
+    };
+  }
+
+  const actionType = block.properties.action;
+
+  // If no schema provided, it's an unknown action
+  if (!actionSchema) {
+    return {
+      valid: false,
+      errors: [`Unknown action: ${actionType}`]
+    };
+  }
+
+  // Check all required parameters are present
+  const errors: string[] = [];
+  
+  if (actionSchema.parameters) {
+    for (const [paramName, paramDef] of Object.entries(actionSchema.parameters)) {
+      if (paramDef.required && !(paramName in block.properties)) {
+        errors.push(`Missing required parameter: ${paramName}`);
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    return {
+      valid: false,
+      errors
+    };
+  }
+
+  return {
+    valid: true,
+    actionType,
+    errors: []
+  };
 }
 <<<END>>>
 
-Next: Implement each function to pass its tests (red/green cycle).
+Now let's implement `transformToAction`:
+
+<<<EXPLANATION>>>
+Implementing transformToAction to convert validated SHAM blocks into typed CladaAction objects with proper type conversions
+
+<<<FILE>>>
+/Users/stuart/repos/clada/proj/comp/sham-action-parser/src/transformToAction.ts
+
+<<<SEARCH>>>
+import { CladaAction } from './types.js';
+
+/**
+ * Transform validated SHAM block into typed clada action
+ * Converts string values to proper types based on schema
+ */
+export function transformToAction(
+  _block: any, // TODO: ShamBlock type
+  _actionDef: any // TODO: ActionDefinition type
+): CladaAction {
+  throw new Error('Not implemented');
+}
+<<<REPLACE>>>
+import { CladaAction, TransformError } from './types.js';
+
+/**
+ * Transform validated SHAM block into typed clada action
+ * Converts string values to proper types based on schema
+ */
+export function transformToAction(
+  block: any, // TODO: ShamBlock type
+  actionDef: any // TODO: ActionDefinition type
+): CladaAction {
+  const action = block.properties.action;
+  const parameters: Record<string, any> = {};
+
+  // Process each parameter defined in the schema
+  for (const [paramName, paramDef] of Object.entries(actionDef.parameters || {})) {
+    // Skip if parameter not provided and has a default
+    if (!(paramName in block.properties)) {
+      if ('default' in paramDef) {
+        parameters[paramName] = paramDef.default;
+      }
+      continue;
+    }
+
+    const rawValue = block.properties[paramName];
+
+    try {
+      // Convert based on parameter type
+      switch (paramDef.type) {
+        case 'string':
+          parameters[paramName] = rawValue;
+          // Validate format if specified
+          if (paramDef.format === 'absolute_path' && !validateAbsolutePath(rawValue)) {
+            throw new TransformError(
+              `Invalid absolute path: ${rawValue}`,
+              paramName,
+              'absolute_path',
+              rawValue
+            );
+          }
+          break;
+
+        case 'integer':
+          parameters[paramName] = parseInteger(rawValue);
+          break;
+
+        case 'boolean':
+          parameters[paramName] = parseBoolean(rawValue);
+          break;
+
+        case 'enum':
+          if (!paramDef.values || !paramDef.values.includes(rawValue)) {
+            throw new TransformError(
+              `Invalid enum value: ${rawValue}. Allowed: ${paramDef.values?.join(', ')}`,
+              paramName,
+              'enum',
+              rawValue
+            );
+          }
+          parameters[paramName] = rawValue;
+          break;
+
+        default:
+          // Default to string for unknown types
+          parameters[paramName] = rawValue;
+      }
+    } catch (error) {
+      if (error instanceof TransformError) {
+        // Update parameter name in error
+        error.parameterName = paramName;
+        throw error;
+      }
+      throw new TransformError(
+        `Failed to transform parameter ${paramName}: ${error}`,
+        paramName,
+        paramDef.type,
+        rawValue
+      );
+    }
+  }
+
+  return {
+    action,
+    parameters,
+    metadata: {
+      blockId: block.id,
+      startLine: block.startLine,
+      endLine: block.endLine
+    }
+  };
+}
+
+// Helper functions for type conversion and validation
+
+function parseBoolean(value: string): boolean {
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  throw new TransformError(
+    `Invalid boolean value: ${value}`,
+    'unknown',
+    'boolean',
+    value
+  );
+}
+
+function parseInteger(value: string): number {
+  const num = parseInt(value, 10);
+  if (isNaN(num) || num.toString() !== value.trim()) {
+    throw new TransformError(
+      `Invalid integer value: ${value}`,
+      'unknown',
+      'integer',
+      value
+    );
+  }
+  return num;
+}
+
+function validateAbsolutePath(path: string): boolean {
+  // Unix/Linux/Mac absolute paths start with /
+  // Windows absolute paths like C:\ or \\server\share
+  return /^(\/|[A-Za-z]:\\|\\\\)/.test(path);
+}
+<<<END>>>
+
+Now let's run the tests to see if our implementations match the expected behavior:
+
+```bash
+npm test -- --run validateShamBlock.test.ts
+```

@@ -2,8 +2,8 @@
   "compilerOptions": {
     // Modern output settings
     "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "lib": ["ES2022"],
     
     // Strict type checking
@@ -25,7 +25,7 @@
     
     // Output settings
     "outDir": "./dist",
-    "rootDir": "./proj",
+    "rootDir": ".",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,

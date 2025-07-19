@@ -1,11 +1,12 @@
 import { ValidationResult, ActionDefinition } from './types.js';
+import type { Block } from 'nesl-js';
 
 /**
  * Validate a single SHAM block against action schema
  * Checks action exists and required params present
  */
 export function validateShamBlock(
-  block: any, // TODO: ShamBlock type from nesl-js
+  block: Block,
   actionSchema: ActionDefinition | null
 ): ValidationResult {
   // Check if block has properties object

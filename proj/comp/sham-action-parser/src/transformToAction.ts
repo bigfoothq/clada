@@ -1,11 +1,12 @@
 import { CladaAction, TransformError, ActionDefinition } from './types.js';
+import type { Block } from 'nesl-js';
 
 /**
  * Transform validated SHAM block into typed clada action
  * Converts string values to proper types based on schema
  */
 export function transformToAction(
-  block: any, // TODO: ShamBlock type
+  block: Block,
   actionDef: ActionDefinition
 ): CladaAction {
   const action = block.properties.action;

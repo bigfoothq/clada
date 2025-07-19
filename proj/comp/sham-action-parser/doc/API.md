@@ -13,7 +13,7 @@ standard
 dependencies:
   external/nesl-js:
     functions: [parseSham]
-    types: [ShamBlock, ShamParseResult, ShamError]
+    types: [Block, ParseResult, ParseError]
   
   external/js-yaml:
     functions: [load]
@@ -110,7 +110,7 @@ exports:
   blockId: string            // Which SHAM block failed
   errorType: 'syntax' | 'validation' | 'type'
   message: string            // Specific error details
-  line?: number              // Line number if available
+  blockStartLine?: number    // Starting line of the SHAM block
   shamContent?: string       // Original SHAM block for context
 }
 ```

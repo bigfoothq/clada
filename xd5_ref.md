@@ -15,7 +15,7 @@ Documentation maintains dependency graphs for deterministic context assembly. In
     ├── test/             # Minimal harnesses loading test-data
     ├── test-intn/        # Integration tests for dependencies
     ├── src/              # Implementation
-    └── comp/             # Sub-components (recursive)
+    └── comp/             # Sub-components (recursive) - do not need 'proj' dirs
 ```
 
 ## API.md Template

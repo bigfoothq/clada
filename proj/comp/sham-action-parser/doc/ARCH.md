@@ -30,10 +30,10 @@
 
 Each block processed independently with errors collected in structured format:
 - `blockId`: SHAM block identifier
-- `line`: Starting line number in original text
+- `blockStartLine`: Starting line number of the SHAM block in original text
 - `errorType`: Category (syntax, validation, type)
 - `message`: Specific error details
-- `context`: Original SHAM block for LLM reference
+- `shamContent`: Original SHAM block for LLM reference
 
 ## Type Conversions
 

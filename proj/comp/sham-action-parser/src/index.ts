@@ -5,7 +5,7 @@
 import { ParseResult, CladaAction, ParseError, ValidationResult, TransformError, ActionDefinition } from './types.js';
 import { validateShamBlock } from './validateShamBlock.js';
 import { transformToAction } from './transformToAction.js';
-import { parseSham } from 'nesl-js';
+import { parseSham, type Block, type ParseResult as NeslParseResult, type ParseError as NeslParseError } from 'nesl-js';
 import { load as loadYaml } from 'js-yaml';
 import { readFile } from 'fs/promises';
 import { fileURLToPath } from 'url';
@@ -26,7 +26,7 @@ export async function parseShamResponse(shamText: string): Promise<ParseResult> 
   const errors: ParseError[] = [];
 
   // Parse SHAM blocks using nesl-js
-  let parseResult;
+  let parseResult: NeslParseResult;
   try {
     parseResult = parseSham(shamText);
     
@@ -84,9 +84,10 @@ export async function parseShamResponse(shamText: string): Promise<ParseResult> 
       if (!validation.valid) {
         errors.push({
           blockId,
+          action: actionType,
           errorType: 'validation',
           message: validation.errors?.[0] || 'Validation failed',
-          line: block.startLine,
+          blockStartLine: block.startLine,
           shamContent: reconstructShamBlock(block)
         });
         continue;
@@ -100,9 +101,10 @@ export async function parseShamResponse(shamText: string): Promise<ParseResult> 
         if (error instanceof TransformError) {
           errors.push({
             blockId,
+            action: actionType,
             errorType: 'type',
             message: error.message,
-            line: block.startLine,
+            blockStartLine: block.startLine,
             shamContent: reconstructShamBlock(block)
           });
         } else {
@@ -112,9 +114,10 @@ export async function parseShamResponse(shamText: string): Promise<ParseResult> 
     } catch (error) {
       errors.push({
         blockId,
+        action: block.properties?.action,
         errorType: 'validation',
         message: `Unexpected error: ${error}`,
-        line: block.startLine,
+        blockStartLine: block.startLine,
         shamContent: reconstructShamBlock(block)
       });
     }
@@ -168,7 +171,7 @@ async function loadActionSchema(): Promise<Map<string, ActionDefinition>> {
 /**
  * Reconstruct SHAM block text for error context
  */
-function reconstructShamBlock(block: any): string {
+function reconstructShamBlock(block: Block): string {
   const lines: string[] = [];
   
   // Start line

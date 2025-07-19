@@ -20,9 +20,10 @@ export interface CladaAction {
 
 export interface ParseError {
   blockId: string;
+  action?: string;
   errorType: 'syntax' | 'validation' | 'type';
   message: string;
-  line?: number;
+  blockStartLine?: number;
   shamContent?: string;
 }
 

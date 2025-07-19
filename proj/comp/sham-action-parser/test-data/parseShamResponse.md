@@ -24,8 +24,8 @@ EOT_SHAM_abc
     },
     "metadata": {
       "blockId": "abc",
-      "startLine": 2,
-      "endLine": 8
+      "startLine": 1,
+      "endLine": 7
     }
   }],
   "errors": [],
@@ -64,15 +64,16 @@ path = "/tmp/bad.txt"
     },
     "metadata": {
       "blockId": "gd1",
-      "startLine": 2,
-      "endLine": 6
+      "startLine": 1,
+      "endLine": 5
     }
   }],
   "errors": [{
     "blockId": "bad",
+    "action": "unknown_action",
     "errorType": "validation",
     "message": "Unknown action: unknown_action",
-    "line": 8,
+    "blockStartLine": 7,
     "shamContent": "#!SHAM [@three-char-SHA-256: bad]\naction = \"unknown_action\"\npath = \"/tmp/bad.txt\"\n#!END_SHAM_bad"
   }],
   "summary": {
@@ -88,21 +89,22 @@ path = "/tmp/bad.txt"
 ### 003-missing-required-parameter
 
 ```sh sham
-#!SHAM [@three-char-SHA-256: miss]
+#!SHAM [@three-char-SHA-256: mis]
 action = "file_create"
 content = "missing path"
-#!END_SHAM_miss
+#!END_SHAM_mis
 ```
 
 ```json
 {
   "actions": [],
   "errors": [{
-    "blockId": "miss",
+    "blockId": "mis",
+    "action": "file_create",
     "errorType": "validation",
     "message": "Missing required parameter: path",
-    "line": 2,
-    "shamContent": "#!SHAM [@three-char-SHA-256: miss]\naction = \"file_create\"\ncontent = \"missing path\"\n#!END_SHAM_miss"
+    "blockStartLine": 1,
+    "shamContent": "#!SHAM [@three-char-SHA-256: mis]\naction = \"file_create\"\ncontent = \"missing path\"\n#!END_SHAM_mis"
   }],
   "summary": {
     "totalBlocks": 1,
@@ -136,8 +138,8 @@ cwd = "/tmp"
     },
     "metadata": {
       "blockId": "typ",
-      "startLine": 2,
-      "endLine": 7
+      "startLine": 1,
+      "endLine": 6
     }
   }],
   "errors": [],

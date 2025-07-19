@@ -2,19 +2,178 @@
  * SHAM Action Parser - Parses SHAM blocks into validated clada actions
  */
 
-import { ParseResult, CladaAction, ParseError, ValidationResult, TransformError } from './types';
-import { validateShamBlock } from './validateShamBlock';
-import { transformToAction } from './transformToAction';
+import { ParseResult, CladaAction, ParseError, ValidationResult, TransformError, ActionDefinition } from './types.js';
+import { validateShamBlock } from './validateShamBlock.js';
+import { transformToAction } from './transformToAction.js';
+import { parseSHAM } from 'nesl-js';
+import { load as loadYaml } from 'js-yaml';
+import { readFile } from 'fs/promises';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
 // Re-export types for consumers
 export { ParseResult, CladaAction, ParseError, ValidationResult, TransformError };
+
+// Cache for action schema
+let actionSchemaCache: Map<string, ActionDefinition> | null = null;
 
 /**
  * Parse SHAM blocks from text into validated clada actions
  * Processes all blocks, collecting successes and errors
  */
-export async function parseShamResponse(_shamText: string): Promise<ParseResult> {
-  throw new Error('Not implemented');
+export async function parseShamResponse(shamText: string): Promise<ParseResult> {
+  const actions: CladaAction[] = [];
+  const errors: ParseError[] = [];
+
+  // Parse SHAM blocks using nesl-js
+  let parseResult;
+  try {
+    parseResult = parseSHAM(shamText);
+  } catch (error) {
+    return {
+      actions: [],
+      errors: [{
+        blockId: 'unknown',
+        errorType: 'syntax',
+        message: `Failed to parse SHAM: ${error}`,
+        shamContent: shamText
+      }],
+      summary: {
+        totalBlocks: 0,
+        successCount: 0,
+        errorCount: 1
+      }
+    };
+  }
+
+  // Load action schema
+  const actionSchema = await loadActionSchema();
+
+  // Process each SHAM block
+  const blocks = parseResult.blocks || [];
+  for (const block of blocks) {
+    const blockId = block.id || 'unknown';
+    
+    try {
+      // Get action type from block
+      const actionType = block.properties?.action;
+      const actionDef = actionType ? actionSchema.get(actionType) : undefined;
+
+      // Validate block
+      const validation = validateShamBlock(block, actionDef ?? null);
+      
+      if (!validation.valid) {
+        errors.push({
+          blockId,
+          errorType: 'validation',
+          message: validation.errors?.[0] || 'Validation failed',
+          line: block.startLine,
+          shamContent: reconstructShamBlock(block)
+        });
+        continue;
+      }
+
+      // Transform to action
+      try {
+        const action = transformToAction(block, actionDef!);
+        actions.push(action);
+      } catch (error) {
+        if (error instanceof TransformError) {
+          errors.push({
+            blockId,
+            errorType: 'type',
+            message: error.message,
+            line: block.startLine,
+            shamContent: reconstructShamBlock(block)
+          });
+        } else {
+          throw error;
+        }
+      }
+    } catch (error) {
+      errors.push({
+        blockId,
+        errorType: 'validation',
+        message: `Unexpected error: ${error}`,
+        line: block.startLine,
+        shamContent: reconstructShamBlock(block)
+      });
+    }
+  }
+
+  return {
+    actions,
+    errors,
+    summary: {
+      totalBlocks: blocks.length,
+      successCount: actions.length,
+      errorCount: errors.length
+    }
+  };
+}
+
+/**
+ * Load and cache action definitions from unified-design.yaml
+ */
+async function loadActionSchema(): Promise<Map<string, ActionDefinition>> {
+  if (actionSchemaCache) {
+    return actionSchemaCache;
+  }
+
+  // Get the directory of this module
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  
+  // Navigate to project root and find unified-design.yaml
+  const yamlPath = join(__dirname, '../../../../unified-design.yaml');
+  
+  try {
+    const yamlContent = await readFile(yamlPath, 'utf8');
+    const design = loadYaml(yamlContent) as any;
+    
+    actionSchemaCache = new Map();
+    
+    // Extract tool definitions
+    if (design.tools) {
+      for (const [toolName, toolDef] of Object.entries(design.tools)) {
+        actionSchemaCache.set(toolName, toolDef as ActionDefinition);
+      }
+    }
+    
+    return actionSchemaCache;
+  } catch (error) {
+    throw new Error(`Failed to load unified-design.yaml: ${error}`);
+  }
+}
+
+/**
+ * Reconstruct SHAM block text for error context
+ */
+function reconstructShamBlock(block: any): string {
+  const lines: string[] = [];
+  
+  // Start line
+  lines.push(`#!SHAM [@three-char-SHA-256: ${block.id || 'unknown'}]`);
+  
+  // Properties
+  for (const [key, value] of Object.entries(block.properties || {})) {
+    if (key.startsWith('@')) continue; // Skip annotations
+    
+    if (typeof value === 'string' && value.includes('\n')) {
+      // Multi-line value with heredoc
+      lines.push(`${key} = <<'EOT_SHAM_${block.id}'`);
+      lines.push(value);
+      lines.push(`EOT_SHAM_${block.id}`);
+    } else {
+      // Single line value
+      lines.push(`${key} = "${value}"`);
+    }
+  }
+  
+  // End line
+  lines.push(`#!END_SHAM_${block.id || 'unknown'}`);
+  
+  return lines.join('\n');
 }
 
 // Re-export functions for consumers

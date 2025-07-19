@@ -43,3 +43,18 @@ export class TransformError extends Error {
     this.name = 'TransformError';
   }
 }
+
+export interface ActionDefinition {
+  type: 'read' | 'write' | 'meta' | 'git' | 'dynamic';
+  description: string;
+  parameters: Record<string, ParameterDef>;
+  returns?: Record<string, any>;
+}
+
+export interface ParameterDef {
+  type: string;
+  required: boolean;
+  format?: string;
+  values?: string[];
+  default?: any;
+}

@@ -1,4 +1,4 @@
-import { CladaAction, TransformError } from './types.js';
+import { CladaAction, TransformError, ActionDefinition } from './types.js';
 
 /**
  * Transform validated SHAM block into typed clada action
@@ -6,7 +6,7 @@ import { CladaAction, TransformError } from './types.js';
  */
 export function transformToAction(
   block: any, // TODO: ShamBlock type
-  actionDef: any // TODO: ActionDefinition type
+  actionDef: ActionDefinition
 ): CladaAction {
   const action = block.properties.action;
   const parameters: Record<string, any> = {};

@@ -1,4 +1,4 @@
-import { ValidationResult } from './types.js';
+import { ValidationResult, ActionDefinition } from './types.js';
 
 /**
  * Validate a single SHAM block against action schema
@@ -6,7 +6,7 @@ import { ValidationResult } from './types.js';
  */
 export function validateShamBlock(
   block: any, // TODO: ShamBlock type from nesl-js
-  actionSchema: any // TODO: ActionDefinition type
+  actionSchema: ActionDefinition | null
 ): ValidationResult {
   // Check if block has properties object
   if (!block.properties) {

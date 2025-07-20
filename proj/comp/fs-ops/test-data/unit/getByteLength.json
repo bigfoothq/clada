@@ -1,0 +1,34 @@
+{
+  "cases": [
+    {
+      "name": "simple ASCII string",
+      "input": ["Hello, World!"],
+      "expected": 13
+    },
+    {
+      "name": "empty string",
+      "input": [""],
+      "expected": 0
+    },
+    {
+      "name": "string with newlines",
+      "input": ["Line 1\nLine 2\nLine 3"],
+      "expected": 21
+    },
+    {
+      "name": "unicode emoji",
+      "input": ["Hello 👋 World"],
+      "expected": 17
+    },
+    {
+      "name": "multi-byte characters",
+      "input": ["你好世界"],
+      "expected": 12
+    },
+    {
+      "name": "mixed ASCII and unicode",
+      "input": ["Test: 测试"],
+      "expected": 12
+    }
+  ]
+}

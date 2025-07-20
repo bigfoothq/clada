@@ -1,0 +1,34 @@
+{
+  "cases": [
+    {
+      "name": "simple file path",
+      "input": ["/tmp/test.txt"],
+      "expected": "/tmp"
+    },
+    {
+      "name": "nested file path",
+      "input": ["/tmp/deeply/nested/file.txt"],
+      "expected": "/tmp/deeply/nested"
+    },
+    {
+      "name": "root level file",
+      "input": ["/test.txt"],
+      "expected": "/"
+    },
+    {
+      "name": "directory path with trailing slash",
+      "input": ["/tmp/dir/"],
+      "expected": "/tmp"
+    },
+    {
+      "name": "directory path without trailing slash",
+      "input": ["/tmp/dir"],
+      "expected": "/tmp"
+    },
+    {
+      "name": "windows style path",
+      "input": ["C:\\Users\\test\\file.txt"],
+      "expected": "C:\\Users\\test"
+    }
+  ]
+}

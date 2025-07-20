@@ -93,4 +93,7 @@ dont fall into the trap of equating "implementation" with "low-level".  implemen
 
 IMPORTANT EDIT INSTRUCTIONS NOTE:
 
-always use full absolute file paths for edit instructions
+- always use full absolute file paths for edit instructions
+
+- to delete a file, share bash commands with the user in your response.  do not use edit instructions to delete a file
+

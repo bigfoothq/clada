@@ -178,4 +178,6 @@ During implementation:
 
 # update 
 
-need to update this so that we save our pseudocde in some sort of documetnation, maybe temp documentation.  so if we implement the fucntiosn to unit test, we dont get confused later about how theyre supposed to be used.
+- need to update this so that we save our pseudocde in some sort of documetnation, maybe temp documentation.  so if we implement the fucntiosn to unit test, we dont get confused later about how theyre supposed to be used.
+
+- ideally, each extracted function unit-testable function would be in its own file.  for parallelism with the unit test files

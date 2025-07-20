@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { readFileSync, rmSync, existsSync } from 'fs';
 import { join } from 'path';
 import { marked, Token } from 'marked';
-import { parseShamResponse } from '../../sham-action-parser/src/index.js';
-import { executeFileOperation } from '../src/index.js';
+import { parseShamResponse } from '../../../sham-action-parser/src/index.js';
+import { executeFileOperation } from '../../src/index.js';
 
 // Read test data
 const testPath = join(__dirname, '../test-data/integration/file-operations.md');

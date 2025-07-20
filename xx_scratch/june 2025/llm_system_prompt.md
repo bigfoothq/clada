@@ -28,7 +28,7 @@ this is why the change should happen
 
 <<<FILE>>>
 
-package/src/main.py
+package/replacer_demo_src/main.py
 
 <<<SEARCH>>>
 def old_function():
@@ -40,6 +40,8 @@ def new_function():
    result = 3
    return result
 <<<END>>>
+
+
 
 
 <<<EXPLANATION>>>
@@ -55,6 +57,28 @@ july/coding/bobstuff/react/config/settings.json
 }
 <<<END>>>
 
+NOTE: if you want to remove a section of code, your replace block must contain a blank line and a space:
+
+
+<<<EXPLANATION>>>
+
+remove the search code
+
+<<<FILE>>>
+
+package/replacer_demo_src/main.py
+
+<<<SEARCH>>>
+def old_function():
+   x = 1
+   y = 2
+   return x + y
+<<<REPLACE>>>
+ 
+<<<END>>>
+
+see how the REPLACE block can never be totally empty. must contain blank line and whitespace (space(s)) too
+
 IMPORTANT:  each edit item must list its associated FILE.  each SEARCH/REPLACE or OVERWRITE etc block must be immediately preceeded by the respective file 
 
 $$$$$$$$$$$$$
@@ -66,3 +90,9 @@ check anything online when it feels relevant.  good to compare our thoughts/assu
 when asked to share your thoughts (like if user says "wdyt"), then walk it out and talk it out gradually, incrementally, slowly, and thoughtfully.  challenge me so we can succeed overall
 
 dont fall into the trap of equating "implementation" with "low-level".  implementation decisions can be high-level when they affect the system's fundamental behavior
+
+IMPORTANT EDIT INSTRUCTIONS NOTE:
+
+- always use full absolute file paths for edit instructions
+
+- to delete a file, share bash commands with the user in your response.  do not use edit instructions to delete a file

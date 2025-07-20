@@ -1,23 +1,10 @@
-=== PROCESSED: 2025-07-20 18:12:41 ===
-SUCCESS Block 1: Created /Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts
-SUCCESS Block 2: Created /Users/stuart/repos/clada/proj/comp/fs-ops/test/integration.test.ts
-SUCCESS Block 3: Updated /Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts
-===
-
-<<<EXPLANATION>>>
-Create a stub implementation of fs-ops that will allow us to run tests and see them fail (red phase of TDD)
-
-<<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts
-
-<<<OVERWRITE>>>
 /**
  * fs-ops - File system operations executor for clada
  * 
  * Handles all file and directory operations from parsed SHAM actions
  */
 
-import type { CladaAction } from '../../sham-action-parser/src/types.js';
+import type { CladaAction } from '../../sham-action-parser/src/index.js';
 
 export interface FileOpResult {
   success: boolean;
@@ -145,91 +132,3 @@ const actionHandlers: Record<string, (action: CladaAction) => Promise<FileOpResu
     return { success: false, error: 'Not implemented' };
   }
 };
-<<<END>>>
-
-<<<EXPLANATION>>>
-Create a test harness for the fs-ops integration tests that reads the markdown test data and runs each test case
-
-<<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/fs-ops/test/integration.test.ts
-
-<<<OVERWRITE>>>
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { readFileSync, rmSync, existsSync } from 'fs';
-import { join } from 'path';
-import { marked, Token } from 'marked';
-import { parseShamResponse } from '../../sham-action-parser/src/index.js';
-import { executeFileOperation } from '../src/index.js';
-
-// Read test data
-const testPath = join(__dirname, '../test-data/integration/file-operations.md');
-const mdContent = readFileSync(testPath, 'utf8');
-
-// Parse markdown to extract test cases
-const tokens: Token[] = marked.lexer(mdContent);
-const codeBlocks = tokens.filter(t => t.type === 'code') as Array<Token & {type: 'code', text: string}>;
-const testNames = tokens
-  .filter(t => t.type === 'heading' && 'depth' in t && t.depth === 3)
-  .map(t => (t as any).text as string);
-
-// Test cleanup paths
-const testPaths = [
-  '/tmp/test.txt',
-  '/tmp/deeply',
-  '/tmp/existing.txt',
-  '/tmp/multiline.txt'
-];
-
-describe('fs-ops integration tests', () => {
-  beforeEach(() => {
-    // Clean up any existing test files
-    testPaths.forEach(path => {
-      if (existsSync(path)) {
-        rmSync(path, { recursive: true, force: true });
-      }
-    });
-  });
-
-  afterEach(() => {
-    // Clean up after tests
-    testPaths.forEach(path => {
-      if (existsSync(path)) {
-        rmSync(path, { recursive: true, force: true });
-      }
-    });
-  });
-
-  testNames.forEach((name, i) => {
-    const baseIndex = i * 2;
-    it(name, async () => {
-      const shamInput = codeBlocks[baseIndex].text;
-      const expectedOutput = JSON.parse(codeBlocks[baseIndex + 1].text);
-      
-      // Parse SHAM to get actions
-      const parseResult = await parseShamResponse(shamInput);
-      
-      // Should have exactly one action
-      expect(parseResult.actions).toHaveLength(1);
-      expect(parseResult.errors).toHaveLength(0);
-      
-      // Execute the action
-      const result = await executeFileOperation(parseResult.actions[0]);
-      
-      // Compare result
-      expect(result).toEqual(expectedOutput);
-    });
-  });
-});
-<<<END>>>
-
-<<<EXPLANATION>>>
-Update the fs-ops package.json dependencies to ensure we can import from sham-action-parser
-
-<<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts
-
-<<<SEARCH>>>
-import type { CladaAction } from '../../sham-action-parser/src/types.js';
-<<<REPLACE>>>
-import type { CladaAction } from '../../sham-action-parser/src/index.js';
-<<<END>>>

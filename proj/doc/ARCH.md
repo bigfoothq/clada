@@ -25,7 +25,7 @@ interface ShamParseResult {
 interface ShamBlock {
   id: string           // 3-char SHA-256
   properties: {
-    action: string     // Maps to tool name (e.g., "file_create")
+    action: string     // Maps to tool name (e.g., "file_write")
     [key: string]: any // Tool-specific parameters
   }
   startLine: number
@@ -52,7 +52,7 @@ interface ShamError {
 
 ### Action Mapping
 - SHAM `action` property maps directly to tool names from unified-design.yaml
-- Use canonical names: `file_create`, `file_write`, `exec`, etc.
+- Use canonical names: `file_write`, `exec`, etc.
 
 ### Context Management
 - **V1**: Simple `Set<string>` of file paths

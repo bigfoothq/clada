@@ -4,7 +4,7 @@ import { join } from 'path';
 import { getByteLength } from '../../src/getByteLength.js';
 
 const testData = JSON.parse(
-  readFileSync(join(__dirname, '../../test-data/unit/getByteLength.json'), 'utf8')
+  readFileSync(join(__dirname, '../../test-data/unit/getByteLength.cases.json'), 'utf8')
 );
 
 describe('getByteLength', () => {

@@ -6,7 +6,7 @@
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: abc]
-action = "file_create"
+action = "file_write"
 path = "/tmp/test.txt"
 content = "hello world"
 #!END_SHAM_abc
@@ -20,9 +20,9 @@ content = "hello world"
   "results": [{
     "seq": 1,
     "blockId": "abc",
-    "action": "file_create",
+    "action": "file_write",
     "params": {
-      "action": "file_create",
+      "action": "file_write",
       "path": "/tmp/test.txt",
       "content": "hello world"
     },
@@ -36,7 +36,7 @@ content = "hello world"
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: f1r]
-action = "file_create"
+action = "file_write"
 path = "/tmp/first.txt"
 content = "first"
 #!END_SHAM_f1r
@@ -58,9 +58,9 @@ content = "fails"
   "results": [{
     "seq": 1,
     "blockId": "f1r",
-    "action": "file_create",
+    "action": "file_write",
     "params": {
-      "action": "file_create",
+      "action": "file_write",
       "path": "/tmp/first.txt",
       "content": "first"
     },
@@ -121,7 +121,7 @@ key = "second"
 #!END_SHAM_dup
 
 #!SHAM [@three-char-SHA-256: ok]
-action = "file_create"
+action = "file_write"
 path = "/tmp/after-error.txt"
 content = "should work"
 #!END_SHAM_ok
@@ -135,9 +135,9 @@ content = "should work"
   "results": [{
     "seq": 1,
     "blockId": "ok",
-    "action": "file_create",
+    "action": "file_write",
     "params": {
-      "action": "file_create",
+      "action": "file_write",
       "path": "/tmp/after-error.txt",
       "content": "should work"
     },

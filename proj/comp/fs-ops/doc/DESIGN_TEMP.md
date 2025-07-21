@@ -30,18 +30,10 @@ async function executeFileOperation(action: CladaAction): Promise<FileOpResult> 
 }
 
 // Individual handlers extract params and call internal functions
-async function handleFileCreate(action: CladaAction): Promise<FileOpResult> {
+async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
   const { path, content } = action.parameters;
   
   try {
-    // Check if file already exists
-    const exists = await fileExists(path);
-    if (exists) {
-      return {
-        success: false,
-        error: `EEXIST: file already exists, open '${path}'`
-      };
-    }
     
     // Create parent directories if needed
     const parentDir = dirname(path);
@@ -67,7 +59,7 @@ async function handleFileCreate(action: CladaAction): Promise<FileOpResult> {
   } catch (error) {
     return {
       success: false,
-      error: formatNodeError(error, path, 'file_create')
+      error: formatNodeError(error, path, 'file_write')
     };
   }
 }

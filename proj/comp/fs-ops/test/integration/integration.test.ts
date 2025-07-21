@@ -6,7 +6,7 @@ import { parseShamResponse } from '../../../sham-action-parser/src/index.js';
 import { executeFileOperation } from '../../src/index.js';
 
 // Read test data
-const testPath = join(__dirname, '../test-data/integration/file-operations.md');
+const testPath = join(__dirname, '../../test-data/integration/file-operations.cases.md');
 const mdContent = readFileSync(testPath, 'utf8');
 
 // Parse markdown to extract test cases
@@ -48,6 +48,13 @@ describe('fs-ops integration tests', () => {
     it(name, async () => {
       const shamInput = codeBlocks[baseIndex].text;
       const expectedOutput = JSON.parse(codeBlocks[baseIndex + 1].text);
+      
+      // Set up test preconditions
+      if (name === '003-file-already-exists') {
+        // Create the file that should already exist
+        const { writeFileSync } = await import('fs');
+        writeFileSync('/tmp/existing.txt', 'This file already exists');
+      }
       
       // Parse SHAM to get actions
       const parseResult = await parseShamResponse(shamInput);

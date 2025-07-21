@@ -7,7 +7,7 @@
 SHAM_synatx_example: |
   ```sh sham
   #!SHAM [@three-char-SHA-256: k7m]
-  action = "file_create"
+  action = "file_write"
   path = "/tmp/\"hello\".txt"
   content = <<'EOT_SHAM_k7m'
   Hello world!
@@ -19,25 +19,16 @@ SHAM_synatx_example: |
 
 tools:
   # File Operations
-  file_create:
-    type: write
-    description: Create new file
-    accessibility: [llm]
-    parameters:
-      path: {type: string, required: true, format: absolute_path}
-      content: {type: string, required: true}
-    returns: {success: boolean, error?: string}
-    
   file_write:
     type: write
-    description: Replace entire file content
+    description: Create new file while creating any necessary parent dirs. overwrites if already exists
     accessibility: [llm]
     parameters:
       path: {type: string, required: true, format: absolute_path}
       content: {type: string, required: true}
     returns: {success: boolean, error?: string}
     
-  file_edit:
+  file_replace_text:
     type: write
     description: Replace substring in file
     accessibility: [llm]
@@ -161,7 +152,7 @@ tools:
       cwd: {type: string, required: false, format: absolute_path}
     returns: {success: boolean, stdout?: string, stderr?: string, exit_code?: integer, error?: string}
 
-  # Context Operations
+  # Context Operations -- for much later.  dont do this until clada has been integrated into bigfoot, the ai llm coder
   context_add:
     type: meta
     description: Add item to working context (persistent)

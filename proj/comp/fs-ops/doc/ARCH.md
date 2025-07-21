@@ -7,12 +7,10 @@
 ## Key Design Decisions
 
 ### Parent Directory Creation
-- `file_create` automatically creates parent directories
-- `file_write` fails if parent directory doesn't exist
-- This distinction helps LLM understand intent
+- `file_write` automatically creates parent directories.  creates parent directory if it doesn't exist
 
 ### Text Replacement Strategy  
-- Use exact string matching for `file_edit`
+- Use exact string matching for `file_replace_text`
 - Count parameter limits replacements (default: 1)
 - Return actual number of replacements made
 - No regex support (keep it simple, predictable)

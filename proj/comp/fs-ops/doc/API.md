@@ -4,7 +4,7 @@
 standard
 
 ## Documentation Debt
-- [ ] Integration test format is preliminary [PLANNED]
+- [ ] Integration test format is preliminary [IMPLEMENTED]
 - [ ] Error handling strategy needs refinement
 - [ ] Consider batching operations for efficiency
 
@@ -107,9 +107,8 @@ interface FileOpError extends Error {
 
 ```typescript
 const actionHandlers = {
-  'file_create': createFile,
   'file_write': writeFile,
-  'file_edit': editFile,
+  'file_replace_text': editFile,
   'file_delete': deleteFile,
   'file_move': moveFile,
   'file_read': readFileContent,

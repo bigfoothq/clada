@@ -6,7 +6,7 @@
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: abc]
-action = "file_create"
+action = "file_write"
 path = "/tmp/test.txt"
 content = <<'EOT_SHAM_abc'
 Hello world!
@@ -17,7 +17,7 @@ EOT_SHAM_abc
 ```json
 {
   "actions": [{
-    "action": "file_create",
+    "action": "file_write",
     "parameters": {
       "path": "/tmp/test.txt",
       "content": "Hello world!"
@@ -43,7 +43,7 @@ EOT_SHAM_abc
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: gd1]
-action = "file_create"
+action = "file_write"
 path = "/tmp/good.txt"
 content = "valid"
 #!END_SHAM_gd1
@@ -57,7 +57,7 @@ path = "/tmp/bad.txt"
 ```json
 {
   "actions": [{
-    "action": "file_create",
+    "action": "file_write",
     "parameters": {
       "path": "/tmp/good.txt",
       "content": "valid"
@@ -90,7 +90,7 @@ path = "/tmp/bad.txt"
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: mis]
-action = "file_create"
+action = "file_write"
 content = "missing path"
 #!END_SHAM_mis
 ```
@@ -100,11 +100,11 @@ content = "missing path"
   "actions": [],
   "errors": [{
     "blockId": "mis",
-    "action": "file_create",
+    "action": "file_write",
     "errorType": "validation",
     "message": "Missing required parameter: path",
     "blockStartLine": 1,
-    "shamContent": "#!SHAM [@three-char-SHA-256: mis]\naction = \"file_create\"\ncontent = \"missing path\"\n#!END_SHAM_mis"
+    "shamContent": "#!SHAM [@three-char-SHA-256: mis]\naction = \"file_write\"\ncontent = \"missing path\"\n#!END_SHAM_mis"
   }],
   "summary": {
     "totalBlocks": 1,

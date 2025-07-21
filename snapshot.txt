@@ -8,7 +8,7 @@
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: abc]
-action = "file_create"
+action = "file_write"
 path = "/tmp/test.txt"
 content = "hello world"
 #!END_SHAM_abc
@@ -22,9 +22,9 @@ content = "hello world"
   "results": [{
     "seq": 1,
     "blockId": "abc",
-    "action": "file_create",
+    "action": "file_write",
     "params": {
-      "action": "file_create",
+      "action": "file_write",
       "path": "/tmp/test.txt",
       "content": "hello world"
     },
@@ -38,7 +38,7 @@ content = "hello world"
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: f1r]
-action = "file_create"
+action = "file_write"
 path = "/tmp/first.txt"
 content = "first"
 #!END_SHAM_f1r
@@ -60,9 +60,9 @@ content = "fails"
   "results": [{
     "seq": 1,
     "blockId": "f1r",
-    "action": "file_create",
+    "action": "file_write",
     "params": {
-      "action": "file_create",
+      "action": "file_write",
       "path": "/tmp/first.txt",
       "content": "first"
     },
@@ -123,7 +123,7 @@ key = "second"
 #!END_SHAM_dup
 
 #!SHAM [@three-char-SHA-256: ok]
-action = "file_create"
+action = "file_write"
 path = "/tmp/after-error.txt"
 content = "should work"
 #!END_SHAM_ok
@@ -137,9 +137,9 @@ content = "should work"
   "results": [{
     "seq": 1,
     "blockId": "ok",
-    "action": "file_create",
+    "action": "file_write",
     "params": {
-      "action": "file_create",
+      "action": "file_write",
       "path": "/tmp/after-error.txt",
       "content": "should work"
     },
@@ -272,12 +272,12 @@ describe('transformToAction', () => {
 {
   "cases": [
     {
-      "name": "valid file_create block",
+      "name": "valid file_write block",
       "input": [
         {
           "id": "abc",
           "properties": {
-            "action": "file_create",
+            "action": "file_write",
             "path": "/tmp/test.txt",
             "content": "hello"
           }
@@ -293,7 +293,7 @@ describe('transformToAction', () => {
       ],
       "expected": {
         "valid": true,
-        "actionType": "file_create",
+        "actionType": "file_write",
         "errors": []
       }
     },
@@ -337,7 +337,7 @@ describe('transformToAction', () => {
         {
           "id": "miss",
           "properties": {
-            "action": "file_create",
+            "action": "file_write",
             "path": "/tmp/test.txt"
           }
         },
@@ -368,7 +368,7 @@ describe('transformToAction', () => {
         {
           "id": "str",
           "properties": {
-            "action": "file_create",
+            "action": "file_write",
             "path": "/tmp/test.txt",
             "content": "hello world"
           },
@@ -384,7 +384,7 @@ describe('transformToAction', () => {
         }
       ],
       "expected": {
-        "action": "file_create",
+        "action": "file_write",
         "parameters": {
           "path": "/tmp/test.txt",
           "content": "hello world"
@@ -434,7 +434,7 @@ describe('transformToAction', () => {
         {
           "id": "int",
           "properties": {
-            "action": "file_edit",
+            "action": "file_replace_text",
             "path": "/tmp/edit.txt",
             "old_text": "foo",
             "new_text": "bar",
@@ -454,7 +454,7 @@ describe('transformToAction', () => {
         }
       ],
       "expected": {
-        "action": "file_edit",
+        "action": "file_replace_text",
         "parameters": {
           "path": "/tmp/edit.txt",
           "old_text": "foo",
@@ -508,7 +508,7 @@ describe('transformToAction', () => {
         {
           "id": "bad",
           "properties": {
-            "action": "file_edit",
+            "action": "file_replace_text",
             "path": "/tmp/edit.txt",
             "old_text": "foo",
             "new_text": "bar",
@@ -542,7 +542,7 @@ describe('transformToAction', () => {
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: abc]
-action = "file_create"
+action = "file_write"
 path = "/tmp/test.txt"
 content = <<'EOT_SHAM_abc'
 Hello world!
@@ -553,7 +553,7 @@ EOT_SHAM_abc
 ```json
 {
   "actions": [{
-    "action": "file_create",
+    "action": "file_write",
     "parameters": {
       "path": "/tmp/test.txt",
       "content": "Hello world!"
@@ -579,7 +579,7 @@ EOT_SHAM_abc
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: gd1]
-action = "file_create"
+action = "file_write"
 path = "/tmp/good.txt"
 content = "valid"
 #!END_SHAM_gd1
@@ -593,7 +593,7 @@ path = "/tmp/bad.txt"
 ```json
 {
   "actions": [{
-    "action": "file_create",
+    "action": "file_write",
     "parameters": {
       "path": "/tmp/good.txt",
       "content": "valid"
@@ -626,7 +626,7 @@ path = "/tmp/bad.txt"
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: mis]
-action = "file_create"
+action = "file_write"
 content = "missing path"
 #!END_SHAM_mis
 ```
@@ -636,11 +636,11 @@ content = "missing path"
   "actions": [],
   "errors": [{
     "blockId": "mis",
-    "action": "file_create",
+    "action": "file_write",
     "errorType": "validation",
     "message": "Missing required parameter: path",
     "blockStartLine": 1,
-    "shamContent": "#!SHAM [@three-char-SHA-256: mis]\naction = \"file_create\"\ncontent = \"missing path\"\n#!END_SHAM_mis"
+    "shamContent": "#!SHAM [@three-char-SHA-256: mis]\naction = \"file_write\"\ncontent = \"missing path\"\n#!END_SHAM_mis"
   }],
   "summary": {
     "totalBlocks": 1,
@@ -917,7 +917,7 @@ All SHAM values are strings, requiring conversion:
 ## Action Mapping
 
 SHAM actions map directly to clada tool names from unified-design.yaml:
-- Must use exact tool names (e.g., `file_create`, not `create_file`)
+- Must use exact tool names (e.g., `file_write`, not `write_file`)
 - No aliasing or fuzzy matching to avoid ambiguity
 
 ## Constraints
@@ -1413,7 +1413,7 @@ import { join } from 'path';
 import { formatNodeError } from '../../src/formatNodeError.js';
 
 const testData = JSON.parse(
-  readFileSync(join(__dirname, '../../test-data/unit/formatNodeError.json'), 'utf8')
+  readFileSync(join(__dirname, '../../test-data/unit/formatNodeError.cases.json'), 'utf8')
 );
 
 describe('formatNodeError', () => {
@@ -1433,7 +1433,7 @@ import { join } from 'path';
 import { getParentDirectory } from '../../src/getParentDirectory.js';
 
 const testData = JSON.parse(
-  readFileSync(join(__dirname, '../../test-data/unit/getParentDirectory.json'), 'utf8')
+  readFileSync(join(__dirname, '../../test-data/unit/getParentDirectory.cases.json'), 'utf8')
 );
 
 describe('getParentDirectory', () => {
@@ -1453,7 +1453,7 @@ import { join } from 'path';
 import { getByteLength } from '../../src/getByteLength.js';
 
 const testData = JSON.parse(
-  readFileSync(join(__dirname, '../../test-data/unit/getByteLength.json'), 'utf8')
+  readFileSync(join(__dirname, '../../test-data/unit/getByteLength.cases.json'), 'utf8')
 );
 
 describe('getByteLength', () => {
@@ -1468,23 +1468,18 @@ describe('getByteLength', () => {
 
 === START FILE: ./proj/comp/fs-ops/test/unit/replaceText.test.ts ===
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
-import { join } from 'path';
-import { load as loadYaml } from 'js-yaml';
-import { replaceText } from '../../src/replaceText.js';
-
-const testData = loadYaml(
-  readFileSync(join(__dirname, '../../test-data/unit/replaceText.yaml'), 'utf8')
-) as any;
+import { replaceText } from '../../src/replaceText';
+import { cases } from '../../test-data/unit/replaceText.cases';
 
 describe('replaceText', () => {
-  testData.cases.forEach(({ name, input, expected }) => {
+  cases.forEach(({ name, input, expected }) => {
     it(name, () => {
       const result = replaceText(...input);
       expect(result).toEqual(expected);
     });
   });
 });
+
 === END FILE: ./proj/comp/fs-ops/test/unit/replaceText.test.ts ===
 
 === START FILE: ./proj/comp/fs-ops/test/integration/integration.test.ts ===
@@ -1496,7 +1491,7 @@ import { parseShamResponse } from '../../../sham-action-parser/src/index.js';
 import { executeFileOperation } from '../../src/index.js';
 
 // Read test data
-const testPath = join(__dirname, '../test-data/integration/file-operations.md');
+const testPath = join(__dirname, '../../test-data/integration/file-operations.cases.md');
 const mdContent = readFileSync(testPath, 'utf8');
 
 // Parse markdown to extract test cases
@@ -1539,6 +1534,13 @@ describe('fs-ops integration tests', () => {
       const shamInput = codeBlocks[baseIndex].text;
       const expectedOutput = JSON.parse(codeBlocks[baseIndex + 1].text);
       
+      // Set up test preconditions
+      if (name === '003-file-already-exists') {
+        // Create the file that should already exist
+        const { writeFileSync } = await import('fs');
+        writeFileSync('/tmp/existing.txt', 'This file already exists');
+      }
+      
       // Parse SHAM to get actions
       const parseResult = await parseShamResponse(shamInput);
       
@@ -1556,7 +1558,249 @@ describe('fs-ops integration tests', () => {
 });
 === END FILE: ./proj/comp/fs-ops/test/integration/integration.test.ts ===
 
-=== START FILE: ./proj/comp/fs-ops/test-data/unit/formatNodeError.json ===
+=== START FILE: ./proj/comp/fs-ops/test-data/unit/replaceText.cases.ts ===
+export const cases = [
+  {
+    name: "simple replacement",
+    input: ["hello world", "world", "universe"],
+    expected: {
+      result: "hello universe",
+      replacements: 1,
+    },
+  },
+  {
+    name: "multiple replacements",
+    input: ["foo bar foo baz", "foo", "qux"],
+    expected: {
+      result: "qux bar qux baz",
+      replacements: 2,
+    },
+  },
+  {
+    name: "limited replacements",
+    input: ["foo bar foo baz foo", "foo", "qux", 2],
+    expected: {
+      result: "qux bar qux baz foo",
+      replacements: 2,
+    },
+  },
+  {
+    name: "multiline content replacement",
+    input: [
+`function oldName() {
+  console.log('oldName');
+  return oldName;
+}`,
+      "oldName",
+      "newName",
+    ],
+    expected: {
+      result: 
+`function newName() {
+  console.log('newName');
+  return newName;
+}`,
+      replacements: 3,
+    },
+  },
+  {
+    name: "multiline search and replace",
+    input: [
+`const config = {
+  old: {
+    setting: true
+  },
+  other: false
+};`,
+`old: {
+    setting: true
+  }`,
+`new: {
+    setting: false,
+    extra: 'value'
+  }`,
+    ],
+    expected: {
+      result: 
+`const config = {
+  new: {
+    setting: false,
+    extra: 'value'
+  },
+  other: false
+};`,
+      replacements: 1,
+    },
+  },
+  {
+    name: "replace code block with limit",
+    input: [
+`// TODO: fix this
+function broken() {
+  // TODO: fix this
+  return null;
+}
+// TODO: fix this`,
+      "// TODO: fix this",
+      "// FIXED",
+      2,
+    ],
+    expected: {
+      result: 
+`// FIXED
+function broken() {
+  // FIXED
+  return null;
+}
+// TODO: fix this`,
+      replacements: 2,
+    },
+  },
+  {
+    name: "no matches in multiline",
+    input: [
+`Line 1
+Line 2
+Line 3`,
+      "Line 4",
+      "Line X",
+    ],
+    expected: {
+      result: 
+`Line 1
+Line 2
+Line 3`,
+      replacements: 0,
+    },
+  },
+  {
+    name: "empty old text",
+    input: ["hello world", "", "xyz"],
+    expected: {
+      result: "hello world",
+      replacements: 0,
+    },
+  },
+  {
+    name: "overlapping replacements",
+    input: ["aaaa", "aa", "b"],
+    expected: {
+      result: "bb",
+      replacements: 2,
+    },
+  },
+  {
+    name: "replace with empty string",
+    input: ["foo bar foo", "foo ", ""],
+    expected: {
+      result: "bar foo",
+      replacements: 1,
+    },
+  },
+  {
+    name: "windows line endings",
+    input: ["line1\r\nline2\r\nline3", "\r\n", "\n"],
+    expected: {
+      result: "line1\nline2\nline3",
+      replacements: 2,
+    },
+  },
+  {
+    name: "indent-sensitive replacement",
+    input: [
+`class OldClass:
+    def method(self):
+        pass`,
+      "OldClass",
+      "NewClass",
+    ],
+    expected: {
+      result: 
+`class NewClass:
+    def method(self):
+        pass`,
+      replacements: 1,
+    },
+  },
+];
+
+=== END FILE: ./proj/comp/fs-ops/test-data/unit/replaceText.cases.ts ===
+
+=== START FILE: ./proj/comp/fs-ops/test-data/unit/getParentDirectory.cases.json ===
+{
+  "cases": [
+    {
+      "name": "simple file path",
+      "input": ["/tmp/test.txt"],
+      "expected": "/tmp"
+    },
+    {
+      "name": "nested file path",
+      "input": ["/tmp/deeply/nested/file.txt"],
+      "expected": "/tmp/deeply/nested"
+    },
+    {
+      "name": "root level file",
+      "input": ["/test.txt"],
+      "expected": "/"
+    },
+    {
+      "name": "directory path with trailing slash",
+      "input": ["/tmp/dir/"],
+      "expected": "/tmp"
+    },
+    {
+      "name": "directory path without trailing slash",
+      "input": ["/tmp/dir"],
+      "expected": "/tmp"
+    },
+    {
+      "name": "windows style path",
+      "input": ["C:\\Users\\test\\file.txt"],
+      "expected": "C:\\Users\\test"
+    }
+  ]
+}
+=== END FILE: ./proj/comp/fs-ops/test-data/unit/getParentDirectory.cases.json ===
+
+=== START FILE: ./proj/comp/fs-ops/test-data/unit/getByteLength.cases.json ===
+{
+  "cases": [
+    {
+      "name": "simple ASCII string",
+      "input": ["Hello, World!"],
+      "expected": 13
+    },
+    {
+      "name": "empty string",
+      "input": [""],
+      "expected": 0
+    },
+    {
+      "name": "string with newlines",
+      "input": ["Line 1\nLine 2\nLine 3"],
+      "expected": 20
+    },
+    {
+      "name": "unicode emoji",
+      "input": ["Hello 👋 World"],
+      "expected": 16
+    },
+    {
+      "name": "multi-byte characters",
+      "input": ["你好世界"],
+      "expected": 12
+    },
+    {
+      "name": "mixed ASCII and unicode",
+      "input": ["Test: 测试"],
+      "expected": 12
+    }
+  ]
+}
+=== END FILE: ./proj/comp/fs-ops/test-data/unit/getByteLength.cases.json ===
+
+=== START FILE: ./proj/comp/fs-ops/test-data/unit/formatNodeError.cases.json ===
 {
   "cases": [
     {
@@ -1624,259 +1868,20 @@ describe('fs-ops integration tests', () => {
     }
   ]
 }
-=== END FILE: ./proj/comp/fs-ops/test-data/unit/formatNodeError.json ===
+=== END FILE: ./proj/comp/fs-ops/test-data/unit/formatNodeError.cases.json ===
 
-=== START FILE: ./proj/comp/fs-ops/test-data/unit/getParentDirectory.json ===
-{
-  "cases": [
-    {
-      "name": "simple file path",
-      "input": ["/tmp/test.txt"],
-      "expected": "/tmp"
-    },
-    {
-      "name": "nested file path",
-      "input": ["/tmp/deeply/nested/file.txt"],
-      "expected": "/tmp/deeply/nested"
-    },
-    {
-      "name": "root level file",
-      "input": ["/test.txt"],
-      "expected": "/"
-    },
-    {
-      "name": "directory path with trailing slash",
-      "input": ["/tmp/dir/"],
-      "expected": "/tmp"
-    },
-    {
-      "name": "directory path without trailing slash",
-      "input": ["/tmp/dir"],
-      "expected": "/tmp"
-    },
-    {
-      "name": "windows style path",
-      "input": ["C:\\Users\\test\\file.txt"],
-      "expected": "C:\\Users\\test"
-    }
-  ]
-}
-=== END FILE: ./proj/comp/fs-ops/test-data/unit/getParentDirectory.json ===
-
-=== START FILE: ./proj/comp/fs-ops/test-data/unit/getByteLength.json ===
-{
-  "cases": [
-    {
-      "name": "simple ASCII string",
-      "input": ["Hello, World!"],
-      "expected": 13
-    },
-    {
-      "name": "empty string",
-      "input": [""],
-      "expected": 0
-    },
-    {
-      "name": "string with newlines",
-      "input": ["Line 1\nLine 2\nLine 3"],
-      "expected": 21
-    },
-    {
-      "name": "unicode emoji",
-      "input": ["Hello 👋 World"],
-      "expected": 17
-    },
-    {
-      "name": "multi-byte characters",
-      "input": ["你好世界"],
-      "expected": 12
-    },
-    {
-      "name": "mixed ASCII and unicode",
-      "input": ["Test: 测试"],
-      "expected": 12
-    }
-  ]
-}
-=== END FILE: ./proj/comp/fs-ops/test-data/unit/getByteLength.json ===
-
-=== START FILE: ./proj/comp/fs-ops/test-data/unit/replaceText.yaml ===
-cases:
-  - name: simple replacement
-    input:
-      - "hello world"
-      - "world"
-      - "universe"
-    expected:
-      result: "hello universe"
-      replacements: 1
-
-  - name: multiple replacements
-    input:
-      - "foo bar foo baz"
-      - "foo"
-      - "qux"
-    expected:
-      result: "qux bar qux baz"
-      replacements: 2
-
-  - name: limited replacements
-    input:
-      - "foo bar foo baz foo"
-      - "foo"
-      - "qux"
-      - 2
-    expected:
-      result: "qux bar qux baz foo"
-      replacements: 2
-
-  - name: multiline content replacement
-    input:
-      - |
-        function oldName() {
-          console.log('oldName');
-          return oldName;
-        }
-      - "oldName"
-      - "newName"
-    expected:
-      result: |
-        function newName() {
-          console.log('newName');
-          return newName;
-        }
-      replacements: 3
-
-  - name: multiline search and replace
-    input:
-      - |
-        const config = {
-          old: {
-            setting: true
-          },
-          other: false
-        };
-      - |
-        old: {
-            setting: true
-          }
-      - |
-        new: {
-            setting: false,
-            extra: 'value'
-          }
-    expected:
-      result: |
-        const config = {
-          new: {
-            setting: false,
-            extra: 'value'
-          },
-          other: false
-        };
-      replacements: 1
-
-  - name: replace code block with limit
-    input:
-      - |
-        // TODO: fix this
-        function broken() {
-          // TODO: fix this
-          return null;
-        }
-        // TODO: fix this
-      - "// TODO: fix this"
-      - "// FIXED"
-      - 2
-    expected:
-      result: |
-        // FIXED
-        function broken() {
-          // FIXED
-          return null;
-        }
-        // TODO: fix this
-      replacements: 2
-
-  - name: no matches in multiline
-    input:
-      - |
-        Line 1
-        Line 2
-        Line 3
-      - "Line 4"
-      - "Line X"
-    expected:
-      result: |
-        Line 1
-        Line 2
-        Line 3
-      replacements: 0
-
-  - name: empty old text
-    input:
-      - "hello world"
-      - ""
-      - "xyz"
-    expected:
-      result: "hello world"
-      replacements: 0
-
-  - name: overlapping replacements
-    input:
-      - "aaaa"
-      - "aa"
-      - "b"
-    expected:
-      result: "bb"
-      replacements: 2
-
-  - name: replace with empty string
-    input:
-      - "foo bar foo"
-      - "foo "
-      - ""
-    expected:
-      result: "bar foo"
-      replacements: 1
-
-  - name: windows line endings
-    input:
-      - "line1\r\nline2\r\nline3"
-      - "\r\n"
-      - "\n"
-    expected:
-      result: "line1\nline2\nline3"
-      replacements: 2
-
-  - name: indent-sensitive replacement
-    input:
-      - |
-        class OldClass:
-            def method(self):
-                pass
-      - "OldClass"
-      - "NewClass"
-    expected:
-      result: |
-        class NewClass:
-            def method(self):
-                pass
-      replacements: 1
-=== END FILE: ./proj/comp/fs-ops/test-data/unit/replaceText.yaml ===
-
-=== START FILE: ./proj/comp/fs-ops/test-data/integration/file-operations.md ===
+=== START FILE: ./proj/comp/fs-ops/test-data/integration/file-operations.cases.md ===
 # File Operations Integration Tests
 
 **Status**: [PLANNED] - Preliminary test format, subject to change
 
-## file_create
+## file_write
 
 ### 001-simple-file-create
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: abc]
-action = "file_create"
+action = "file_write"
 path = "/tmp/test.txt"
 content = "Hello, World!"
 #!END_SHAM_abc
@@ -1896,7 +1901,7 @@ content = "Hello, World!"
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: pdr]
-action = "file_create"
+action = "file_write"
 path = "/tmp/deeply/nested/dir/file.txt"
 content = "Creates parent directories"
 #!END_SHAM_pdr
@@ -1917,28 +1922,12 @@ content = "Creates parent directories"
 }
 ```
 
-### 003-file-already-exists
-
-```sh sham
-#!SHAM [@three-char-SHA-256: dup]
-action = "file_create"
-path = "/tmp/existing.txt"
-content = "This file already exists"
-#!END_SHAM_dup
-```
-
-```json
-{
-  "success": false,
-  "error": "EEXIST: file already exists, open '/tmp/existing.txt'"
-}
-```
 
 ### 004-permission-denied
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: prm]
-action = "file_create"
+action = "file_write"
 path = "/root/forbidden.txt"
 content = "Cannot write here"
 #!END_SHAM_prm
@@ -1947,7 +1936,7 @@ content = "Cannot write here"
 ```json
 {
   "success": false,
-  "error": "EACCES: permission denied, open '/root/forbidden.txt'"
+  "error": "EROFS: EROFS: read-only file system, mkdir '/root'"
 }
 ```
 
@@ -1955,7 +1944,7 @@ content = "Cannot write here"
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: mlt]
-action = "file_create"
+action = "file_write"
 path = "/tmp/multiline.txt"
 content = <<'EOT_SHAM_mlt'
 Line 1
@@ -1970,11 +1959,11 @@ EOT_SHAM_mlt
   "success": true,
   "data": {
     "path": "/tmp/multiline.txt",
-    "bytesWritten": 21
+    "bytesWritten": 20
   }
 }
 ```
-=== END FILE: ./proj/comp/fs-ops/test-data/integration/file-operations.md ===
+=== END FILE: ./proj/comp/fs-ops/test-data/integration/file-operations.cases.md ===
 
 === START FILE: ./proj/comp/fs-ops/doc/API.md ===
 # Component: fs-ops
@@ -1983,7 +1972,7 @@ EOT_SHAM_mlt
 standard
 
 ## Documentation Debt
-- [ ] Integration test format is preliminary [PLANNED]
+- [ ] Integration test format is preliminary [IMPLEMENTED]
 - [ ] Error handling strategy needs refinement
 - [ ] Consider batching operations for efficiency
 
@@ -2086,9 +2075,8 @@ interface FileOpError extends Error {
 
 ```typescript
 const actionHandlers = {
-  'file_create': createFile,
   'file_write': writeFile,
-  'file_edit': editFile,
+  'file_replace_text': editFile,
   'file_delete': deleteFile,
   'file_move': moveFile,
   'file_read': readFileContent,
@@ -2134,18 +2122,10 @@ async function executeFileOperation(action: CladaAction): Promise<FileOpResult> 
 }
 
 // Individual handlers extract params and call internal functions
-async function handleFileCreate(action: CladaAction): Promise<FileOpResult> {
+async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
   const { path, content } = action.parameters;
   
   try {
-    // Check if file already exists
-    const exists = await fileExists(path);
-    if (exists) {
-      return {
-        success: false,
-        error: `EEXIST: file already exists, open '${path}'`
-      };
-    }
     
     // Create parent directories if needed
     const parentDir = dirname(path);
@@ -2171,7 +2151,7 @@ async function handleFileCreate(action: CladaAction): Promise<FileOpResult> {
   } catch (error) {
     return {
       success: false,
-      error: formatNodeError(error, path, 'file_create')
+      error: formatNodeError(error, path, 'file_write')
     };
   }
 }
@@ -2259,6 +2239,19 @@ For async functions (need to mock fs):
   - Permission errors
 === END FILE: ./proj/comp/fs-ops/doc/DESIGN_TEMP.md ===
 
+=== START FILE: ./proj/comp/fs-ops/doc/TODO.md ===
+Ambiguous file_replace_text behavior:
+
+- What happens if old_text appears multiple times but count=1? Which occurrence gets replaced?
+    
+    this results in an error!
+
+What if old_text doesn't exist? Silent success or error?
+
+
+    error!
+=== END FILE: ./proj/comp/fs-ops/doc/TODO.md ===
+
 === START FILE: ./proj/comp/fs-ops/doc/ABSTRACT.md ===
 # File System Operations
 
@@ -2283,12 +2276,10 @@ Each operation is designed to be atomic and independent, with no shared state be
 ## Key Design Decisions
 
 ### Parent Directory Creation
-- `file_create` automatically creates parent directories
-- `file_write` fails if parent directory doesn't exist
-- This distinction helps LLM understand intent
+- `file_write` automatically creates parent directories.  creates parent directory if it doesn't exist
 
 ### Text Replacement Strategy  
-- Use exact string matching for `file_edit`
+- Use exact string matching for `file_replace_text`
 - Count parameter limits replacements (default: 1)
 - Return actual number of replacements made
 - No regex support (keep it simple, predictable)
@@ -2378,14 +2369,32 @@ export function formatNodeError(error: any, path: string, operation: string): st
 === END FILE: ./proj/comp/fs-ops/src/formatNodeError.ts ===
 
 === START FILE: ./proj/comp/fs-ops/src/getParentDirectory.ts ===
-import { dirname } from 'path';
+import { dirname, sep } from 'path';
 
 /**
  * Extract parent directory from a file path
+ * Handles both Unix and Windows style paths
  * @param filePath - Absolute path to file or directory
  * @returns Parent directory path
  */
 export function getParentDirectory(filePath: string): string {
+  // Check if it's a Windows path (C:\ or C:/)
+  const isWindowsPath = /^[A-Za-z]:[\\/]/.test(filePath);
+  
+  if (isWindowsPath) {
+    // Handle Windows paths manually
+    const normalized = filePath.replace(/\//g, '\\');
+    const lastSep = normalized.lastIndexOf('\\');
+    
+    // Handle root paths like C:\
+    if (lastSep <= 2) {
+      return normalized.substring(0, 3); // Return C:\ 
+    }
+    
+    return normalized.substring(0, lastSep);
+  }
+  
+  // Use native dirname for Unix paths
   return dirname(filePath);
 }
 === END FILE: ./proj/comp/fs-ops/src/getParentDirectory.ts ===
@@ -2400,6 +2409,65 @@ export function getByteLength(content: string): number {
   return Buffer.byteLength(content, 'utf8');
 }
 === END FILE: ./proj/comp/fs-ops/src/getByteLength.ts ===
+
+=== START FILE: ./proj/comp/fs-ops/src/fileSystemUtils.ts ===
+import { writeFile, mkdir, stat } from 'fs/promises';
+import { dirname } from 'path';
+
+/**
+ * Check if a file exists
+ * @param path - File path to check
+ * @returns true if file exists, false otherwise
+ */
+export async function fileExists(path: string): Promise<boolean> {
+  try {
+    await stat(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Create directory and all parent directories if they don't exist
+ * @param dirPath - Directory path to create
+ * @returns Array of directories that were created (not those that already existed)
+ */
+export async function ensureDirectoryExists(dirPath: string): Promise<string[]> {
+  const created: string[] = [];
+  const parts = dirPath.split('/').filter(Boolean);
+  
+  // Handle root for Unix paths
+  let currentPath = dirPath.startsWith('/') ? '' : '.';
+  
+  for (const part of parts) {
+    currentPath = currentPath + '/' + part;
+    
+    try {
+      await mkdir(currentPath);
+      created.push(currentPath);
+    } catch (err: any) {
+      // EEXIST is fine - directory already exists
+      if (err.code !== 'EEXIST') {
+        throw err;
+      }
+    }
+  }
+  
+  return created;
+}
+
+/**
+ * Write file content and return number of bytes written
+ * @param path - File path to write to
+ * @param content - Content to write (UTF-8)
+ * @returns Number of bytes written
+ */
+export async function writeFileInternal(path: string, content: string): Promise<number> {
+  await writeFile(path, content, 'utf8');
+  return Buffer.byteLength(content, 'utf8');
+}
+=== END FILE: ./proj/comp/fs-ops/src/fileSystemUtils.ts ===
 
 === START FILE: ./proj/comp/fs-ops/src/replaceText.ts ===
 /**
@@ -2447,6 +2515,9 @@ export function replaceText(
  */
 
 import type { CladaAction } from '../../sham-action-parser/src/index.js';
+import { formatNodeError } from './formatNodeError.js';
+import { getParentDirectory } from './getParentDirectory.js';
+import { fileExists, ensureDirectoryExists, writeFileInternal } from './fileSystemUtils.js';
 
 export interface FileOpResult {
   success: boolean;
@@ -2471,11 +2542,64 @@ export class FileOpError extends Error {
  * Never throws - all errors returned in result
  */
 export async function executeFileOperation(action: CladaAction): Promise<FileOpResult> {
-  // Stub implementation - all operations fail
-  return {
-    success: false,
-    error: `Not implemented: ${action.action}`
-  };
+  try {
+    const handler = actionHandlers[action.action];
+    
+    if (!handler) {
+      return {
+        success: false,
+        error: `Unknown action: ${action.action}`
+      };
+    }
+    
+    return await handler(action);
+    
+  } catch (error: any) {
+    // This should never happen - handlers should catch their own errors
+    return {
+      success: false,
+      error: `Unexpected error in executeFileOperation: ${error.message}`
+    };
+  }
+}
+
+/**
+ * Handle file_write action - writes/creates/overwrites a file with content
+ * Automatically creates parent directories if needed
+ */
+async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
+  const { path, content } = action.parameters;
+  
+  try {
+    
+    // Create parent directories if needed
+    const parentDir = getParentDirectory(path);
+    const createdDirs = await ensureDirectoryExists(parentDir);
+    
+    // Write file
+    const bytesWritten = await writeFileInternal(path, content);
+    
+    const result: FileOpResult = {
+      success: true,
+      data: {
+        path,
+        bytesWritten
+      }
+    };
+    
+    // Add createdDirs only if we actually created any
+    if (createdDirs.length > 0) {
+      result.data.createdDirs = createdDirs;
+    }
+    
+    return result;
+    
+  } catch (error: any) {
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'file_write')
+    };
+  }
 }
 
 // Internal function stubs for each operation
@@ -2488,7 +2612,7 @@ async function writeFile(path: string, content: string): Promise<void> {
   throw new Error('Not implemented');
 }
 
-async function editFile(path: string, oldText: string, newText: string, count?: number): Promise<number> {
+async function replaceTextInFile(path: string, oldText: string, newText: string, count?: number): Promise<number> {
   throw new Error('Not implemented');
 }
 
@@ -2539,14 +2663,8 @@ async function globFiles(pattern: string, basePath: string): Promise<string[]> {
 
 // Action handler mapping
 const actionHandlers: Record<string, (action: CladaAction) => Promise<FileOpResult>> = {
-  'file_create': async (action) => {
-    // TODO: Extract parameters and call createFile
-    return { success: false, error: 'Not implemented' };
-  },
-  'file_write': async (action) => {
-    return { success: false, error: 'Not implemented' };
-  },
-  'file_edit': async (action) => {
+  'file_write': handleFileWrite,
+  'file_replace_text': async (action) => {
     return { success: false, error: 'Not implemented' };
   },
   'file_delete': async (action) => {
@@ -2751,7 +2869,7 @@ interface ShamParseResult {
 interface ShamBlock {
   id: string           // 3-char SHA-256
   properties: {
-    action: string     // Maps to tool name (e.g., "file_create")
+    action: string     // Maps to tool name (e.g., "file_write")
     [key: string]: any // Tool-specific parameters
   }
   startLine: number
@@ -2778,7 +2896,7 @@ interface ShamError {
 
 ### Action Mapping
 - SHAM `action` property maps directly to tool names from unified-design.yaml
-- Use canonical names: `file_create`, `file_write`, `exec`, etc.
+- Use canonical names: `file_write`, `exec`, etc.
 
 ### Context Management
 - **V1**: Simple `Set<string>` of file paths
@@ -2883,7 +3001,7 @@ Traditional transaction systems rollback on failure to maintain consistency. Cla
 SHAM_synatx_example: |
   ```sh sham
   #!SHAM [@three-char-SHA-256: k7m]
-  action = "file_create"
+  action = "file_write"
   path = "/tmp/\"hello\".txt"
   content = <<'EOT_SHAM_k7m'
   Hello world!
@@ -2895,25 +3013,16 @@ SHAM_synatx_example: |
 
 tools:
   # File Operations
-  file_create:
-    type: write
-    description: Create new file
-    accessibility: [llm]
-    parameters:
-      path: {type: string, required: true, format: absolute_path}
-      content: {type: string, required: true}
-    returns: {success: boolean, error?: string}
-    
   file_write:
     type: write
-    description: Replace entire file content
+    description: Create new file while creating any necessary parent dirs. overwrites if already exists
     accessibility: [llm]
     parameters:
       path: {type: string, required: true, format: absolute_path}
       content: {type: string, required: true}
     returns: {success: boolean, error?: string}
     
-  file_edit:
+  file_replace_text:
     type: write
     description: Replace substring in file
     accessibility: [llm]
@@ -3037,7 +3146,7 @@ tools:
       cwd: {type: string, required: false, format: absolute_path}
     returns: {success: boolean, stdout?: string, stderr?: string, exit_code?: integer, error?: string}
 
-  # Context Operations
+  # Context Operations -- for much later.  dont do this until clada has been integrated into bigfoot, the ai llm coder
   context_add:
     type: meta
     description: Add item to working context (persistent)
@@ -3513,109 +3622,6 @@ console.log('Token types:', tokens.map(t => ({
   ]
 }
 === END FILE: ./tsconfig.json ===
-
-=== START FILE: ./replacer_llm_instructions.md ===
-coding style guide:  TDD.  self documenting code.  every api  function name should make it super obvious who is doing what and why
-
-WOL = "words or less, please"
-
-keep the docs as lean
-
-refactor code to make it smaller whenever possible.  DRY.
-
-IMPORTANT:  do not generate edit instructions unless specifically asked to.  not necessary when just discussing and brainstorming
-
-- all code functions and classes or large (10 lines of code or more?) need code comments to cocnisely and lcearly describe what they're doing and why and how
-
-IMPORTANT: 
-
-whenever you generate new code, use the following format.  dont just generate a standalone artifact.  when generating one or multiple new files, use the OVERWRITE pattern shown below 
-
-For each specific edit that needs to happen, list a brief explanation for the change, list file name, and then explicitly make it clear what the target text is that need to be changed, and then the replacement text is that will replace it. Each of those blocks of text or code need to be explicit verbatim character by character Perfect matches for the intended text.  be sure to put the filenames and expalanations on their own lines for easy human reading even in output format.  like paragraph breaks before and after so thye're on their own lines even when not in code blocks.  use this format below exactly. note that the OVERWRITE style block can be used to create new files and its parent dirs.
-
-make the search find text or code blocks as small as possible to still be unique identifiers for what needs to be changed in the underlying files 
-
-for the file path, use as much of the path that you know of.  should be as specific as you can accurately be.  
-
-make sure that file paths include the current main project dir
-
-<<<EXPLANATION>>>
-
-this is why the change should happen
-
-<<<FILE>>>
-
-package/replacer_demo_src/main.py
-
-<<<SEARCH>>>
-def old_function():
-   x = 1
-   y = 2
-   return x + y
-<<<REPLACE>>>
-def new_function():
-   result = 3
-   return result
-<<<END>>>
-
-
-
-
-<<<EXPLANATION>>>
-
-this is why this change should happen
-
-<<<FILE>>>
-july/coding/bobstuff/react/config/settings.json
-<<<OVERWRITE>>>
-{
-   "debug": true,
-   "port": 8080
-}
-<<<END>>>
-
-NOTE: if you want to remove a section of code, your replace block must contain a blank line and a space:
-
-
-<<<EXPLANATION>>>
-
-remove the search code
-
-<<<FILE>>>
-
-package/replacer_demo_src/main.py
-
-<<<SEARCH>>>
-def old_function():
-   x = 1
-   y = 2
-   return x + y
-<<<REPLACE>>>
- 
-<<<END>>>
-
-see how the REPLACE block can never be totally empty. must contain blank line and whitespace (space(s)) too
-
-IMPORTANT:  each edit item must list its associated FILE.  each SEARCH/REPLACE or OVERWRITE etc block must be immediately preceeded by the respective file 
-
-$$$$$$$$$$$$$
-
-Prioritize substance, clarity, and depth. Challenge all my proposals, designs, and conclusions as hypotheses to be tested. Sharpen follow-up questions for precision, surfacing hidden assumptions, trade offs, and failure modes early. Default to terse, logically structured, information-dense responses unless detailed exploration is required. Skip unnecessary praise unless grounded in evidence. Explicitly acknowledge uncertainty when applicable. Always propose at least one alternative framing. Accept critical debate as normal and preferred. Treat all factual claims as provisional unless cited or clearly justified. Cite when appropriate. Acknowledge when claims rely on inference or incomplete information. Favor accuracy over sounding certain.
-
-check anything online when it feels relevant.  good to compare our thoughts/assumptions with what other people are actually doing and thinking
-
-when asked to share your thoughts (like if user says "wdyt"), then walk it out and talk it out gradually, incrementally, slowly, and thoughtfully.  challenge me so we can succeed overall
-
-dont fall into the trap of equating "implementation" with "low-level".  implementation decisions can be high-level when they affect the system's fundamental behavior
-
-
-IMPORTANT EDIT INSTRUCTIONS NOTE:
-
-always use full absolute file paths for edit instructions
-
-make the search and replace blocks each as small as possible to still do the unique edit correctly
-
-=== END FILE: ./replacer_llm_instructions.md ===
 
 === START FILE: ./eslint.config.js ===
 import js from '@eslint/js';

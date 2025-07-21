@@ -1,12 +1,12 @@
 {
   "cases": [
     {
-      "name": "valid file_create block",
+      "name": "valid file_write block",
       "input": [
         {
           "id": "abc",
           "properties": {
-            "action": "file_create",
+            "action": "file_write",
             "path": "/tmp/test.txt",
             "content": "hello"
           }
@@ -22,7 +22,7 @@
       ],
       "expected": {
         "valid": true,
-        "actionType": "file_create",
+        "actionType": "file_write",
         "errors": []
       }
     },
@@ -66,7 +66,7 @@
         {
           "id": "miss",
           "properties": {
-            "action": "file_create",
+            "action": "file_write",
             "path": "/tmp/test.txt"
           }
         },

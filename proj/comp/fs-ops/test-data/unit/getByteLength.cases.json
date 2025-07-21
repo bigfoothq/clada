@@ -13,12 +13,12 @@
     {
       "name": "string with newlines",
       "input": ["Line 1\nLine 2\nLine 3"],
-      "expected": 21
+      "expected": 20
     },
     {
       "name": "unicode emoji",
       "input": ["Hello 👋 World"],
-      "expected": 17
+      "expected": 16
     },
     {
       "name": "multi-byte characters",

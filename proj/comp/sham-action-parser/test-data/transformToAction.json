@@ -6,7 +6,7 @@
         {
           "id": "str",
           "properties": {
-            "action": "file_create",
+            "action": "file_write",
             "path": "/tmp/test.txt",
             "content": "hello world"
           },
@@ -22,7 +22,7 @@
         }
       ],
       "expected": {
-        "action": "file_create",
+        "action": "file_write",
         "parameters": {
           "path": "/tmp/test.txt",
           "content": "hello world"
@@ -72,7 +72,7 @@
         {
           "id": "int",
           "properties": {
-            "action": "file_edit",
+            "action": "file_replace_text",
             "path": "/tmp/edit.txt",
             "old_text": "foo",
             "new_text": "bar",
@@ -92,7 +92,7 @@
         }
       ],
       "expected": {
-        "action": "file_edit",
+        "action": "file_replace_text",
         "parameters": {
           "path": "/tmp/edit.txt",
           "old_text": "foo",
@@ -146,7 +146,7 @@
         {
           "id": "bad",
           "properties": {
-            "action": "file_edit",
+            "action": "file_replace_text",
             "path": "/tmp/edit.txt",
             "old_text": "foo",
             "new_text": "bar",

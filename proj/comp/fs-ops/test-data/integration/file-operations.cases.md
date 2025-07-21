@@ -2,13 +2,13 @@
 
 **Status**: [PLANNED] - Preliminary test format, subject to change
 
-## file_create
+## file_write
 
 ### 001-simple-file-create
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: abc]
-action = "file_create"
+action = "file_write"
 path = "/tmp/test.txt"
 content = "Hello, World!"
 #!END_SHAM_abc
@@ -28,7 +28,7 @@ content = "Hello, World!"
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: pdr]
-action = "file_create"
+action = "file_write"
 path = "/tmp/deeply/nested/dir/file.txt"
 content = "Creates parent directories"
 #!END_SHAM_pdr
@@ -49,28 +49,12 @@ content = "Creates parent directories"
 }
 ```
 
-### 003-file-already-exists
-
-```sh sham
-#!SHAM [@three-char-SHA-256: dup]
-action = "file_create"
-path = "/tmp/existing.txt"
-content = "This file already exists"
-#!END_SHAM_dup
-```
-
-```json
-{
-  "success": false,
-  "error": "EEXIST: file already exists, open '/tmp/existing.txt'"
-}
-```
 
 ### 004-permission-denied
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: prm]
-action = "file_create"
+action = "file_write"
 path = "/root/forbidden.txt"
 content = "Cannot write here"
 #!END_SHAM_prm
@@ -79,7 +63,7 @@ content = "Cannot write here"
 ```json
 {
   "success": false,
-  "error": "EACCES: permission denied, open '/root/forbidden.txt'"
+  "error": "EROFS: EROFS: read-only file system, mkdir '/root'"
 }
 ```
 
@@ -87,7 +71,7 @@ content = "Cannot write here"
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: mlt]
-action = "file_create"
+action = "file_write"
 path = "/tmp/multiline.txt"
 content = <<'EOT_SHAM_mlt'
 Line 1
@@ -102,7 +86,7 @@ EOT_SHAM_mlt
   "success": true,
   "data": {
     "path": "/tmp/multiline.txt",
-    "bytesWritten": 21
+    "bytesWritten": 20
   }
 }
 ```

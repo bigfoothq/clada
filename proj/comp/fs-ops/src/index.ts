@@ -5,6 +5,9 @@
  */
 
 import type { CladaAction } from '../../sham-action-parser/src/index.js';
+import { formatNodeError } from './formatNodeError.js';
+import { getParentDirectory } from './getParentDirectory.js';
+import { fileExists, ensureDirectoryExists, writeFileInternal } from './fileSystemUtils.js';
 
 export interface FileOpResult {
   success: boolean;
@@ -29,11 +32,64 @@ export class FileOpError extends Error {
  * Never throws - all errors returned in result
  */
 export async function executeFileOperation(action: CladaAction): Promise<FileOpResult> {
-  // Stub implementation - all operations fail
-  return {
-    success: false,
-    error: `Not implemented: ${action.action}`
-  };
+  try {
+    const handler = actionHandlers[action.action];
+    
+    if (!handler) {
+      return {
+        success: false,
+        error: `Unknown action: ${action.action}`
+      };
+    }
+    
+    return await handler(action);
+    
+  } catch (error: any) {
+    // This should never happen - handlers should catch their own errors
+    return {
+      success: false,
+      error: `Unexpected error in executeFileOperation: ${error.message}`
+    };
+  }
+}
+
+/**
+ * Handle file_write action - writes/creates/overwrites a file with content
+ * Automatically creates parent directories if needed
+ */
+async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
+  const { path, content } = action.parameters;
+  
+  try {
+    
+    // Create parent directories if needed
+    const parentDir = getParentDirectory(path);
+    const createdDirs = await ensureDirectoryExists(parentDir);
+    
+    // Write file
+    const bytesWritten = await writeFileInternal(path, content);
+    
+    const result: FileOpResult = {
+      success: true,
+      data: {
+        path,
+        bytesWritten
+      }
+    };
+    
+    // Add createdDirs only if we actually created any
+    if (createdDirs.length > 0) {
+      result.data.createdDirs = createdDirs;
+    }
+    
+    return result;
+    
+  } catch (error: any) {
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'file_write')
+    };
+  }
 }
 
 // Internal function stubs for each operation
@@ -46,7 +102,7 @@ async function writeFile(path: string, content: string): Promise<void> {
   throw new Error('Not implemented');
 }
 
-async function editFile(path: string, oldText: string, newText: string, count?: number): Promise<number> {
+async function replaceTextInFile(path: string, oldText: string, newText: string, count?: number): Promise<number> {
   throw new Error('Not implemented');
 }
 
@@ -97,14 +153,8 @@ async function globFiles(pattern: string, basePath: string): Promise<string[]> {
 
 // Action handler mapping
 const actionHandlers: Record<string, (action: CladaAction) => Promise<FileOpResult>> = {
-  'file_create': async (action) => {
-    // TODO: Extract parameters and call createFile
-    return { success: false, error: 'Not implemented' };
-  },
-  'file_write': async (action) => {
-    return { success: false, error: 'Not implemented' };
-  },
-  'file_edit': async (action) => {
+  'file_write': handleFileWrite,
+  'file_replace_text': async (action) => {
     return { success: false, error: 'Not implemented' };
   },
   'file_delete': async (action) => {

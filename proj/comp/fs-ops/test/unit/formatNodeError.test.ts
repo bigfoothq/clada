@@ -4,7 +4,7 @@ import { join } from 'path';
 import { formatNodeError } from '../../src/formatNodeError.js';
 
 const testData = JSON.parse(
-  readFileSync(join(__dirname, '../../test-data/unit/formatNodeError.json'), 'utf8')
+  readFileSync(join(__dirname, '../../test-data/unit/formatNodeError.cases.json'), 'utf8')
 );
 
 describe('formatNodeError', () => {

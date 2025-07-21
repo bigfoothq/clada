@@ -4,7 +4,7 @@ import { join } from 'path';
 import { getParentDirectory } from '../../src/getParentDirectory.js';
 
 const testData = JSON.parse(
-  readFileSync(join(__dirname, '../../test-data/unit/getParentDirectory.json'), 'utf8')
+  readFileSync(join(__dirname, '../../test-data/unit/getParentDirectory.cases.json'), 'utf8')
 );
 
 describe('getParentDirectory', () => {

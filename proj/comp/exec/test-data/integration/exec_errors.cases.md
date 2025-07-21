@@ -110,7 +110,7 @@ code = "cat /private/etc/sudoers"
   "exit_code": 1
 }
 ```
-<!-- 
+
 ## Memory allocation failure
 ```sh sham
 #!SHAM [@three-char-SHA-256: e7r]
@@ -127,7 +127,7 @@ code = "a = [0] * (10**10)"
   "stderr": "MemoryError\n",
   "exit_code": 1
 }
-``` -->
+```
 
 ## Interactive command (no stdin)
 ```sh sham

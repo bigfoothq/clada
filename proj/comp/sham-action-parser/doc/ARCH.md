@@ -30,10 +30,18 @@
 
 Each block processed independently with errors collected in structured format:
 - `blockId`: SHAM block identifier
+- `action`: Action type if identified before error
 - `blockStartLine`: Starting line number of the SHAM block in original text
 - `errorType`: Category (syntax, validation, type)
 - `message`: Specific error details
 - `shamContent`: Original SHAM block for LLM reference
+
+### Implementation Details
+- Tracks blocks with syntax errors to avoid double-processing
+- Handles null/undefined from parseSham gracefully
+- 5-second timeout on unified-design.yaml loading
+- Cache mechanism with clearing for tests
+- Block reconstruction uses JSON.stringify for proper quote escaping
 
 ## Type Conversions
 
@@ -56,6 +64,8 @@ SHAM actions map directly to clada tool names from unified-design.yaml:
 - All values are strings requiring parsing
 - No nested structures
 - Heredoc strings preserve internal formatting
+- Unified-design.yaml must be at ../../../../unified-design.yaml relative to src/
+- Schema loading uses ES module URL resolution (fileURLToPath)
 
 ## Dependencies on Other Components
 

@@ -7,16 +7,16 @@ standard
 [Must be empty before implementation]
 
 ## Dependencies
-[Provisional - updated via STOP protocol when implementation reveals actual needs]
+[Updated via STOP protocol - implementation complete]
 
 ```yaml
 dependencies:
   external/nesl-js:
     functions: [parseSham]
-    types: [Block, ParseResult, ParseError]
+    types: [Block, ParseResult as NeslParseResult]
   
   external/js-yaml:
-    functions: [load]
+    functions: [load as loadYaml]
     types: []
   
   node:fs/promises:
@@ -24,18 +24,20 @@ dependencies:
     types: []
   
   node:path:
-    functions: [resolve, join]
+    functions: [dirname, join]
+    types: []
+    
+  node:url:
+    functions: [fileURLToPath]
     types: []
 ```
 
 ## Exports
 ```yaml
 exports:
-  functions: [parseShamResponse, validateShamBlock, transformToAction]
+  functions: [parseShamResponse, validateShamBlock, transformToAction, clearActionSchemaCache]
   types: [ParseResult, CladaAction, ParseError, ValidationResult, TransformError]
-  classes:
-    TransformError:
-      extends: Error
+  errors: [TransformError]
 ```
 
 ### parseShamResponse
@@ -54,29 +56,34 @@ exports:
 - **Throws**: `TransformError` when type conversion fails
 - **Test-data**: `test-data/transformToAction.json`
 
+### clearActionSchemaCache
+- **Signature**: `clearActionSchemaCache() -> void`
+- **Purpose**: Clear cached action schema to force reload on next parse.
+- **Test-data**: None (utility function for testing)
+
 ## Internal Functions
 [Discovered during implementation - not exported]
 
 ### loadActionSchema
 - **Signature**: `loadActionSchema() -> Promise<Map<string, ActionDefinition>>`
-- **Purpose**: Load and parse unified-design.yaml action definitions.
+- **Purpose**: Load and parse unified-design.yaml action definitions with 5s timeout.
 
-### parseBoolean
+### reconstructShamBlock
+- **Signature**: `reconstructShamBlock(block: Block) -> string`
+- **Purpose**: Recreate SHAM syntax from parsed block for error context.
+
+### parseBoolean (in transformToAction.ts)
 - **Signature**: `parseBoolean(value: string) -> boolean`
 - **Purpose**: Convert string "true"/"false" to boolean.
 
-### parseInteger  
+### parseInteger (in transformToAction.ts)
 - **Signature**: `parseInteger(value: string) -> number`
 - **Purpose**: Convert numeric string to integer.
 - **Throws**: `TransformError` when not a valid integer
 
-### validateAbsolutePath
+### validateAbsolutePath (in transformToAction.ts)
 - **Signature**: `validateAbsolutePath(path: string) -> boolean`
 - **Purpose**: Check if string is valid absolute path.
-
-### validateEnum
-- **Signature**: `validateEnum(value: string, allowed: string[]) -> boolean`
-- **Purpose**: Check if value is in allowed enum values.
 
 ## Types
 
@@ -110,6 +117,7 @@ exports:
 ```typescript
 {
   blockId: string            // Which SHAM block failed
+  action?: string            // Action type if identified
   errorType: 'syntax' | 'validation' | 'type'
   message: string            // Specific error details
   blockStartLine?: number    // Starting line of the SHAM block

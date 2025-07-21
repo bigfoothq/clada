@@ -52,6 +52,25 @@ export async function parseShamResponse(shamText: string): Promise<ParseResult> 
     };
   }
 
+  // Process syntax errors from nesl-js parser
+  if (parseResult.errors && parseResult.errors.length > 0) {
+    for (const parseError of parseResult.errors) {
+      // Find the block this error belongs to
+      const block = parseResult.blocks?.find(b => b.id === parseError.blockId);
+      
+      errors.push({
+        blockId: parseError.blockId || 'unknown',
+        action: block?.properties?.action,
+        errorType: 'syntax',
+        message: parseError.message,
+        blockStartLine: block?.startLine || parseError.line,
+        shamContent: parseError.context 
+          ? `#!SHAM [@three-char-SHA-256: ${parseError.blockId}]\n${parseError.context}`.trimEnd()
+          : reconstructShamBlock(block || { id: parseError.blockId, properties: {} })
+      });
+    }
+  }
+
   // Load action schema
   const actionSchema = await loadActionSchema();
 
@@ -71,8 +90,18 @@ export async function parseShamResponse(shamText: string): Promise<ParseResult> 
     };
   }
   
+  // Track blocks with syntax errors to skip them
+  const blocksWithSyntaxErrors = new Set(
+    parseResult.errors?.map(e => e.blockId) || []
+  );
+  
   for (const block of blocks) {
     const blockId = block.id || 'unknown';
+    
+    // Skip blocks that already have syntax errors
+    if (blocksWithSyntaxErrors.has(blockId)) {
+      continue;
+    }
     
     try {
       // Get action type from block

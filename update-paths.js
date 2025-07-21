@@ -28,7 +28,7 @@ async function processFile(filePath) {
   const updatedLines = lines.map((line, index) => {
     // Track current test name from ### headers
     if (line.startsWith('### ')) {
-      currentTestName = line.substring(4).trim();
+      currentTestName = line.substring(8).trim();
       return line;
     }
     

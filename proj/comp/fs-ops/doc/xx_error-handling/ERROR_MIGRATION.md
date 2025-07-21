@@ -1,6 +1,8 @@
-# Error Message Migration - In Progress
+# Error Message Migration - ABANDONED
 
-## Status: ACTIVE MIGRATION
+## Status: MIGRATION CANCELLED
+
+Decision: Keep Node.js error format for consistency with ecosystem.
 
 We are migrating from Node.js-specific error strings to semantic, LLM-optimized messages.
 

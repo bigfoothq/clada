@@ -4,7 +4,8 @@
 standard
 
 ## Status
-[PARTIALLY IMPLEMENTED] - File operations including files_read implemented. Directory operations, search operations pending.
+[IMPLEMENTED] - All file operations (write, read, delete, move, replace_text, replace_all_text, files_read)
+[NOT IMPLEMENTED] - Directory operations (dir_create, dir_delete, ls), search operations (grep, glob)
 
 ## Documentation Debt
 - [ ] Integration test format is preliminary [IMPLEMENTED]
@@ -13,11 +14,12 @@ standard
 
 ## Dependencies
 
+[Updated via STOP protocol - initial hypothesis proved mostly correct]
+
 ```yaml
 dependencies:
   node:fs/promises:
-    functions: [writeFile, unlink, mkdir, rename, stat]
-    # Note: removed unused - readFile, rmdir, readdir (not yet implemented)
+    functions: [writeFile, unlink, mkdir, rename, stat, readFile]
     
   node:path:
     functions: [dirname]
@@ -42,7 +44,7 @@ exports:
 - **Signature**: `executeFileOperation(action: CladaAction) -> Promise<FileOpResult>`
 - **Purpose**: Execute file system operations from parsed SHAM actions
 - **Throws**: Never - all errors captured in FileOpResult
-- **Test-data**: `test-data/integration/file-operations.md` [PLANNED]
+- **Test-data**: `test-data/integration/*.cases.md` [IMPLEMENTED]
 
 ### FileOpResult (type)
 ```typescript
@@ -75,6 +77,8 @@ interface FileOpError extends Error {
 ### replaceText
 - **Signature**: `replaceText(content: string, oldText: string, newText: string, count?: number) -> {result: string, replacements: number}`
 - **Purpose**: Pure function to replace text occurrences in string content
+- **Throws**: Error when oldText is empty string
+- **Behavior**: Replaces up to `count` occurrences (all if count undefined)
 
 ### deleteFile
 - **Signature**: `deleteFile(path: string) -> Promise<void>`
@@ -112,6 +116,7 @@ interface FileOpError extends Error {
 
 ```typescript
 const actionHandlers = {
+  // Implemented
   'file_write': handleFileWrite,
   'file_replace_text': handleFileReplaceText,
   'file_replace_all_text': handleFileReplaceAllText,
@@ -119,10 +124,12 @@ const actionHandlers = {
   'file_move': handleFileMove,
   'file_read': handleFileRead,
   'files_read': handleFilesRead,
-  'dir_create': createDirectory,
-  'dir_delete': deleteDirectory,
-  'ls': listDirectory,
-  'grep': searchFiles,
-  'glob': globFiles
+  
+  // Not implemented
+  'dir_create': async (action) => ({ success: false, error: 'Not implemented' }),
+  'dir_delete': async (action) => ({ success: false, error: 'Not implemented' }),
+  'ls': async (action) => ({ success: false, error: 'Action not implemented: ls' }),
+  'grep': async (action) => ({ success: false, error: 'Not implemented' }),
+  'glob': async (action) => ({ success: false, error: 'Not implemented' })
 }
 ```

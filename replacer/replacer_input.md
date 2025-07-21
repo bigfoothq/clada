@@ -1,263 +1,200 @@
-=== PROCESSED: 2025-07-21 15:00:24 ===
-SUCCESS Block 1: Updated /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/API.md
-SUCCESS Block 2: Updated /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/API.md
-SUCCESS Block 3: Updated /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/API.md
-SUCCESS Block 4: Updated /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/API.md
-SUCCESS Block 5: Updated /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/API.md
-SUCCESS Block 6: Updated /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/ARCH.md
-SUCCESS Block 7: Updated /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/ARCH.md
+=== PROCESSED: 2025-07-21 15:01:17 ===
+SUCCESS Block 1: Updated /Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
+SUCCESS Block 2: Updated /Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
+SUCCESS Block 3: Updated /Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
+SUCCESS Block 4: Updated /Users/stuart/repos/clada/proj/comp/fs-ops/doc/ARCH.md
+SUCCESS Block 5: Updated /Users/stuart/repos/clada/proj/comp/fs-ops/doc/ARCH.md
+SUCCESS Block 6: Updated /Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
+SUCCESS Block 7: Updated /Users/stuart/repos/clada/proj/comp/fs-ops/doc/xx_error-handling/ERROR_MIGRATION.md
+SUCCESS Block 8: Updated /Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
+SUCCESS Block 9: Updated /Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
+SUCCESS Block 10: Updated /Users/stuart/repos/clada/proj/comp/fs-ops/doc/ARCH.md
 ===
 
-After studying XD5 and analyzing the code vs docs, here are the critical updates needed:
+After studying XD5 methodology and the fs-ops implementation, here are the critical documentation updates needed:
 
 <<<EXPLANATION>>>
-Add missing exported function clearActionSchemaCache and fix dependency declarations to match actual imports
-
+Update API.md status to reflect actual implementation state. All file operations are implemented, only directory/search operations remain.
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/API.md
-
+/Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
 <<<SEARCH>>>
-## Dependencies
-[Provisional - updated via STOP protocol when implementation reveals actual needs]
+## Status
+[PARTIALLY IMPLEMENTED] - File operations including files_read implemented. Directory operations, search operations pending.
+<<<REPLACE>>>
+## Status
+[IMPLEMENTED] - All file operations (write, read, delete, move, replace_text, replace_all_text, files_read)
+[NOT IMPLEMENTED] - Directory operations (dir_create, dir_delete, ls), search operations (grep, glob)
+<<<END>>>
 
-```yaml
-dependencies:
-  external/nesl-js:
-    functions: [parseSham]
-    types: [Block, ParseResult, ParseError]
-  
-  external/js-yaml:
-    functions: [load]
-    types: []
-  
+<<<EXPLANATION>>>
+Fix dependencies - readFile is actually used in multiple handlers
+<<<FILE>>>
+/Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
+<<<SEARCH>>>
   node:fs/promises:
-    functions: [readFile]
-    types: []
-  
-  node:path:
-    functions: [resolve, join]
-    types: []
-```
+    functions: [writeFile, unlink, mkdir, rename, stat]
+    # Note: removed unused - readFile, rmdir, readdir (not yet implemented)
 <<<REPLACE>>>
-## Dependencies
-[Updated via STOP protocol - implementation complete]
-
-```yaml
-dependencies:
-  external/nesl-js:
-    functions: [parseSham]
-    types: [Block, ParseResult as NeslParseResult]
-  
-  external/js-yaml:
-    functions: [load as loadYaml]
-    types: []
-  
   node:fs/promises:
-    functions: [readFile]
-    types: []
-  
-  node:path:
-    functions: [dirname, join]
-    types: []
-    
-  node:url:
-    functions: [fileURLToPath]
-    types: []
-```
+    functions: [writeFile, unlink, mkdir, rename, stat, readFile]
 <<<END>>>
 
 <<<EXPLANATION>>>
-Add clearActionSchemaCache to exports and update export format to match XD5 structured YAML
-
+Document the actual file_replace_text behavior discovered during implementation
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/API.md
-
+/Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
 <<<SEARCH>>>
-## Exports
-```yaml
-exports:
-  functions: [parseShamResponse, validateShamBlock, transformToAction]
-  types: [ParseResult, CladaAction, ParseError, ValidationResult, TransformError]
-  classes:
-    TransformError:
-      extends: Error
-```
+### replaceText
+- **Signature**: `replaceText(content: string, oldText: string, newText: string, count?: number) -> {result: string, replacements: number}`
+- **Purpose**: Pure function to replace text occurrences in string content
 <<<REPLACE>>>
-## Exports
-```yaml
-exports:
-  functions: [parseShamResponse, validateShamBlock, transformToAction, clearActionSchemaCache]
-  types: [ParseResult, CladaAction, ParseError, ValidationResult, TransformError]
-  errors: [TransformError]
-```
+### replaceText
+- **Signature**: `replaceText(content: string, oldText: string, newText: string, count?: number) -> {result: string, replacements: number}`
+- **Purpose**: Pure function to replace text occurrences in string content
+- **Throws**: Error when oldText is empty string
+- **Behavior**: Replaces up to `count` occurrences (all if count undefined)
 <<<END>>>
 
 <<<EXPLANATION>>>
-Add documentation for clearActionSchemaCache function
-
+Add missing documentation for file_replace_text validation rules discovered through tests
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/API.md
-
+/Users/stuart/repos/clada/proj/comp/fs-ops/doc/ARCH.md
 <<<SEARCH>>>
-### transformToAction
-- **Signature**: `transformToAction(block: ShamBlock, actionDef: ActionDefinition) -> CladaAction`
-- **Purpose**: Transform validated SHAM block into typed clada action.
-- **Throws**: `TransformError` when type conversion fails
-- **Test-data**: `test-data/transformToAction.json`
+### Text Replacement Strategy  
+- Use exact string matching for `file_replace_text`
+- Count parameter limits replacements (default: 1)
+- Return actual number of replacements made
+- No regex support (keep it simple, predictable)
 <<<REPLACE>>>
-### transformToAction
-- **Signature**: `transformToAction(block: ShamBlock, actionDef: ActionDefinition) -> CladaAction`
-- **Purpose**: Transform validated SHAM block into typed clada action.
-- **Throws**: `TransformError` when type conversion fails
-- **Test-data**: `test-data/transformToAction.json`
-
-### clearActionSchemaCache
-- **Signature**: `clearActionSchemaCache() -> void`
-- **Purpose**: Clear cached action schema to force reload on next parse.
-- **Test-data**: None (utility function for testing)
+### Text Replacement Strategy  
+- Use exact string matching for both replace actions
+- `file_replace_text`: Must find EXACTLY ONE occurrence (fails if 0 or 2+)
+- `file_replace_all_text`: Replaces all occurrences, validates count if provided
+- Empty old_text validation: Both actions reject empty search strings
+- Return actual number of replacements made
+- No regex support (keep it simple, predictable)
 <<<END>>>
 
 <<<EXPLANATION>>>
-Update internal functions to match actual implementation
-
+Remove claimed createdDirs feature that wasn't implemented
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/API.md
-
+/Users/stuart/repos/clada/proj/comp/fs-ops/doc/ARCH.md
 <<<SEARCH>>>
-## Internal Functions
-[Discovered during implementation - not exported]
-
-### loadActionSchema
-- **Signature**: `loadActionSchema() -> Promise<Map<string, ActionDefinition>>`
-- **Purpose**: Load and parse unified-design.yaml action definitions.
-
-### parseBoolean
-- **Signature**: `parseBoolean(value: string) -> boolean`
-- **Purpose**: Convert string "true"/"false" to boolean.
-
-### parseInteger  
-- **Signature**: `parseInteger(value: string) -> number`
-- **Purpose**: Convert numeric string to integer.
-- **Throws**: `TransformError` when not a valid integer
-
-### validateAbsolutePath
-- **Signature**: `validateAbsolutePath(path: string) -> boolean`
-- **Purpose**: Check if string is valid absolute path.
-
-### validateEnum
-- **Signature**: `validateEnum(value: string, allowed: string[]) -> boolean`
-- **Purpose**: Check if value is in allowed enum values.
+### Directory Creation
+- `file_move` automatically creates parent directories for destination path
+- Diverges from standard `rename()` which fails with ENOENT
+- Rationale: Reduces LLM round-trips for common "move to new location" pattern
+- Return data includes `createdDirs` array when directories were created
 <<<REPLACE>>>
-## Internal Functions
-[Discovered during implementation - not exported]
-
-### loadActionSchema
-- **Signature**: `loadActionSchema() -> Promise<Map<string, ActionDefinition>>`
-- **Purpose**: Load and parse unified-design.yaml action definitions with 5s timeout.
-
-### reconstructShamBlock
-- **Signature**: `reconstructShamBlock(block: Block) -> string`
-- **Purpose**: Recreate SHAM syntax from parsed block for error context.
-
-### parseBoolean (in transformToAction.ts)
-- **Signature**: `parseBoolean(value: string) -> boolean`
-- **Purpose**: Convert string "true"/"false" to boolean.
-
-### parseInteger (in transformToAction.ts)
-- **Signature**: `parseInteger(value: string) -> number`
-- **Purpose**: Convert numeric string to integer.
-- **Throws**: `TransformError` when not a valid integer
-
-### validateAbsolutePath (in transformToAction.ts)
-- **Signature**: `validateAbsolutePath(path: string) -> boolean`
-- **Purpose**: Check if string is valid absolute path.
+### Directory Creation
+- `file_move` automatically creates parent directories for destination path
+- Diverges from standard `rename()` which fails with ENOENT
+- Rationale: Reduces LLM round-trips for common "move to new location" pattern
 <<<END>>>
 
 <<<EXPLANATION>>>
-Add action field to ParseError type definition
-
+Update action mapping to include all implemented handlers
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/API.md
-
+/Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
 <<<SEARCH>>>
-### ParseError
+## Action Mapping
+
 ```typescript
-{
-  blockId: string            // Which SHAM block failed
-  errorType: 'syntax' | 'validation' | 'type'
-  message: string            // Specific error details
-  blockStartLine?: number    // Starting line of the SHAM block
-  shamContent?: string       // Original SHAM block for context
+const actionHandlers = {
+  'file_write': handleFileWrite,
+  'file_replace_text': handleFileReplaceText,
+  'file_replace_all_text': handleFileReplaceAllText,
+  'file_delete': handleFileDelete,
+  'file_move': handleFileMove,
+  'file_read': handleFileRead,
+  'files_read': handleFilesRead,
+  'dir_create': createDirectory,
+  'dir_delete': deleteDirectory,
+  'ls': listDirectory,
+  'grep': searchFiles,
+  'glob': globFiles
 }
 ```
 <<<REPLACE>>>
-### ParseError
+## Action Mapping
+
 ```typescript
-{
-  blockId: string            // Which SHAM block failed
-  action?: string            // Action type if identified
-  errorType: 'syntax' | 'validation' | 'type'
-  message: string            // Specific error details
-  blockStartLine?: number    // Starting line of the SHAM block
-  shamContent?: string       // Original SHAM block for context
+const actionHandlers = {
+  // Implemented
+  'file_write': handleFileWrite,
+  'file_replace_text': handleFileReplaceText,
+  'file_replace_all_text': handleFileReplaceAllText,
+  'file_delete': handleFileDelete,
+  'file_move': handleFileMove,
+  'file_read': handleFileRead,
+  'files_read': handleFilesRead,
+  
+  // Not implemented
+  'dir_create': async (action) => ({ success: false, error: 'Not implemented' }),
+  'dir_delete': async (action) => ({ success: false, error: 'Not implemented' }),
+  'ls': async (action) => ({ success: false, error: 'Action not implemented: ls' }),
+  'grep': async (action) => ({ success: false, error: 'Not implemented' }),
+  'glob': async (action) => ({ success: false, error: 'Not implemented' })
 }
 ```
 <<<END>>>
 
 <<<EXPLANATION>>>
-Update architecture doc to reflect mature error handling and implementation details
-
+Mark error migration as abandoned since we're keeping Node.js format
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/ARCH.md
-
+/Users/stuart/repos/clada/proj/comp/fs-ops/doc/xx_error-handling/ERROR_MIGRATION.md
 <<<SEARCH>>>
-## Error Handling Strategy
+# Error Message Migration - In Progress
 
-Each block processed independently with errors collected in structured format:
-- `blockId`: SHAM block identifier
-- `blockStartLine`: Starting line number of the SHAM block in original text
-- `errorType`: Category (syntax, validation, type)
-- `message`: Specific error details
-- `shamContent`: Original SHAM block for LLM reference
+## Status: ACTIVE MIGRATION
 <<<REPLACE>>>
-## Error Handling Strategy
+# Error Message Migration - ABANDONED
 
-Each block processed independently with errors collected in structured format:
-- `blockId`: SHAM block identifier
-- `action`: Action type if identified before error
-- `blockStartLine`: Starting line number of the SHAM block in original text
-- `errorType`: Category (syntax, validation, type)
-- `message`: Specific error details
-- `shamContent`: Original SHAM block for LLM reference
+## Status: MIGRATION CANCELLED
 
-### Implementation Details
-- Tracks blocks with syntax errors to avoid double-processing
-- Handles null/undefined from parseSham gracefully
-- 5-second timeout on unified-design.yaml loading
-- Cache mechanism with clearing for tests
-- Block reconstruction uses JSON.stringify for proper quote escaping
+Decision: Keep Node.js error format for consistency with ecosystem.
 <<<END>>>
 
 <<<EXPLANATION>>>
-Document path resolution strategy in constraints
-
+Document test data strategy per XD5 methodology
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/ARCH.md
-
+/Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
 <<<SEARCH>>>
-## Constraints
-
-- SHAM doesn't support complex types (objects, arrays)
-- All values are strings requiring parsing
-- No nested structures
-- Heredoc strings preserve internal formatting
+- **Test-data**: `test-data/integration/file-operations.md` [PLANNED]
 <<<REPLACE>>>
-## Constraints
+- **Test-data**: `test-data/integration/*.cases.md` [IMPLEMENTED]
+<<<END>>>
 
-- SHAM doesn't support complex types (objects, arrays)
-- All values are strings requiring parsing
-- No nested structures
-- Heredoc strings preserve internal formatting
-- Unified-design.yaml must be at ../../../../unified-design.yaml relative to src/
-- Schema loading uses ES module URL resolution (fileURLToPath)
+<<<EXPLANATION>>>
+Add note about discovered dependencies during implementation
+<<<FILE>>>
+/Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
+<<<SEARCH>>>
+## Dependencies
+
+```yaml
+dependencies:
+<<<REPLACE>>>
+## Dependencies
+
+[Updated via STOP protocol - initial hypothesis proved mostly correct]
+
+```yaml
+dependencies:
+<<<END>>>
+
+<<<EXPLANATION>>>
+Document the test path convention discovered during implementation
+<<<FILE>>>
+/Users/stuart/repos/clada/proj/comp/fs-ops/doc/ARCH.md
+<<<SEARCH>>>
+## Future Considerations
+<<<REPLACE>>>
+## Test Conventions
+
+- Test files use `/tmp/t_{test-name}/` path pattern for isolation
+- Each test creates its own subdirectory to avoid conflicts
+- Integration tests track created paths for cleanup
+
+## Future Considerations
 <<<END>>>

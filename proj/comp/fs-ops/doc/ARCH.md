@@ -10,8 +10,10 @@
 - `file_write` automatically creates parent directories.  creates parent directory if it doesn't exist
 
 ### Text Replacement Strategy  
-- Use exact string matching for `file_replace_text`
-- Count parameter limits replacements (default: 1)
+- Use exact string matching for both replace actions
+- `file_replace_text`: Must find EXACTLY ONE occurrence (fails if 0 or 2+)
+- `file_replace_all_text`: Replaces all occurrences, validates count if provided
+- Empty old_text validation: Both actions reject empty search strings
 - Return actual number of replacements made
 - No regex support (keep it simple, predictable)
 
@@ -56,6 +58,12 @@
 - No limit on number of operations
 - No timeout on individual operations
 
+## Test Conventions
+
+- Test files use `/tmp/t_{test-name}/` path pattern for isolation
+- Each test creates its own subdirectory to avoid conflicts
+- Integration tests track created paths for cleanup
+
 ## Future Considerations
 
 - Batch operations for efficiency
@@ -79,7 +87,6 @@
 - `file_move` automatically creates parent directories for destination path
 - Diverges from standard `rename()` which fails with ENOENT
 - Rationale: Reduces LLM round-trips for common "move to new location" pattern
-- Return data includes `createdDirs` array when directories were created
 
 ## Error Message Enhancement
 

@@ -7,7 +7,7 @@
 ```sh sham
 #!SHAM [@three-char-SHA-256: rpl]
 action = "file_replace_text"
-path = "/tmp/replace-test.txt"
+path = "/tmp/t_simple-text-replacement/replace-test.txt"
 old_text = "Hello"
 new_text = "Goodbye"
 #!END_SHAM_rpl
@@ -17,7 +17,7 @@ new_text = "Goodbye"
 {
   "success": true,
   "data": {
-    "path": "/tmp/replace-test.txt",
+    "path": "/tmp/t_simple-text-replacement/replace-test.txt",
     "replacements": 1
   }
 }
@@ -28,7 +28,7 @@ new_text = "Goodbye"
 ```sh sham
 #!SHAM [@three-char-SHA-256: cnt]
 action = "file_replace_all_text"
-path = "/tmp/multi-replace.txt"
+path = "/tmp/t_replace-with-count-limit/multi-replace.txt"
 old_text = "foo"
 new_text = "bar"
 count = "2"
@@ -47,7 +47,7 @@ count = "2"
 ```sh sham
 #!SHAM [@three-char-SHA-256: nfr]
 action = "file_replace_text"
-path = "/tmp/no-match.txt"
+path = "/tmp/t_replace-text-not-found/no-match.txt"
 old_text = "nonexistent"
 new_text = "replacement"
 #!END_SHAM_nfr
@@ -65,7 +65,7 @@ new_text = "replacement"
 ```sh sham
 #!SHAM [@three-char-SHA-256: rnf]
 action = "file_replace_text"
-path = "/tmp/does-not-exist-replace.txt"
+path = "/tmp/t_replace-in-nonexistent-file/does-not-exist-replace.txt"
 old_text = "text"
 new_text = "other"
 #!END_SHAM_rnf
@@ -74,7 +74,7 @@ new_text = "other"
 ```json
 {
   "success": false,
-  "error": "ENOENT: no such file or directory, open '/tmp/does-not-exist-replace.txt'"
+  "error": "ENOENT: no such file or directory, open '/tmp/t_replace-in-nonexistent-file/does-not-exist-replace.txt'"
 }
 ```
 
@@ -83,7 +83,7 @@ new_text = "other"
 ```sh sham
 #!SHAM [@three-char-SHA-256: mlr]
 action = "file_replace_text"
-path = "/tmp/multiline-replace.txt"
+path = "/tmp/t_multiline-replacement/multiline-replace.txt"
 old_text = <<'EOT_SHAM_mlr'
 export function oldName() {
   console.log('oldName');
@@ -103,7 +103,7 @@ EOT_SHAM_mlr
 {
   "success": true,
   "data": {
-    "path": "/tmp/multiline-replace.txt",
+    "path": "/tmp/t_multiline-replacement/multiline-replace.txt",
     "replacements": 1
   }
 }
@@ -114,7 +114,7 @@ EOT_SHAM_mlr
 ```sh sham
 #!SHAM [@three-char-SHA-256: emt]
 action = "file_replace_text"
-path = "/tmp/empty-search.txt"
+path = "/tmp/t_empty-old-text-error/empty-search.txt"
 old_text = ""
 new_text = "something"
 #!END_SHAM_emt
@@ -132,7 +132,7 @@ new_text = "something"
 ```sh sham
 #!SHAM [@three-char-SHA-256: mul]
 action = "file_replace_text"
-path = "/tmp/multiple-occurrences.txt"
+path = "/tmp/t_file-replace-text-multiple-occurrences/multiple-occurrences.txt"
 old_text = "duplicate"
 new_text = "unique"
 #!END_SHAM_mul
@@ -150,7 +150,7 @@ new_text = "unique"
 ```sh sham
 #!SHAM [@three-char-SHA-256: all]
 action = "file_replace_all_text"
-path = "/tmp/replace-all.txt"
+path = "/tmp/t_file-replace-all-text-no-count/replace-all.txt"
 old_text = "foo"
 new_text = "bar"
 #!END_SHAM_all
@@ -160,7 +160,7 @@ new_text = "bar"
 {
   "success": true,
   "data": {
-    "path": "/tmp/replace-all.txt",
+    "path": "/tmp/t_file-replace-all-text-no-count/replace-all.txt",
     "replacements": 3
   }
 }
@@ -171,7 +171,7 @@ new_text = "bar"
 ```sh sham
 #!SHAM [@three-char-SHA-256: mis]
 action = "file_replace_all_text"
-path = "/tmp/count-mismatch.txt"
+path = "/tmp/t_file-replace-all-text-count-mismatch/count-mismatch.txt"
 old_text = "test"
 new_text = "check"
 count = "5"

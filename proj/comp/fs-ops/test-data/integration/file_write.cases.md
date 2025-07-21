@@ -7,7 +7,7 @@
 ```sh sham
 #!SHAM [@three-char-SHA-256: abc]
 action = "file_write"
-path = "/tmp/test.txt"
+path = "/tmp/t_simple-file-create/test.txt"
 content = "Hello, World!"
 #!END_SHAM_abc
 ```
@@ -16,7 +16,7 @@ content = "Hello, World!"
 {
   "success": true,
   "data": {
-    "path": "/tmp/test.txt",
+    "path": "/tmp/t_simple-file-create/test.txt",
     "bytesWritten": 13
   }
 }
@@ -27,7 +27,7 @@ content = "Hello, World!"
 ```sh sham
 #!SHAM [@three-char-SHA-256: pdr]
 action = "file_write"
-path = "/tmp/deeply/nested/dir/file.txt"
+path = "/tmp/t_create-with-parent-dirs/deeply/nested/dir/file.txt"
 content = "Creates parent directories"
 #!END_SHAM_pdr
 ```
@@ -36,7 +36,7 @@ content = "Creates parent directories"
 {
   "success": true,
   "data": {
-    "path": "/tmp/deeply/nested/dir/file.txt",
+    "path": "/tmp/t_create-with-parent-dirs/deeply/nested/dir/file.txt",
     "bytesWritten": 26
   }
 }
@@ -48,7 +48,7 @@ content = "Creates parent directories"
 ```sh sham
 #!SHAM [@three-char-SHA-256: spc]
 action = "file_write"
-path = "/tmp/special-chars.txt"
+path = "/tmp/t_write-with-special-characters/special-chars.txt"
 content = "Line with \"quotes\" and 'apostrophes'"
 #!END_SHAM_spc
 ```
@@ -57,7 +57,7 @@ content = "Line with \"quotes\" and 'apostrophes'"
 {
   "success": true,
   "data": {
-    "path": "/tmp/special-chars.txt",
+    "path": "/tmp/t_write-with-special-characters/special-chars.txt",
     "bytesWritten": 36
   }
 }
@@ -68,7 +68,7 @@ content = "Line with \"quotes\" and 'apostrophes'"
 ```sh sham
 #!SHAM [@three-char-SHA-256: mlt]
 action = "file_write"
-path = "/tmp/multiline.txt"
+path = "/tmp/t_multiline-content/multiline.txt"
 content = <<'EOT_SHAM_mlt'
 Line 1
 Line 2
@@ -81,7 +81,7 @@ EOT_SHAM_mlt
 {
   "success": true,
   "data": {
-    "path": "/tmp/multiline.txt",
+    "path": "/tmp/t_multiline-content/multiline.txt",
     "bytesWritten": 20
   }
 }

@@ -7,8 +7,8 @@
 ```sh sham
 #!SHAM [@three-char-SHA-256: mvs]
 action = "file_move"
-old_path = "/tmp/source.txt"
-new_path = "/tmp/destination.txt"
+old_path = "/tmp/t_move-file-simple/source.txt"
+new_path = "/tmp/t_move-file-simple/destination.txt"
 #!END_SHAM_mvs
 ```
 
@@ -16,8 +16,8 @@ new_path = "/tmp/destination.txt"
 {
   "success": true,
   "data": {
-    "old_path": "/tmp/source.txt",
-    "new_path": "/tmp/destination.txt"
+    "old_path": "/tmp/t_move-file-simple/source.txt",
+    "new_path": "/tmp/t_move-file-simple/destination.txt"
   }
 }
 ```
@@ -27,8 +27,8 @@ new_path = "/tmp/destination.txt"
 ```sh sham
 #!SHAM [@three-char-SHA-256: mvd]
 action = "file_move"
-old_path = "/tmp/original.txt"
-new_path = "/tmp/new-dir/moved.txt"
+old_path = "/tmp/t_move-file-to-new-directory/original.txt"
+new_path = "/tmp/t_move-file-to-new-directory/new-dir/moved.txt"
 #!END_SHAM_mvd
 ```
 
@@ -36,8 +36,8 @@ new_path = "/tmp/new-dir/moved.txt"
 {
   "success": true,
   "data": {
-    "old_path": "/tmp/original.txt",
-    "new_path": "/tmp/new-dir/moved.txt"
+    "old_path": "/tmp/t_move-file-to-new-directory/original.txt",
+    "new_path": "/tmp/t_move-file-to-new-directory/new-dir/moved.txt"
   }
 }
 ```
@@ -47,15 +47,15 @@ new_path = "/tmp/new-dir/moved.txt"
 ```sh sham
 #!SHAM [@three-char-SHA-256: mnf]
 action = "file_move"
-old_path = "/tmp/ghost.txt"
-new_path = "/tmp/nowhere.txt"
+old_path = "/tmp/t_move-nonexistent-file/ghost.txt"
+new_path = "/tmp/t_move-nonexistent-file/nowhere.txt"
 #!END_SHAM_mnf
 ```
 
 ```json
 {
   "success": false,
-  "error": "file_move: Source file not found '/tmp/ghost.txt' (ENOENT)"
+  "error": "file_move: Source file not found '/tmp/t_move-nonexistent-file/ghost.txt' (ENOENT)"
 }
 ```
 
@@ -64,8 +64,8 @@ new_path = "/tmp/nowhere.txt"
 ```sh sham
 #!SHAM [@three-char-SHA-256: mef]
 action = "file_move"
-old_path = "/tmp/source-exists.txt"
-new_path = "/tmp/dest-exists.txt"
+old_path = "/tmp/t_move-to-existing-file/source-exists.txt"
+new_path = "/tmp/t_move-to-existing-file/dest-exists.txt"
 #!END_SHAM_mef
 ```
 
@@ -73,8 +73,8 @@ new_path = "/tmp/dest-exists.txt"
 {
   "success": true,
   "data": {
-    "old_path": "/tmp/source-exists.txt",
-    "new_path": "/tmp/dest-exists.txt",
+    "old_path": "/tmp/t_move-to-existing-file/source-exists.txt",
+    "new_path": "/tmp/t_move-to-existing-file/dest-exists.txt",
     "overwrote": true
   }
 }

@@ -1,5 +1,11 @@
 # Clada Architecture
 
+
+IMPORTANT TOOL TESTING NOTES:
+
+- for test specific clada tools, each tool must get its own test case file, for easy visibility into which tools have been implemented and tested yet.
+- aka `proj/comp/fs-ops/test-data/integration/file_delete.cases.md`
+
 ## Core Design Decisions
 
 ### Transaction Model

@@ -7,7 +7,7 @@
 ```sh sham
 #!SHAM [@three-char-SHA-256: del]
 action = "file_delete"
-path = "/tmp/to-delete.txt"
+path = "/tmp/t_delete-existing-file/to-delete.txt"
 #!END_SHAM_del
 ```
 
@@ -15,7 +15,7 @@ path = "/tmp/to-delete.txt"
 {
   "success": true,
   "data": {
-    "path": "/tmp/to-delete.txt"
+    "path": "/tmp/t_delete-existing-file/to-delete.txt"
   }
 }
 ```
@@ -25,13 +25,13 @@ path = "/tmp/to-delete.txt"
 ```sh sham
 #!SHAM [@three-char-SHA-256: dnf]
 action = "file_delete"
-path = "/tmp/does-not-exist.txt"
+path = "/tmp/t_delete-nonexistent-file/does-not-exist.txt"
 #!END_SHAM_dnf
 ```
 
 ```json
 {
   "success": false,
-  "error": "ENOENT: no such file or directory, unlink '/tmp/does-not-exist.txt'"
+  "error": "ENOENT: no such file or directory, unlink '/tmp/t_delete-nonexistent-file/does-not-exist.txt'"
 }
 ```

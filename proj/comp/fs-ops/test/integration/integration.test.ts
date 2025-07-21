@@ -96,7 +96,11 @@ const testPaths = [
 ];
 
 describe('fs-ops integration tests', () => {
+  let createdPaths: Set<string>;
+
   beforeEach(() => {
+    createdPaths = new Set<string>(); // Fresh set per test
+
     // Clean up any existing test files
     for (const path of testPaths) {
       try {
@@ -110,6 +114,9 @@ describe('fs-ops integration tests', () => {
   });
 
   afterEach(() => {
+    for (const path of createdPaths) {
+      rmSync(path, { recursive: true, force: true });
+    }
     // Clean up after tests
     for (const path of testPaths) {
       try {
@@ -122,6 +129,16 @@ describe('fs-ops integration tests', () => {
     }
   });
 
+
+  // Helper function to create test files and track paths
+  const createTestFile = (testName: string, filename: string, content: string): void => {
+    const testDir = `/tmp/t_${testName}`;
+    mkdirSync(testDir, { recursive: true });
+    writeFileSync(join(testDir, filename), content);
+    createdPaths.add(testDir);
+  };
+
+
   testGroups.forEach(group => {
     describe(group.name, () => {
       group.tests.forEach(test => {
@@ -131,32 +148,27 @@ describe('fs-ops integration tests', () => {
           // Extract test name without number prefix
           const tn = test.name.replace(/^\d{3}-/, '');
           
+
+
+
           // Set up test preconditions based on group and test name
           if (group.name === 'file_delete' && tn === 'delete-existing-file') {
-            // Create file to be deleted
-            writeFileSync('/tmp/to-delete.txt', 'This file will be deleted');
+            createTestFile('delete-existing-file', 'to-delete.txt', 'This file will be deleted');
           } else if (group.name === 'file_move' && tn === 'move-file-simple') {
-            // Create source file to be moved
-            writeFileSync('/tmp/source.txt', 'Content to move');
+            createTestFile('move-file-simple', 'source.txt', 'Content to move');
           } else if (group.name === 'file_move' && tn === 'move-file-to-new-directory') {
-            // Create file to move to new directory
-            writeFileSync('/tmp/original.txt', 'Moving to new directory');
+            createTestFile('move-file-to-new-directory', 'original.txt', 'Moving to new directory');
           } else if (group.name === 'file_move' && tn === 'move-to-existing-file') {
-            // Create both source and destination files
-            writeFileSync('/tmp/source-exists.txt', 'Source content');
-            writeFileSync('/tmp/dest-exists.txt', 'Will be overwritten');
+            createTestFile('move-to-existing-file', 'source-exists.txt', 'Source content');
+            createTestFile('move-to-existing-file', 'dest-exists.txt', 'Will be overwritten');
           } else if (group.name === 'file_replace_text' && tn === 'simple-text-replacement') {
-            // Create file with text to replace
-            writeFileSync('/tmp/replace-test.txt', 'Hello World');
+            createTestFile('simple-text-replacement', 'replace-test.txt', 'Hello World');
           } else if (group.name === 'file_replace_text' && tn === 'replace-with-count-limit') {
-            // Create file with multiple occurrences
-            writeFileSync('/tmp/multi-replace.txt', 'foo bar foo baz foo qux foo');
+            createTestFile('replace-with-count-limit', 'multi-replace.txt', 'foo bar foo baz foo qux foo');
           } else if (group.name === 'file_replace_text' && tn === 'replace-text-not-found') {
-            // Create file without the search text
-            writeFileSync('/tmp/no-match.txt', 'This file has no matches');
+            createTestFile('replace-text-not-found', 'no-match.txt', 'This file has no matches');
           } else if (group.name === 'file_replace_text' && tn === 'multiline-replacement') {
-            // Create file with multiline content to replace
-            writeFileSync('/tmp/multiline-replace.txt', `export function oldName() {
+            createTestFile('multiline-replacement', 'multiline-replace.txt', `export function oldName() {
   console.log('oldName');
   return oldName;
 }
@@ -167,29 +179,30 @@ function oldName() {
 
 const x = oldName();`);
           } else if (group.name === 'file_replace_text' && tn === 'empty-old-text-error') {
-            // Create file for empty search test
-            writeFileSync('/tmp/empty-search.txt', 'Some content here');
+            createTestFile('empty-old-text-error', 'empty-search.txt', 'Some content here');
           } else if (group.name === 'file_replace_text' && tn === 'file-replace-text-multiple-occurrences') {
-            // Create file with multiple occurrences
-            writeFileSync('/tmp/multiple-occurrences.txt', 'duplicate text with duplicate word and duplicate again');
+            createTestFile('file-replace-text-multiple-occurrences', 'multiple-occurrences.txt', 'duplicate text with duplicate word and duplicate again');
           } else if (group.name === 'file_replace_text' && tn === 'file-replace-all-text-no-count') {
-            // Create file for replace all test
-            writeFileSync('/tmp/replace-all.txt', 'foo bar foo baz foo');
+            createTestFile('file-replace-all-text-no-count', 'replace-all.txt', 'foo bar foo baz foo');
           } else if (group.name === 'file_replace_text' && tn === 'file-replace-all-text-count-mismatch') {
-            // Create file with specific count of occurrences
-            writeFileSync('/tmp/count-mismatch.txt', 'test this test case');
+            createTestFile('file-replace-all-text-count-mismatch', 'count-mismatch.txt', 'test this test case');
           } else if (group.name === 'file_read' && tn === 'read-existing-file') {
-            // Create file to read
-            writeFileSync('/tmp/readable.txt', 'This is readable content');
+            createTestFile('read-existing-file', 'readable.txt', 'This is readable content');
           }
-          
+
+
+
+
+
+
+
+
+
+
           // Parse SHAM to get actions
           let parseResult;
           try {
-            console.log(`\nTest: ${test.name}`);
-            console.log('SHAM block:', test.shamBlock);
             parseResult = await parseShamResponse(test.shamBlock);
-            console.log('Parse result:', parseResult);
             // Force a minimal action to test downstream code
             if (parseResult.actions.length === 0 && test.shamBlock.includes('action =')) {
               console.log('WARNING: Parser returned no actions, check parser implementation');

@@ -7,7 +7,7 @@
 ```sh sham
 #!SHAM [@three-char-SHA-256: rdf]
 action = "file_read"
-path = "/tmp/readable.txt"
+path = "/tmp/t_read-existing-file/readable.txt"
 #!END_SHAM_rdf
 ```
 
@@ -15,7 +15,7 @@ path = "/tmp/readable.txt"
 {
   "success": true,
   "data": {
-    "path": "/tmp/readable.txt",
+    "path": "/tmp/t_read-existing-file/readable.txt",
     "content": "This is readable content"
   }
 }
@@ -26,13 +26,13 @@ path = "/tmp/readable.txt"
 ```sh sham
 #!SHAM [@three-char-SHA-256: rnx]
 action = "file_read"
-path = "/tmp/not-there.txt"
+path = "/tmp/t_read-nonexistent-file/not-there.txt"
 #!END_SHAM_rnx
 ```
 
 ```json
 {
   "success": false,
-  "error": "ENOENT: no such file or directory, open '/tmp/not-there.txt'"
+  "error": "ENOENT: no such file or directory, open '/tmp/t_read-nonexistent-file/not-there.txt'"
 }
 ```

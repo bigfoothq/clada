@@ -14,7 +14,8 @@ export async function buildSpawnOptions(cwd?: string): Promise<SpawnOptions> {
   const options: SpawnOptions = {
     env: process.env,
     shell: false,
-    windowsHide: true
+    windowsHide: true,
+    detached: process.platform !== 'win32' // Enable process groups on Unix
   };
   
   // Set and validate working directory

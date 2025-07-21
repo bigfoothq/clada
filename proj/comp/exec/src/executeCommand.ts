@@ -65,13 +65,32 @@ async function runProcess(
     const TIMEOUT_MS = timeout || 30000;
     timeoutId = setTimeout(() => {
       timedOut = true;
-      child.kill('SIGTERM');
-      // Force kill after grace period
+      // Kill entire process group if detached
+      const pid = child.pid;
+      if (pid && options.detached) {
+        try {
+          process.kill(-pid, 'SIGTERM'); // Negative PID kills the group
+        } catch (e) {
+          // Fallback to regular kill if group kill fails
+          child.kill('SIGTERM');
+        }
+      } else {
+        child.kill('SIGTERM');
+      }
+      // Grace period before SIGKILL
       setTimeout(() => {
         if (!child.killed) {
-          child.kill('SIGKILL');
+          if (pid && options.detached) {
+            try {
+              process.kill(-pid, 'SIGKILL');
+            } catch (e) {
+              child.kill('SIGKILL');
+            }
+          } else {
+            child.kill('SIGKILL');
+          }
         }
-      }, 1000);
+      }, 100); // 100ms grace - balance between speed and cleanup
     }, TIMEOUT_MS);
     
     // Capture output streams

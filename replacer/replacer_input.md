@@ -1,177 +1,101 @@
-=== PROCESSED: 2025-07-21 00:10:14 ===
-SUCCESS Block 1: Updated /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/API.md
-SUCCESS Block 2: Updated /Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
-SUCCESS Block 3: Updated /Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
-SUCCESS Block 4: Updated /Users/stuart/repos/clada/proj/doc/API.md
-SUCCESS Block 5: Updated /Users/stuart/repos/clada/proj/doc/API.md
-SUCCESS Block 6: Updated /Users/stuart/repos/clada/proj/doc/API.md
-SUCCESS Block 7: Updated /Users/stuart/repos/clada/proj/doc/API.md
+=== PROCESSED: 2025-07-21 00:30:14 ===
+ERROR Block 1: File path is outside repository: /Users/sbarr/repos/clada/proj/test-data/execute/basic-operations.md
 ===
 
 <<<EXPLANATION>>>
-Update sham-action-parser API.md to reflect actual exports found in audit
-
+The test expects a syntax error for duplicate keys, but the parser actually accepts duplicate keys and uses the last value. This makes the block valid but missing the required 'content' parameter, resulting in a validation error instead.
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/API.md
-
+/Users/sbarr/repos/clada/proj/test-data/execute/basic-operations.md
 <<<SEARCH>>>
-## Exports
-```yaml
-exports:
-  functions: [parseShamResponse, validateShamBlock, transformToAction]
-  types: [ParseResult, CladaAction, ParseError, ValidationResult, TransformError]
-  errors: [TransformError]
+### 003-parse-error-with-valid-action
+
+```sh sham
+#!SHAM [@three-char-SHA-256: bad]
+action = "file_write"
+path = "/tmp/bad.txt"
+path = "/tmp/duplicate.txt"
+#!END_SHAM_bad
+
+#!SHAM [@three-char-SHA-256: gud]
+action = "file_write"
+path = "/tmp/good.txt"
+content = "Valid content"
+#!END_SHAM_gud
+```
+
+```json
+{
+  "success": false,
+  "totalBlocks": 2,
+  "executedActions": 1,
+  "results": [{
+    "seq": 1,
+    "blockId": "gud",
+    "action": "file_write",
+    "params": {
+      "path": "/tmp/good.txt",
+      "content": "Valid content"
+    },
+    "success": true,
+    "data": {
+      "path": "/tmp/good.txt",
+      "bytesWritten": 13
+    }
+  }],
+  "parseErrors": [{
+    "blockId": "bad",
+    "action": "file_write",
+    "errorType": "syntax",
+    "message": "Duplicate key 'path' in block 'bad'",
+    "blockStartLine": 1,
+    "shamContent": "#!SHAM [@three-char-SHA-256: bad]\naction = \"file_write\"\npath = \"/tmp/bad.txt\"\npath = \"/tmp/duplicate.txt\"\n#!END_SHAM_bad"
+  }]
+}
 ```
 <<<REPLACE>>>
-## Exports
-```yaml
-exports:
-  functions: [parseShamResponse, validateShamBlock, transformToAction]
-  types: [ParseResult, CladaAction, ParseError, ValidationResult, TransformError]
-  classes:
-    TransformError:
-      extends: Error
+### 003-parse-error-with-valid-action
+
+```sh sham
+#!SHAM [@three-char-SHA-256: bad]
+action = "file_write"
+path = "/tmp/bad.txt"
+path = "/tmp/duplicate.txt"
+#!END_SHAM_bad
+
+#!SHAM [@three-char-SHA-256: gud]
+action = "file_write"
+path = "/tmp/good.txt"
+content = "Valid content"
+#!END_SHAM_gud
 ```
-<<<END>>>
 
-<<<EXPLANATION>>>
-Update fs-ops API.md to reflect actual exports and mark as partially implemented
-
-<<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
-
-<<<SEARCH>>>
-# Component: fs-ops
-
-## Component Type
-standard
-
-## Documentation Debt
-- [ ] Integration test format is preliminary [IMPLEMENTED]
-- [ ] Error handling strategy needs refinement
-- [ ] Consider batching operations for efficiency
-<<<REPLACE>>>
-# Component: fs-ops
-
-## Component Type
-standard
-
-## Status
-[PARTIALLY IMPLEMENTED] - Only file operations implemented. Directory operations, search operations pending.
-
-## Documentation Debt
-- [ ] Integration test format is preliminary [IMPLEMENTED]
-- [ ] Error handling strategy needs refinement
-- [ ] Consider batching operations for efficiency
-<<<END>>>
-
-<<<EXPLANATION>>>
-Update fs-ops exports to match actual implementation
-
-<<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
-
-<<<SEARCH>>>
-## Exports
-
-```yaml
-exports:
-  functions: [executeFileOperation]
-  types: [FileOpResult, FileOpError]
+```json
+{
+  "success": false,
+  "totalBlocks": 2,
+  "executedActions": 1,
+  "results": [{
+    "seq": 1,
+    "blockId": "gud",
+    "action": "file_write",
+    "params": {
+      "path": "/tmp/good.txt",
+      "content": "Valid content"
+    },
+    "success": true,
+    "data": {
+      "path": "/tmp/good.txt",
+      "bytesWritten": 13
+    }
+  }],
+  "parseErrors": [{
+    "blockId": "bad",
+    "action": "file_write",
+    "errorType": "validation",
+    "message": "Missing required parameter: content",
+    "blockStartLine": 1,
+    "shamContent": "#!SHAM [@three-char-SHA-256: bad]\naction = \"file_write\"\npath = \"/tmp/duplicate.txt\"\n#!END_SHAM_bad"
+  }]
+}
 ```
-<<<REPLACE>>>
-## Exports
-
-```yaml
-exports:
-  functions: [executeFileOperation]
-  types: [FileOpResult]
-  classes:
-    FileOpError:
-      extends: Error
-```
-<<<END>>>
-
-<<<EXPLANATION>>>
-Update main project API.md dependencies to include all required types from sham-action-parser
-
-<<<FILE>>>
-/Users/stuart/repos/clada/proj/doc/API.md
-
-<<<SEARCH>>>
-  proj/comp/sham-action-parser:  # [IMPLEMENTED]
-    functions: [parseShamResponse]
-    types: [ParseResult, CladaAction, ParseError]
-<<<REPLACE>>>
-  proj/comp/sham-action-parser:  # [IMPLEMENTED]
-    functions: [parseShamResponse]
-    types: [ParseResult, CladaAction, ParseError, ValidationResult, TransformError]
-<<<END>>>
-
-<<<EXPLANATION>>>
-Update fs-ops dependency to show partial implementation status
-
-<<<FILE>>>
-/Users/stuart/repos/clada/proj/doc/API.md
-
-<<<SEARCH>>>
-  proj/comp/fs-ops:              # [PLANNED]
-    functions: [executeFileOperation]
-    types: [FileOpResult]
-<<<REPLACE>>>
-  proj/comp/fs-ops:              # [PARTIALLY IMPLEMENTED]
-    functions: [executeFileOperation]
-    types: [FileOpResult]
-    classes:
-      FileOpError:
-        extends: Error
-<<<END>>>
-
-<<<EXPLANATION>>>
-Update main project exports to match actual implementation
-
-<<<FILE>>>
-/Users/stuart/repos/clada/proj/doc/API.md
-
-<<<SEARCH>>>
-## Exports
-
-```yaml
-exports:
-  classes:
-    Clada:
-      methods: [execute]
-  types: 
-    - ExecutionResult
-    - ActionResult  
-    - ParseError
-    - CladaOptions
-```
-<<<REPLACE>>>
-## Exports
-
-```yaml
-exports:
-  classes:
-    Clada:
-      constructor: [options?: CladaOptions]
-      methods: [execute]
-  types: 
-    - ExecutionResult
-    - ActionResult  
-    - CladaOptions
-  # Note: ParseError is re-exported from sham-action-parser
-```
-<<<END>>>
-
-<<<EXPLANATION>>>
-Update test-data path from PLANNED to IMPLEMENTED
-
-<<<FILE>>>
-/Users/stuart/repos/clada/proj/doc/API.md
-
-<<<SEARCH>>>
-- **Test-data**: `test-data/execute/` [PLANNED]
-<<<REPLACE>>>
-- **Test-data**: `test-data/execute/basic-operations.md` [IMPLEMENTED]
 <<<END>>>

@@ -4,7 +4,7 @@
 standard
 
 ## Status
-[PARTIALLY IMPLEMENTED] - Only file operations implemented. Directory operations, search operations pending.
+[PARTIALLY IMPLEMENTED] - File operations including files_read implemented. Directory operations, search operations pending.
 
 ## Documentation Debt
 - [ ] Integration test format is preliminary [IMPLEMENTED]
@@ -118,6 +118,7 @@ const actionHandlers = {
   'file_delete': handleFileDelete,
   'file_move': handleFileMove,
   'file_read': handleFileRead,
+  'files_read': handleFilesRead,
   'dir_create': createDirectory,
   'dir_delete': deleteDirectory,
   'ls': listDirectory,

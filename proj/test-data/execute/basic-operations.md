@@ -799,3 +799,128 @@ new_path = "/tmp/016-file-move-creates-parent-dirs/new/deeply/nested/moved-file.
   "parseErrors": []
 }
 ```
+
+### 017-files-read-multiple
+
+```sh sham
+#!SHAM [@three-char-SHA-256: fr1]
+action = "file_write"
+path = "/tmp/017-files-read-multiple/first.txt"
+content = "First file content"
+#!END_SHAM_fr1
+
+#!SHAM [@three-char-SHA-256: fr2]
+action = "file_write"
+path = "/tmp/017-files-read-multiple/second.txt"
+content = "Second file content"
+#!END_SHAM_fr2
+
+#!SHAM [@three-char-SHA-256: fr3]
+action = "files_read"
+paths = <<'EOT_SHAM_fr3'
+/tmp/017-files-read-multiple/first.txt
+/tmp/017-files-read-multiple/second.txt
+EOT_SHAM_fr3
+#!END_SHAM_fr3
+```
+
+```json
+{
+  "success": true,
+  "totalBlocks": 3,
+  "executedActions": 3,
+  "results": [{
+    "seq": 1,
+    "blockId": "fr1",
+    "action": "file_write",
+    "params": {
+      "path": "/tmp/017-files-read-multiple/first.txt",
+      "content": "First file content"
+    },
+    "success": true,
+    "data": {
+      "path": "/tmp/017-files-read-multiple/first.txt",
+      "bytesWritten": 18
+    }
+  }, {
+    "seq": 2,
+    "blockId": "fr2",
+    "action": "file_write",
+    "params": {
+      "path": "/tmp/017-files-read-multiple/second.txt",
+      "content": "Second file content"
+    },
+    "success": true,
+    "data": {
+      "path": "/tmp/017-files-read-multiple/second.txt",
+      "bytesWritten": 19
+    }
+  }, {
+    "seq": 3,
+    "blockId": "fr3",
+    "action": "files_read",
+    "params": {
+      "paths": "/tmp/017-files-read-multiple/first.txt\n/tmp/017-files-read-multiple/second.txt"
+    },
+    "success": true,
+    "data": {
+      "paths": [
+        "/tmp/017-files-read-multiple/first.txt",
+        "/tmp/017-files-read-multiple/second.txt"
+      ],
+      "content": "=== /tmp/017-files-read-multiple/first.txt ===\nFirst file content\n\n=== /tmp/017-files-read-multiple/second.txt ===\nSecond file content"
+    }
+  }],
+  "parseErrors": []
+}
+```
+
+### 018-files-read-with-missing
+
+```sh sham
+#!SHAM [@three-char-SHA-256: fm1]
+action = "file_write"
+path = "/tmp/018-files-read-with-missing/exists.txt"
+content = "This file exists"
+#!END_SHAM_fm1
+
+#!SHAM [@three-char-SHA-256: fm2]
+action = "files_read"
+paths = <<'EOT_SHAM_fm2'
+/tmp/018-files-read-with-missing/exists.txt
+/tmp/018-files-read-with-missing/missing.txt
+EOT_SHAM_fm2
+#!END_SHAM_fm2
+```
+
+```json
+{
+  "success": false,
+  "totalBlocks": 2,
+  "executedActions": 2,
+  "results": [{
+    "seq": 1,
+    "blockId": "fm1",
+    "action": "file_write",
+    "params": {
+      "path": "/tmp/018-files-read-with-missing/exists.txt",
+      "content": "This file exists"
+    },
+    "success": true,
+    "data": {
+      "path": "/tmp/018-files-read-with-missing/exists.txt",
+      "bytesWritten": 16
+    }
+  }, {
+    "seq": 2,
+    "blockId": "fm2",
+    "action": "files_read",
+    "params": {
+      "paths": "/tmp/018-files-read-with-missing/exists.txt\n/tmp/018-files-read-with-missing/missing.txt"
+    },
+    "success": false,
+    "error": "files_read: Failed to read 1 file(s):\n  /tmp/018-files-read-with-missing/missing.txt: ENOENT: no such file or directory, open '/tmp/018-files-read-with-missing/missing.txt'"
+  }],
+  "parseErrors": []
+}
+```

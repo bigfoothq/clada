@@ -42,7 +42,9 @@ const testFiles = [
 const testDirs = [
   '/tmp/new',
   '/tmp/007-file-move-success',
-  '/tmp/016-file-move-creates-parent-dirs'
+  '/tmp/016-file-move-creates-parent-dirs',
+  '/tmp/017-files-read-multiple',
+  '/tmp/018-files-read-with-missing'
 ];
 
 describe('Clada.execute()', () => {

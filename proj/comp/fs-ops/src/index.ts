@@ -188,6 +188,71 @@ async function handleFileRead(action: CladaAction): Promise<FileOpResult> {
 }
 
 /**
+ * Handle files_read action - reads multiple files and concatenates with delimiters
+ * Parses multi-line paths parameter, one absolute path per line
+ * Returns concatenated content with === /path/to/file === delimiters
+ */
+async function handleFilesRead(action: CladaAction): Promise<FileOpResult> {
+  const { paths } = action.parameters;
+  
+  // Parse the multi-line paths string
+  const pathList = paths
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0);  // Remove empty lines
+  
+  if (pathList.length === 0) {
+    return {
+      success: false,
+      error: 'files_read: No paths provided'
+    };
+  }
+  
+  // Read all files, collecting content and errors
+  const results: Array<{ path: string; content?: string; error?: string }> = [];
+  
+  for (const filePath of pathList) {
+    try {
+      const content = await readFile(filePath, 'utf8');
+      results.push({ path: filePath, content });
+    } catch (error: any) {
+      // Collect error for this file
+      const errorMsg = formatNodeError(error, filePath, 'open');
+      results.push({ path: filePath, error: errorMsg });
+    }
+  }
+  
+  // Check if any files failed to read
+  const failedFiles = results.filter(r => r.error);
+  if (failedFiles.length > 0) {
+    // Return error listing all failed files
+    const errorDetails = failedFiles
+      .map(f => `  ${f.path}: ${f.error}`)
+      .join('\n');
+    return {
+      success: false,
+      error: `files_read: Failed to read ${failedFiles.length} file(s):\n${errorDetails}`
+    };
+  }
+  
+  // All files read successfully - concatenate with delimiters
+  const concatenated = results
+    .map(r => {
+      const header = `=== ${r.path} ===`;
+      return `${header}\n${r.content}`;
+    })
+    .join('\n\n');
+  
+  return {
+    success: true,
+    data: {
+      paths: pathList,
+      content: concatenated
+    }
+  };
+}
+
+/**
  * Handle file_replace_text action - replaces EXACTLY ONE occurrence
  * Fails if old_text appears 0 or 2+ times
  */
@@ -394,6 +459,7 @@ const actionHandlers: Record<string, (action: CladaAction) => Promise<FileOpResu
   'file_delete': handleFileDelete,
   'file_move': handleFileMove,
   'file_read': handleFileRead,
+  'files_read': handleFilesRead,
   'dir_create': async (action) => {
     return { success: false, error: 'Not implemented' };
   },

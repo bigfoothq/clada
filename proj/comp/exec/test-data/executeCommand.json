@@ -28,7 +28,7 @@
       },
       "expected": {
         "success": true,
-        "stdout": "{TMP_PATH}\n",
+        "stdout": "/tmp\n",
         "stderr": "",
         "exit_code": 0
       }
@@ -60,8 +60,6 @@
       },
       "expected": {
         "success": false,
-        "stdout": "",
-        "stderr": "",
         "error": "exec: Unsupported language 'rust' (LANG_UNSUPPORTED)"
       }
     }

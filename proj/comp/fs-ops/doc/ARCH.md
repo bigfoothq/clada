@@ -63,3 +63,42 @@
 - File watching/monitoring
 - Atomic write operations (write to temp, rename)
 - Path validation against allowlist
+
+
+# fs-ops ARCH.md - Additional Sections
+
+## File Move Behavior
+
+### Overwrite Semantics
+- `file_move` overwrites existing destination files without warning
+- Matches Unix `mv` behavior and Node.js `rename()` semantics  
+- Rationale: LLM can check first if needed, but overwrite-by-default enables single-shot operations
+- Return data includes `overwrote: true` when destination existed
+
+### Directory Creation
+- `file_move` automatically creates parent directories for destination path
+- Diverges from standard `rename()` which fails with ENOENT
+- Rationale: Reduces LLM round-trips for common "move to new location" pattern
+- Return data includes `createdDirs` array when directories were created
+
+## Error Message Enhancement
+
+### Problem: Ambiguous ENOENT
+Node.js returns ENOENT for multiple distinct failures:
+- Source file doesn't exist
+- Destination directory doesn't exist  
+- Parent directory permissions (sometimes)
+
+### Solution: Pre-flight Checks
+Operations perform checks before system calls to provide specific errors:
+- `file_move`: Check source exists → "Source file not found" vs generic ENOENT
+- `file_write`: Already creates parent dirs, avoiding ambiguity
+- `file_delete`: Pass through Node errors (unambiguous)
+
+### Error Format
+When enhancing errors for LLM clarity:
+```
+{operation}: {specific_issue} '{path}' ({error_code})
+```
+
+Example: `file_move: Source file not found '/tmp/ghost.txt' (ENOENT)`

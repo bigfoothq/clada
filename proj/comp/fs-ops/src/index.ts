@@ -5,9 +5,10 @@
  */
 
 import type { CladaAction } from '../../sham-action-parser/src/index.js';
+import { writeFile, mkdir } from 'fs/promises';
+import { dirname } from 'path';
 import { formatNodeError } from './formatNodeError.js';
-import { getParentDirectory } from './getParentDirectory.js';
-import { fileExists, ensureDirectoryExists, writeFileInternal } from './fileSystemUtils.js';
+import { fileExists } from './fileSystemUtils.js';
 
 export interface FileOpResult {
   success: boolean;
@@ -61,15 +62,15 @@ async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
   const { path, content } = action.parameters;
   
   try {
-    
     // Create parent directories if needed
-    const parentDir = getParentDirectory(path);
-    const createdDirs = await ensureDirectoryExists(parentDir);
+    const parentDir = dirname(path);
+    await mkdir(parentDir, { recursive: true });
     
     // Write file
-    const bytesWritten = await writeFileInternal(path, content);
+    await writeFile(path, content, 'utf8');
+    const bytesWritten = Buffer.byteLength(content, 'utf8');
     
-    const result: FileOpResult = {
+    return {
       success: true,
       data: {
         path,
@@ -77,17 +78,10 @@ async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
       }
     };
     
-    // Add createdDirs only if we actually created any
-    if (createdDirs.length > 0) {
-      result.data.createdDirs = createdDirs;
-    }
-    
-    return result;
-    
   } catch (error: any) {
     return {
       success: false,
-      error: formatNodeError(error, path, 'file_write')
+      error: formatNodeError(error, path, 'open')
     };
   }
 }

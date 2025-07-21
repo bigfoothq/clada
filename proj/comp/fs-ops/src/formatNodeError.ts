@@ -5,15 +5,21 @@
  * @param operation - The operation that was attempted
  * @returns Formatted error message string
  */
-export function formatNodeError(error: any, path: string, operation: string): string {
+export function formatNodeError(error: any, path: string, operation: string, dest?: string): string {
   // Node.js errors have a code property
   if (error.code) {
     switch (error.code) {
       case 'ENOENT':
+        if (operation === 'rename' && dest) {
+          return `ENOENT: no such file or directory, rename '${path}' -> '${dest}'`;
+        }
         return `ENOENT: no such file or directory, ${operation} '${path}'`;
       case 'EEXIST':
         return `EEXIST: file already exists, ${operation} '${path}'`;
       case 'EACCES':
+        if (operation === 'rename' && dest) {
+          return `EACCES: permission denied, rename '${path}' -> '${dest}'`;
+        }
         return `EACCES: permission denied, ${operation} '${path}'`;
       case 'EISDIR':
         return `EISDIR: illegal operation on a directory, ${operation} '${path}'`;

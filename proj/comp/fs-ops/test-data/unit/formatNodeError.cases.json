@@ -62,6 +62,26 @@
         "write"
       ],
       "expected": "Unknown error during write on '/tmp/file.txt'"
+    },
+    {
+      "name": "rename ENOENT error",
+      "input": [
+        { "code": "ENOENT", "message": "no such file or directory" },
+        "/tmp/source.txt",
+        "rename",
+        "/tmp/dest.txt"
+      ],
+      "expected": "ENOENT: no such file or directory, rename '/tmp/source.txt' -> '/tmp/dest.txt'"
+    },
+    {
+      "name": "rename EACCES error",
+      "input": [
+        { "code": "EACCES", "message": "permission denied" },
+        "/tmp/source.txt",
+        "rename",
+        "/root/dest.txt"
+      ],
+      "expected": "EACCES: permission denied, rename '/tmp/source.txt' -> '/root/dest.txt'"
     }
   ]
 }

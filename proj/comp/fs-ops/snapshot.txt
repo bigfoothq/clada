@@ -1,0 +1,1499 @@
+
+=== START FILE: ./test/unit/formatNodeError.test.ts ===
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { formatNodeError } from '../../src/formatNodeError.js';
+
+const testData = JSON.parse(
+  readFileSync(join(__dirname, '../../test-data/unit/formatNodeError.cases.json'), 'utf8')
+);
+
+describe('formatNodeError', () => {
+  testData.cases.forEach(({ name, input, expected }) => {
+    it(name, () => {
+      const result = formatNodeError(input[0], input[1], input[2], input[3]);
+      expect(result).toEqual(expected);
+    });
+  });
+});
+=== END FILE: ./test/unit/formatNodeError.test.ts ===
+
+=== START FILE: ./test/unit/getParentDirectory.test.ts ===
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { getParentDirectory } from '../../src/getParentDirectory.js';
+
+const testData = JSON.parse(
+  readFileSync(join(__dirname, '../../test-data/unit/getParentDirectory.cases.json'), 'utf8')
+);
+
+describe('getParentDirectory', () => {
+  testData.cases.forEach(({ name, input, expected }) => {
+    it(name, () => {
+      const result = getParentDirectory(...input);
+      expect(result).toEqual(expected);
+    });
+  });
+});
+=== END FILE: ./test/unit/getParentDirectory.test.ts ===
+
+=== START FILE: ./test/unit/getByteLength.test.ts ===
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { getByteLength } from '../../src/getByteLength.js';
+
+const testData = JSON.parse(
+  readFileSync(join(__dirname, '../../test-data/unit/getByteLength.cases.json'), 'utf8')
+);
+
+describe('getByteLength', () => {
+  testData.cases.forEach(({ name, input, expected }) => {
+    it(name, () => {
+      const result = getByteLength(...input);
+      expect(result).toEqual(expected);
+    });
+  });
+});
+=== END FILE: ./test/unit/getByteLength.test.ts ===
+
+=== START FILE: ./test/unit/replaceText.test.ts ===
+import { describe, it, expect } from 'vitest';
+import { replaceText } from '../../src/replaceText';
+import { cases } from '../../test-data/unit/replaceText.cases';
+
+describe('replaceText', () => {
+  cases.forEach(({ name, input, expected }) => {
+    it(name, () => {
+      const result = replaceText(...input);
+      expect(result).toEqual(expected);
+    });
+  });
+});
+
+=== END FILE: ./test/unit/replaceText.test.ts ===
+
+=== START FILE: ./test/integration/integration.test.ts ===
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { readFileSync, rmSync, existsSync, writeFileSync, mkdirSync } from 'fs';
+import { join } from 'path';
+import { marked, Token } from 'marked';
+import { parseShamResponse } from '../../../sham-action-parser/src/index.js';
+import { executeFileOperation } from '../../src/index.js';
+
+// Read test data
+const testPath = join(__dirname, '../../test-data/integration/file-operations.cases.md');
+const mdContent = readFileSync(testPath, 'utf8');
+
+// Parse markdown to extract test cases
+const tokens: Token[] = marked.lexer(mdContent);
+const codeBlocks = tokens.filter(t => t.type === 'code') as Array<Token & {type: 'code', text: string}>;
+const testNames = tokens
+  .filter(t => t.type === 'heading' && 'depth' in t && t.depth === 3)
+  .map(t => (t as any).text as string);
+
+// Test cleanup paths
+const testPaths = [
+  '/tmp/test.txt',
+  '/tmp/deeply',
+  '/tmp/existing.txt',
+  '/tmp/multiline.txt',
+  '/tmp/to-delete.txt',
+  '/tmp/does-not-exist.txt',
+  '/tmp/source.txt',
+  '/tmp/destination.txt',
+  '/tmp/original.txt',
+  '/tmp/new-dir',
+  '/tmp/ghost.txt',
+  '/tmp/nowhere.txt',
+  '/tmp/source-exists.txt',
+  '/tmp/dest-exists.txt',
+  '/tmp/moveable.txt'
+];
+
+describe('fs-ops integration tests', () => {
+  beforeEach(() => {
+    // Clean up any existing test files
+    testPaths.forEach(path => {
+      if (existsSync(path)) {
+        rmSync(path, { recursive: true, force: true });
+      }
+    });
+  });
+
+  afterEach(() => {
+    // Clean up after tests
+    testPaths.forEach(path => {
+      if (existsSync(path)) {
+        rmSync(path, { recursive: true, force: true });
+      }
+    });
+  });
+
+  testNames.forEach((name, i) => {
+    const baseIndex = i * 2;
+    it(name, async () => {
+      const shamInput = codeBlocks[baseIndex].text;
+      const expectedOutput = JSON.parse(codeBlocks[baseIndex + 1].text);
+      
+      // Set up test preconditions based on test name
+      if (name === '003-file-already-exists') {
+        // Create the file that should already exist
+        writeFileSync('/tmp/existing.txt', 'This file already exists');
+      } else if (name === '006-delete-existing-file') {
+        // Create file to be deleted
+        writeFileSync('/tmp/to-delete.txt', 'This file will be deleted');
+      } else if (name === '009-move-file-simple') {
+        // Create source file to be moved
+        writeFileSync('/tmp/source.txt', 'Content to move');
+      } else if (name === '010-move-file-to-new-directory') {
+        // Create file to move to new directory
+        writeFileSync('/tmp/original.txt', 'Moving to new directory');
+      } else if (name === '012-move-to-existing-file') {
+        // Create both source and destination files
+        writeFileSync('/tmp/source-exists.txt', 'Source content');
+        writeFileSync('/tmp/dest-exists.txt', 'Will be overwritten');
+      } else if (name === '014-move-permission-denied-destination') {
+        // Create source file
+        writeFileSync('/tmp/moveable.txt', 'Content to move');
+      }
+      
+      // Parse SHAM to get actions
+      const parseResult = await parseShamResponse(shamInput);
+      
+      // Should have exactly one action
+      expect(parseResult.actions).toHaveLength(1);
+      expect(parseResult.errors).toHaveLength(0);
+      
+      // Execute the action
+      const result = await executeFileOperation(parseResult.actions[0]);
+      
+      // Compare result
+      expect(result).toEqual(expectedOutput);
+    });
+  });
+});
+=== END FILE: ./test/integration/integration.test.ts ===
+
+=== START FILE: ./test-data/unit/replaceText.cases.ts ===
+export const cases = [
+  {
+    name: "simple replacement",
+    input: ["hello world", "world", "universe"],
+    expected: {
+      result: "hello universe",
+      replacements: 1,
+    },
+  },
+  {
+    name: "multiple replacements",
+    input: ["foo bar foo baz", "foo", "qux"],
+    expected: {
+      result: "qux bar qux baz",
+      replacements: 2,
+    },
+  },
+  {
+    name: "limited replacements",
+    input: ["foo bar foo baz foo", "foo", "qux", 2],
+    expected: {
+      result: "qux bar qux baz foo",
+      replacements: 2,
+    },
+  },
+  {
+    name: "multiline content replacement",
+    input: [
+`function oldName() {
+  console.log('oldName');
+  return oldName;
+}`,
+      "oldName",
+      "newName",
+    ],
+    expected: {
+      result: 
+`function newName() {
+  console.log('newName');
+  return newName;
+}`,
+      replacements: 3,
+    },
+  },
+  {
+    name: "multiline search and replace",
+    input: [
+`const config = {
+  old: {
+    setting: true
+  },
+  other: false
+};`,
+`old: {
+    setting: true
+  }`,
+`new: {
+    setting: false,
+    extra: 'value'
+  }`,
+    ],
+    expected: {
+      result: 
+`const config = {
+  new: {
+    setting: false,
+    extra: 'value'
+  },
+  other: false
+};`,
+      replacements: 1,
+    },
+  },
+  {
+    name: "replace code block with limit",
+    input: [
+`// TODO: fix this
+function broken() {
+  // TODO: fix this
+  return null;
+}
+// TODO: fix this`,
+      "// TODO: fix this",
+      "// FIXED",
+      2,
+    ],
+    expected: {
+      result: 
+`// FIXED
+function broken() {
+  // FIXED
+  return null;
+}
+// TODO: fix this`,
+      replacements: 2,
+    },
+  },
+  {
+    name: "no matches in multiline",
+    input: [
+`Line 1
+Line 2
+Line 3`,
+      "Line 4",
+      "Line X",
+    ],
+    expected: {
+      result: 
+`Line 1
+Line 2
+Line 3`,
+      replacements: 0,
+    },
+  },
+  {
+    name: "empty old text",
+    input: ["hello world", "", "xyz"],
+    expected: {
+      result: "hello world",
+      replacements: 0,
+    },
+  },
+  {
+    name: "overlapping replacements",
+    input: ["aaaa", "aa", "b"],
+    expected: {
+      result: "bb",
+      replacements: 2,
+    },
+  },
+  {
+    name: "replace with empty string",
+    input: ["foo bar foo", "foo ", ""],
+    expected: {
+      result: "bar foo",
+      replacements: 1,
+    },
+  },
+  {
+    name: "windows line endings",
+    input: ["line1\r\nline2\r\nline3", "\r\n", "\n"],
+    expected: {
+      result: "line1\nline2\nline3",
+      replacements: 2,
+    },
+  },
+  {
+    name: "indent-sensitive replacement",
+    input: [
+`class OldClass:
+    def method(self):
+        pass`,
+      "OldClass",
+      "NewClass",
+    ],
+    expected: {
+      result: 
+`class NewClass:
+    def method(self):
+        pass`,
+      replacements: 1,
+    },
+  },
+];
+
+=== END FILE: ./test-data/unit/replaceText.cases.ts ===
+
+=== START FILE: ./test-data/unit/getParentDirectory.cases.json ===
+{
+  "cases": [
+    {
+      "name": "simple file path",
+      "input": ["/tmp/test.txt"],
+      "expected": "/tmp"
+    },
+    {
+      "name": "nested file path",
+      "input": ["/tmp/deeply/nested/file.txt"],
+      "expected": "/tmp/deeply/nested"
+    },
+    {
+      "name": "root level file",
+      "input": ["/test.txt"],
+      "expected": "/"
+    },
+    {
+      "name": "directory path with trailing slash",
+      "input": ["/tmp/dir/"],
+      "expected": "/tmp"
+    },
+    {
+      "name": "directory path without trailing slash",
+      "input": ["/tmp/dir"],
+      "expected": "/tmp"
+    },
+    {
+      "name": "windows style path",
+      "input": ["C:\\Users\\test\\file.txt"],
+      "expected": "C:\\Users\\test"
+    }
+  ]
+}
+=== END FILE: ./test-data/unit/getParentDirectory.cases.json ===
+
+=== START FILE: ./test-data/unit/getByteLength.cases.json ===
+{
+  "cases": [
+    {
+      "name": "simple ASCII string",
+      "input": ["Hello, World!"],
+      "expected": 13
+    },
+    {
+      "name": "empty string",
+      "input": [""],
+      "expected": 0
+    },
+    {
+      "name": "string with newlines",
+      "input": ["Line 1\nLine 2\nLine 3"],
+      "expected": 20
+    },
+    {
+      "name": "unicode emoji",
+      "input": ["Hello 👋 World"],
+      "expected": 16
+    },
+    {
+      "name": "multi-byte characters",
+      "input": ["你好世界"],
+      "expected": 12
+    },
+    {
+      "name": "mixed ASCII and unicode",
+      "input": ["Test: 测试"],
+      "expected": 12
+    }
+  ]
+}
+=== END FILE: ./test-data/unit/getByteLength.cases.json ===
+
+=== START FILE: ./test-data/unit/formatNodeError.cases.json ===
+{
+  "cases": [
+    {
+      "name": "ENOENT error",
+      "input": [
+        { "code": "ENOENT", "message": "no such file or directory" },
+        "/tmp/missing.txt",
+        "open"
+      ],
+      "expected": "ENOENT: no such file or directory, open '/tmp/missing.txt'"
+    },
+    {
+      "name": "EEXIST error",
+      "input": [
+        { "code": "EEXIST", "message": "file already exists" },
+        "/tmp/existing.txt",
+        "open"
+      ],
+      "expected": "EEXIST: file already exists, open '/tmp/existing.txt'"
+    },
+    {
+      "name": "EACCES error",
+      "input": [
+        { "code": "EACCES", "message": "permission denied" },
+        "/root/forbidden.txt",
+        "open"
+      ],
+      "expected": "EACCES: permission denied, open '/root/forbidden.txt'"
+    },
+    {
+      "name": "EISDIR error",
+      "input": [
+        { "code": "EISDIR", "message": "illegal operation on a directory" },
+        "/tmp/",
+        "read"
+      ],
+      "expected": "EISDIR: illegal operation on a directory, read '/tmp/'"
+    },
+    {
+      "name": "unknown error code",
+      "input": [
+        { "code": "ESOMETHING", "message": "something went wrong" },
+        "/tmp/file.txt",
+        "write"
+      ],
+      "expected": "ESOMETHING: something went wrong"
+    },
+    {
+      "name": "error without code",
+      "input": [
+        { "message": "Generic error occurred" },
+        "/tmp/file.txt",
+        "write"
+      ],
+      "expected": "Generic error occurred"
+    },
+    {
+      "name": "error with no message or code",
+      "input": [
+        {},
+        "/tmp/file.txt",
+        "write"
+      ],
+      "expected": "Unknown error during write on '/tmp/file.txt'"
+    },
+    {
+      "name": "rename ENOENT error",
+      "input": [
+        { "code": "ENOENT", "message": "no such file or directory" },
+        "/tmp/source.txt",
+        "rename",
+        "/tmp/dest.txt"
+      ],
+      "expected": "ENOENT: no such file or directory, rename '/tmp/source.txt' -> '/tmp/dest.txt'"
+    },
+    {
+      "name": "rename EACCES error",
+      "input": [
+        { "code": "EACCES", "message": "permission denied" },
+        "/tmp/source.txt",
+        "rename",
+        "/root/dest.txt"
+      ],
+      "expected": "EACCES: permission denied, rename '/tmp/source.txt' -> '/root/dest.txt'"
+    }
+  ]
+}
+=== END FILE: ./test-data/unit/formatNodeError.cases.json ===
+
+=== START FILE: ./test-data/integration/file-operations.cases.md ===
+# File Operations Integration Tests
+
+**Status**: [PLANNED] - Preliminary test format, subject to change
+
+## file_write
+
+### 001-simple-file-create
+
+```sh sham
+#!SHAM [@three-char-SHA-256: abc]
+action = "file_write"
+path = "/tmp/test.txt"
+content = "Hello, World!"
+#!END_SHAM_abc
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/test.txt",
+    "bytesWritten": 13
+  }
+}
+```
+
+### 002-create-with-parent-dirs
+
+```sh sham
+#!SHAM [@three-char-SHA-256: pdr]
+action = "file_write"
+path = "/tmp/deeply/nested/dir/file.txt"
+content = "Creates parent directories"
+#!END_SHAM_pdr
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/deeply/nested/dir/file.txt",
+    "bytesWritten": 26,
+    "createdDirs": [
+      "/tmp/deeply",
+      "/tmp/deeply/nested", 
+      "/tmp/deeply/nested/dir"
+    ]
+  }
+}
+```
+
+
+### 004-write-with-special-characters
+
+```sh sham
+#!SHAM [@three-char-SHA-256: spc]
+action = "file_write"
+path = "/tmp/special-chars.txt"
+content = "Line with \"quotes\" and 'apostrophes'"
+#!END_SHAM_spc
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/special-chars.txt",
+    "bytesWritten": 36
+  }
+}
+```
+
+### 005-multiline-content
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mlt]
+action = "file_write"
+path = "/tmp/multiline.txt"
+content = <<'EOT_SHAM_mlt'
+Line 1
+Line 2
+Line 3
+EOT_SHAM_mlt
+#!END_SHAM_mlt
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/multiline.txt",
+    "bytesWritten": 20
+  }
+}
+```
+
+## file_delete
+
+### 006-delete-existing-file
+
+```sh sham
+#!SHAM [@three-char-SHA-256: del]
+action = "file_delete"
+path = "/tmp/to-delete.txt"
+#!END_SHAM_del
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/to-delete.txt"
+  }
+}
+```
+
+### 007-delete-nonexistent-file
+
+```sh sham
+#!SHAM [@three-char-SHA-256: dnf]
+action = "file_delete"
+path = "/tmp/does-not-exist.txt"
+#!END_SHAM_dnf
+```
+
+```json
+{
+  "success": false,
+  "error": "ENOENT: no such file or directory, unlink '/tmp/does-not-exist.txt'"
+}
+```
+
+## file_move
+
+### 008-move-file-simple
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mvs]
+action = "file_move"
+old_path = "/tmp/source.txt"
+new_path = "/tmp/destination.txt"
+#!END_SHAM_mvs
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "old_path": "/tmp/source.txt",
+    "new_path": "/tmp/destination.txt"
+  }
+}
+```
+
+### 009-move-file-to-new-directory
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mvd]
+action = "file_move"
+old_path = "/tmp/original.txt"
+new_path = "/tmp/new-dir/moved.txt"
+#!END_SHAM_mvd
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "old_path": "/tmp/original.txt",
+    "new_path": "/tmp/new-dir/moved.txt",
+    "createdDirs": ["/tmp/new-dir"]
+  }
+}
+```
+
+### 010-move-nonexistent-file
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mnf]
+action = "file_move"
+old_path = "/tmp/ghost.txt"
+new_path = "/tmp/nowhere.txt"
+#!END_SHAM_mnf
+```
+
+```json
+{
+  "success": false,
+  "error": "file_move: Source file not found '/tmp/ghost.txt' (ENOENT)"
+}
+```
+
+### 011-move-to-existing-file
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mef]
+action = "file_move"
+old_path = "/tmp/source-exists.txt"
+new_path = "/tmp/dest-exists.txt"
+#!END_SHAM_mef
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "old_path": "/tmp/source-exists.txt",
+    "new_path": "/tmp/dest-exists.txt",
+    "overwrote": true
+  }
+}
+```
+=== END FILE: ./test-data/integration/file-operations.cases.md ===
+
+=== START FILE: ./doc/API.md ===
+# Component: fs-ops
+
+## Component Type
+standard
+
+## Documentation Debt
+- [ ] Integration test format is preliminary [IMPLEMENTED]
+- [ ] Error handling strategy needs refinement
+- [ ] Consider batching operations for efficiency
+
+## Dependencies
+
+```yaml
+dependencies:
+  node:fs/promises:
+    functions: [writeFile, readFile, unlink, mkdir, rmdir, readdir, stat]
+    
+  node:path:
+    functions: [dirname, resolve, join]
+    
+  node:util:
+    functions: [promisify]
+    
+  node:child_process:
+    functions: [exec]  # for grep functionality
+```
+
+## Exports
+
+```yaml
+exports:
+  functions: [executeFileOperation]
+  types: [FileOpResult, FileOpError]
+```
+
+### executeFileOperation
+- **Signature**: `executeFileOperation(action: CladaAction) -> Promise<FileOpResult>`
+- **Purpose**: Execute file system operations from parsed SHAM actions
+- **Throws**: Never - all errors captured in FileOpResult
+- **Test-data**: `test-data/integration/file-operations.md` [PLANNED]
+
+### FileOpResult (type)
+```typescript
+interface FileOpResult {
+  success: boolean
+  data?: any           // Operation-specific return data
+  error?: string       // Error message if failed
+}
+```
+
+### FileOpError (type)
+```typescript
+interface FileOpError extends Error {
+  code: string         // e.g., 'ENOENT', 'EACCES'
+  path?: string        // File path involved
+  operation: string    // Which operation failed
+}
+```
+
+## Internal Functions
+
+### createFile
+- **Signature**: `createFile(path: string, content: string) -> Promise<void>`
+- **Purpose**: Create new file with content, creating parent directories as needed
+
+### writeFile  
+- **Signature**: `writeFile(path: string, content: string) -> Promise<void>`
+- **Purpose**: Overwrite existing file content
+
+### editFile
+- **Signature**: `editFile(path: string, oldText: string, newText: string, count?: number) -> Promise<number>`
+- **Purpose**: Replace text occurrences in file, returns replacement count
+
+### deleteFile
+- **Signature**: `deleteFile(path: string) -> Promise<void>`
+- **Purpose**: Remove file
+
+### moveFile
+- **Signature**: `moveFile(oldPath: string, newPath: string) -> Promise<void>`
+- **Purpose**: Move or rename file
+
+### readFileContent
+- **Signature**: `readFileContent(path: string) -> Promise<string>`
+- **Purpose**: Read file content as UTF-8 string
+
+### createDirectory
+- **Signature**: `createDirectory(path: string) -> Promise<void>`
+- **Purpose**: Create directory, including parent directories
+
+### deleteDirectory
+- **Signature**: `deleteDirectory(path: string) -> Promise<void>`
+- **Purpose**: Remove directory (must be empty)
+
+### listDirectory
+- **Signature**: `listDirectory(path: string) -> Promise<DirEntry[]>`
+- **Purpose**: List directory contents with metadata
+
+### searchFiles
+- **Signature**: `searchFiles(pattern: string, path: string, include?: string) -> Promise<GrepResult[]>`
+- **Purpose**: Search for pattern in files (grep-like)
+
+### globFiles
+- **Signature**: `globFiles(pattern: string, basePath: string) -> Promise<string[]>`
+- **Purpose**: Find files matching glob pattern
+
+## Action Mapping
+
+```typescript
+const actionHandlers = {
+  'file_write': writeFile,
+  'file_replace_text': editFile,
+  'file_delete': deleteFile,
+  'file_move': moveFile,
+  'file_read': readFileContent,
+  'dir_create': createDirectory,
+  'dir_delete': deleteDirectory,
+  'ls': listDirectory,
+  'grep': searchFiles,
+  'glob': globFiles
+}
+```
+=== END FILE: ./doc/API.md ===
+
+=== START FILE: ./doc/DESIGN_TEMP.md ===
+# fs-ops Design & Implementation Notes
+
+**Status**: TEMPORARY - Implementation planning document
+
+## Pseudocode for executeFileOperation
+
+```javascript
+async function executeFileOperation(action: CladaAction): Promise<FileOpResult> {
+  try {
+    // Get handler for action type
+    const handler = actionHandlers[action.action];
+    
+    if (!handler) {
+      return {
+        success: false,
+        error: `Unknown action: ${action.action}`
+      };
+    }
+    
+    // Call handler with action
+    return await handler(action);
+    
+  } catch (error) {
+    // This should never happen - handlers should catch their own errors
+    return {
+      success: false,
+      error: `Unexpected error in executeFileOperation: ${error.message}`
+    };
+  }
+}
+
+// Individual handlers extract params and call internal functions
+async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
+  const { path, content } = action.parameters;
+  
+  try {
+    
+    // Create parent directories if needed
+    const parentDir = dirname(path);
+    const createdDirs = await ensureDirectoryExists(parentDir);
+    
+    // Write file
+    const bytesWritten = await writeFileInternal(path, content);
+    
+    const result: FileOpResult = {
+      success: true,
+      data: {
+        path,
+        bytesWritten
+      }
+    };
+    
+    if (createdDirs.length > 0) {
+      result.data.createdDirs = createdDirs;
+    }
+    
+    return result;
+    
+  } catch (error) {
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'file_write')
+    };
+  }
+}
+```
+
+## Extracted Pure Functions Needed
+
+### Core File Operations
+- `writeFileInternal(path: string, content: string): Promise<number>` - Returns bytes written
+- `fileExists(path: string): Promise<boolean>` - Check if file exists
+- `ensureDirectoryExists(path: string): Promise<string[]>` - Creates dirs, returns created paths
+- `formatNodeError(error: any, path: string, operation: string): string` - Format Node errors consistently ✅
+
+### Path Utilities (Pure)
+- `getParentDirectory(path: string): string` - Extract parent dir from path ✅
+- `normalizePath(path: string): string` - Normalize path separators
+- `getCreatedDirectories(targetPath: string, existingPaths: Set<string>): string[]` - Determine which dirs were created
+
+### Content Utilities (Pure)
+- `getByteLength(content: string): number` - Calculate UTF-8 byte length ✅
+- `replaceText(content: string, oldText: string, newText: string, count?: number): {result: string, replacements: number}` - Replace text occurrences ✅
+
+### Directory Listing (Pure)
+- `formatDirEntry(name: string, stats: Stats): DirEntry` - Format stat info into our type
+
+## Implementation Progress
+
+### Completed Pure Functions
+1. ✅ `getParentDirectory` - Path extraction
+2. ✅ `getByteLength` - UTF-8 byte counting
+3. ✅ `replaceText` - Text replacement with count
+4. ✅ `formatNodeError` - Error message formatting
+
+## Implementation Order
+
+1. **Path utilities** (pure functions, easy to test)
+2. **Content utilities** (pure functions)
+3. **Core file operations** (async, need mocking for tests)
+4. **Action handlers** (integrate everything)
+
+## Error Handling Strategy
+
+- All internal functions throw native errors
+- Handlers catch and format errors into FileOpResult
+- Preserve original error codes (ENOENT, EACCES, etc.)
+- Add context about what operation was attempted
+
+## Test Data Structure Ideas
+
+For pure functions:
+```json
+{
+  "cases": [
+    {
+      "name": "extract parent from simple path",
+      "input": ["/tmp/test.txt"],
+      "expected": "/tmp"
+    }
+  ]
+}
+```
+
+For async functions (need to mock fs):
+```json
+{
+  "cases": [
+    {
+      "name": "file exists returns true",
+      "input": ["/tmp/exists.txt"],
+      "mockFs": {
+        "/tmp/exists.txt": "content"
+      },
+      "expected": true
+    }
+  ]
+}
+```
+
+## Notes
+
+- Integration tests show we need to handle:
+  - Creating parent directories automatically
+  - Proper error messages matching Node.js format
+  - Byte counting for content
+  - Permission errors
+=== END FILE: ./doc/DESIGN_TEMP.md ===
+
+=== START FILE: ./doc/TODO.md ===
+Ambiguous file_replace_text behavior:
+
+- What happens if old_text appears multiple times but count=1? Which occurrence gets replaced?
+    
+    this results in an error!
+
+What if old_text doesn't exist? Silent success or error?
+
+
+    error!
+=== END FILE: ./doc/TODO.md ===
+
+=== START FILE: ./doc/ABSTRACT.md ===
+# File System Operations
+
+Executes file and directory operations from parsed SHAM actions, providing consistent error handling and operation results for LLM feedback.
+
+## Overview
+
+The fs-ops component is the primary executor for file system operations in clada. It receives parsed CladaAction objects from the sham-action-parser and performs the requested file system operations, returning standardized results that include success status, operation-specific data, and detailed error information when operations fail.
+
+The component handles all file-related SHAM actions including file creation, editing, deletion, and reading, as well as directory operations and search functionality. It automatically handles common scenarios like creating parent directories for new files and provides detailed error messages that help the LLM understand why operations failed.
+
+Each operation is designed to be atomic and independent, with no shared state between operations. This ensures predictable behavior and makes it easy for the LLM to reason about the effects of each action.
+=== END FILE: ./doc/ABSTRACT.md ===
+
+=== START FILE: ./doc/ARCH.md ===
+# fs-ops Architecture
+
+## Design Philosophy
+
+**Defensive Operations with Clear Errors**: Every operation should handle common failure cases gracefully and return descriptive errors that help the LLM understand what went wrong.
+
+## Key Design Decisions
+
+### Parent Directory Creation
+- `file_write` automatically creates parent directories.  creates parent directory if it doesn't exist
+
+### Text Replacement Strategy  
+- Use exact string matching for `file_replace_text`
+- Count parameter limits replacements (default: 1)
+- Return actual number of replacements made
+- No regex support (keep it simple, predictable)
+
+### Error Handling
+- Never throw - return errors in result object
+- Include original error codes (ENOENT, EACCES)
+- Add context about what operation was attempted
+- Preserve stack traces for debugging
+
+### Path Resolution
+- All paths must be absolute (validated by parser)
+- No path traversal validation (security is out of scope for v1)
+- Symlinks followed transparently
+
+### Directory Operations
+- `dir_delete` only removes empty directories
+- No recursive deletion option (safety)
+- `ls` returns flat listing with type info
+
+### Search Operations
+- `grep` uses simple substring matching
+- Include patterns use glob syntax
+- Results include line numbers
+- Large file handling: streaming for files >10MB
+
+## Performance Considerations
+
+- File operations are synchronous from caller perspective
+- No caching of file contents
+- No watch/monitor capabilities
+- Each operation is independent
+
+## Encoding
+
+- All text files assumed UTF-8
+- Binary files not supported in v1
+- Line endings preserved as-is
+
+## Limits
+
+- Max file size: 10MB (from unified-design.yaml)
+- No limit on number of operations
+- No timeout on individual operations
+
+## Future Considerations
+
+- Batch operations for efficiency
+- Binary file support
+- File watching/monitoring
+- Atomic write operations (write to temp, rename)
+- Path validation against allowlist
+
+
+# fs-ops ARCH.md - Additional Sections
+
+## File Move Behavior
+
+### Overwrite Semantics
+- `file_move` overwrites existing destination files without warning
+- Matches Unix `mv` behavior and Node.js `rename()` semantics  
+- Rationale: LLM can check first if needed, but overwrite-by-default enables single-shot operations
+- Return data includes `overwrote: true` when destination existed
+
+### Directory Creation
+- `file_move` automatically creates parent directories for destination path
+- Diverges from standard `rename()` which fails with ENOENT
+- Rationale: Reduces LLM round-trips for common "move to new location" pattern
+- Return data includes `createdDirs` array when directories were created
+
+## Error Message Enhancement
+
+### Problem: Ambiguous ENOENT
+Node.js returns ENOENT for multiple distinct failures:
+- Source file doesn't exist
+- Destination directory doesn't exist  
+- Parent directory permissions (sometimes)
+
+### Solution: Pre-flight Checks
+Operations perform checks before system calls to provide specific errors:
+- `file_move`: Check source exists → "Source file not found" vs generic ENOENT
+- `file_write`: Already creates parent dirs, avoiding ambiguity
+- `file_delete`: Pass through Node errors (unambiguous)
+
+### Error Format
+When enhancing errors for LLM clarity:
+```
+{operation}: {specific_issue} '{path}' ({error_code})
+```
+
+Example: `file_move: Source file not found '/tmp/ghost.txt' (ENOENT)`
+=== END FILE: ./doc/ARCH.md ===
+
+=== START FILE: ./src/formatNodeError.ts ===
+/**
+ * Format Node.js filesystem errors into consistent error messages
+ * @param error - The error object from Node.js
+ * @param path - The file path involved in the operation
+ * @param operation - The operation that was attempted
+ * @returns Formatted error message string
+ */
+export function formatNodeError(error: any, path: string, operation: string, dest?: string): string {
+  // Node.js errors have a code property
+  if (error.code) {
+    switch (error.code) {
+      case 'ENOENT':
+        if (operation === 'rename' && dest) {
+          return `ENOENT: no such file or directory, rename '${path}' -> '${dest}'`;
+        }
+        return `ENOENT: no such file or directory, ${operation} '${path}'`;
+      case 'EEXIST':
+        return `EEXIST: file already exists, ${operation} '${path}'`;
+      case 'EACCES':
+        if (operation === 'rename' && dest) {
+          return `EACCES: permission denied, rename '${path}' -> '${dest}'`;
+        }
+        return `EACCES: permission denied, ${operation} '${path}'`;
+      case 'EISDIR':
+        return `EISDIR: illegal operation on a directory, ${operation} '${path}'`;
+      case 'ENOTDIR':
+        return `ENOTDIR: not a directory, ${operation} '${path}'`;
+      case 'ENOTEMPTY':
+        return `ENOTEMPTY: directory not empty, ${operation} '${path}'`;
+      default:
+        return `${error.code}: ${error.message}`;
+    }
+  }
+  
+  // Fallback for non-Node errors
+  return error.message || `Unknown error during ${operation} on '${path}'`;
+}
+=== END FILE: ./src/formatNodeError.ts ===
+
+=== START FILE: ./src/getParentDirectory.ts ===
+import { dirname, sep } from 'path';
+
+/**
+ * Extract parent directory from a file path
+ * Handles both Unix and Windows style paths
+ * @param filePath - Absolute path to file or directory
+ * @returns Parent directory path
+ */
+export function getParentDirectory(filePath: string): string {
+  // Check if it's a Windows path (C:\ or C:/)
+  const isWindowsPath = /^[A-Za-z]:[\\/]/.test(filePath);
+  
+  if (isWindowsPath) {
+    // Handle Windows paths manually
+    const normalized = filePath.replace(/\//g, '\\');
+    const lastSep = normalized.lastIndexOf('\\');
+    
+    // Handle root paths like C:\
+    if (lastSep <= 2) {
+      return normalized.substring(0, 3); // Return C:\ 
+    }
+    
+    return normalized.substring(0, lastSep);
+  }
+  
+  // Use native dirname for Unix paths
+  return dirname(filePath);
+}
+=== END FILE: ./src/getParentDirectory.ts ===
+
+=== START FILE: ./src/getByteLength.ts ===
+/**
+ * Calculate UTF-8 byte length of a string
+ * @param content - String content to measure
+ * @returns Number of bytes in UTF-8 encoding
+ */
+export function getByteLength(content: string): number {
+  return Buffer.byteLength(content, 'utf8');
+}
+=== END FILE: ./src/getByteLength.ts ===
+
+=== START FILE: ./src/fileSystemUtils.ts ===
+import { writeFile, mkdir, stat } from 'fs/promises';
+import { dirname } from 'path';
+
+/**
+ * Check if a file or directory exists
+ * @param path - File or directory path to check
+ * @returns true if exists, false otherwise
+ */
+export async function fileExists(path: string): Promise<boolean> {
+  try {
+    await stat(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Create directory and all parent directories if they don't exist
+ * @param dirPath - Directory path to create
+ * @returns Array of directories that were created (not those that already existed)
+ */
+export async function ensureDirectoryExists(dirPath: string): Promise<string[]> {
+  const created: string[] = [];
+  const parts = dirPath.split('/').filter(Boolean);
+  
+  // Handle root for Unix paths
+  let currentPath = dirPath.startsWith('/') ? '' : '.';
+  
+  for (const part of parts) {
+    currentPath = currentPath + '/' + part;
+    
+    try {
+      await mkdir(currentPath);
+      created.push(currentPath);
+    } catch (err: any) {
+      // EEXIST is fine - directory already exists
+      if (err.code !== 'EEXIST') {
+        throw err;
+      }
+    }
+  }
+  
+  return created;
+}
+
+/**
+ * Write file content and return number of bytes written
+ * @param path - File path to write to
+ * @param content - Content to write (UTF-8)
+ * @returns Number of bytes written
+ */
+export async function writeFileInternal(path: string, content: string): Promise<number> {
+  await writeFile(path, content, 'utf8');
+  return Buffer.byteLength(content, 'utf8');
+}
+=== END FILE: ./src/fileSystemUtils.ts ===
+
+=== START FILE: ./src/replaceText.ts ===
+/**
+ * Replace occurrences of text in content with optional count limit
+ * @param content - Original content
+ * @param oldText - Text to find and replace
+ * @param newText - Replacement text
+ * @param count - Maximum replacements (default: replace all)
+ * @returns Object with result string and number of replacements made
+ */
+export function replaceText(
+  content: string, 
+  oldText: string, 
+  newText: string, 
+  count?: number
+): { result: string; replacements: number } {
+  if (oldText === '') {
+    return { result: content, replacements: 0 };
+  }
+
+  let result = content;
+  let replacements = 0;
+  let startIndex = 0;
+
+  while (true) {
+    const index = result.indexOf(oldText, startIndex);
+    if (index === -1) break;
+    
+    if (count !== undefined && replacements >= count) break;
+    
+    result = result.slice(0, index) + newText + result.slice(index + oldText.length);
+    startIndex = index + newText.length;
+    replacements++;
+  }
+
+  return { result, replacements };
+}
+=== END FILE: ./src/replaceText.ts ===
+
+=== START FILE: ./src/index.ts ===
+/**
+ * fs-ops - File system operations executor for clada
+ * 
+ * Handles all file and directory operations from parsed SHAM actions
+ */
+
+import type { CladaAction } from '../../sham-action-parser/src/index.js';
+import { formatNodeError } from './formatNodeError.js';
+import { getParentDirectory } from './getParentDirectory.js';
+import { fileExists, ensureDirectoryExists, writeFileInternal } from './fileSystemUtils.js';
+
+export interface FileOpResult {
+  success: boolean;
+  data?: any;
+  error?: string;
+}
+
+export class FileOpError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public path?: string,
+    public operation?: string
+  ) {
+    super(message);
+    this.name = 'FileOpError';
+  }
+}
+
+/**
+ * Execute a file system operation from a parsed SHAM action
+ * Never throws - all errors returned in result
+ */
+export async function executeFileOperation(action: CladaAction): Promise<FileOpResult> {
+  try {
+    const handler = actionHandlers[action.action];
+    
+    if (!handler) {
+      return {
+        success: false,
+        error: `Unknown action: ${action.action}`
+      };
+    }
+    
+    return await handler(action);
+    
+  } catch (error: any) {
+    // This should never happen - handlers should catch their own errors
+    return {
+      success: false,
+      error: `Unexpected error in executeFileOperation: ${error.message}`
+    };
+  }
+}
+
+/**
+ * Handle file_write action - writes/creates/overwrites a file with content
+ * Automatically creates parent directories if needed
+ */
+async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
+  const { path, content } = action.parameters;
+  
+  try {
+    
+    // Create parent directories if needed
+    const parentDir = getParentDirectory(path);
+    const createdDirs = await ensureDirectoryExists(parentDir);
+    
+    // Write file
+    const bytesWritten = await writeFileInternal(path, content);
+    
+    const result: FileOpResult = {
+      success: true,
+      data: {
+        path,
+        bytesWritten
+      }
+    };
+    
+    // Add createdDirs only if we actually created any
+    if (createdDirs.length > 0) {
+      result.data.createdDirs = createdDirs;
+    }
+    
+    return result;
+    
+  } catch (error: any) {
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'file_write')
+    };
+  }
+}
+
+// Internal function stubs for each operation
+
+async function createFile(path: string, content: string): Promise<void> {
+  throw new Error('Not implemented');
+}
+
+async function writeFile(path: string, content: string): Promise<void> {
+  throw new Error('Not implemented');
+}
+
+async function replaceTextInFile(path: string, oldText: string, newText: string, count?: number): Promise<number> {
+  throw new Error('Not implemented');
+}
+
+async function deleteFile(path: string): Promise<void> {
+  throw new Error('Not implemented');
+}
+
+async function moveFile(oldPath: string, newPath: string): Promise<void> {
+  throw new Error('Not implemented');
+}
+
+async function readFileContent(path: string): Promise<string> {
+  throw new Error('Not implemented');
+}
+
+async function createDirectory(path: string): Promise<void> {
+  throw new Error('Not implemented');
+}
+
+async function deleteDirectory(path: string): Promise<void> {
+  throw new Error('Not implemented');
+}
+
+interface DirEntry {
+  name: string;
+  type: 'file' | 'directory';
+  size: number;
+  modified: Date;
+}
+
+async function listDirectory(path: string): Promise<DirEntry[]> {
+  throw new Error('Not implemented');
+}
+
+interface GrepResult {
+  file: string;
+  line_number: number;
+  line: string;
+}
+
+async function searchFiles(pattern: string, path: string, include?: string): Promise<GrepResult[]> {
+  throw new Error('Not implemented');
+}
+
+async function globFiles(pattern: string, basePath: string): Promise<string[]> {
+  throw new Error('Not implemented');
+}
+
+// Action handler mapping
+const actionHandlers: Record<string, (action: CladaAction) => Promise<FileOpResult>> = {
+  'file_write': handleFileWrite,
+  'file_replace_text': async (action) => {
+    return { success: false, error: 'Not implemented' };
+  },
+  'file_delete': async (action) => {
+    return { success: false, error: 'Not implemented' };
+  },
+  'file_move': async (action) => {
+    return { success: false, error: 'Not implemented' };
+  },
+  'file_read': async (action) => {
+    return { success: false, error: 'Not implemented' };
+  },
+  'dir_create': async (action) => {
+    return { success: false, error: 'Not implemented' };
+  },
+  'dir_delete': async (action) => {
+    return { success: false, error: 'Not implemented' };
+  },
+  'ls': async (action) => {
+    return { success: false, error: 'Not implemented' };
+  },
+  'grep': async (action) => {
+    return { success: false, error: 'Not implemented' };
+  },
+  'glob': async (action) => {
+    return { success: false, error: 'Not implemented' };
+  }
+};
+=== END FILE: ./src/index.ts ===

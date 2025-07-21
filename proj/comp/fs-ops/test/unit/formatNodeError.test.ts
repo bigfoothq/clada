@@ -10,7 +10,7 @@ const testData = JSON.parse(
 describe('formatNodeError', () => {
   testData.cases.forEach(({ name, input, expected }) => {
     it(name, () => {
-      const result = formatNodeError(...input);
+      const result = formatNodeError(input[0], input[1], input[2], input[3]);
       expect(result).toEqual(expected);
     });
   });

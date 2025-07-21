@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { readFileSync, rmSync, existsSync } from 'fs';
+import { readFileSync, rmSync, existsSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { marked, Token } from 'marked';
 import { parseShamResponse } from '../../../sham-action-parser/src/index.js';
@@ -21,7 +21,18 @@ const testPaths = [
   '/tmp/test.txt',
   '/tmp/deeply',
   '/tmp/existing.txt',
-  '/tmp/multiline.txt'
+  '/tmp/multiline.txt',
+  '/tmp/to-delete.txt',
+  '/tmp/does-not-exist.txt',
+  '/tmp/source.txt',
+  '/tmp/destination.txt',
+  '/tmp/original.txt',
+  '/tmp/new-dir',
+  '/tmp/ghost.txt',
+  '/tmp/nowhere.txt',
+  '/tmp/source-exists.txt',
+  '/tmp/dest-exists.txt',
+  '/tmp/moveable.txt'
 ];
 
 describe('fs-ops integration tests', () => {
@@ -49,11 +60,26 @@ describe('fs-ops integration tests', () => {
       const shamInput = codeBlocks[baseIndex].text;
       const expectedOutput = JSON.parse(codeBlocks[baseIndex + 1].text);
       
-      // Set up test preconditions
+      // Set up test preconditions based on test name
       if (name === '003-file-already-exists') {
         // Create the file that should already exist
-        const { writeFileSync } = await import('fs');
         writeFileSync('/tmp/existing.txt', 'This file already exists');
+      } else if (name === '006-delete-existing-file') {
+        // Create file to be deleted
+        writeFileSync('/tmp/to-delete.txt', 'This file will be deleted');
+      } else if (name === '009-move-file-simple') {
+        // Create source file to be moved
+        writeFileSync('/tmp/source.txt', 'Content to move');
+      } else if (name === '010-move-file-to-new-directory') {
+        // Create file to move to new directory
+        writeFileSync('/tmp/original.txt', 'Moving to new directory');
+      } else if (name === '012-move-to-existing-file') {
+        // Create both source and destination files
+        writeFileSync('/tmp/source-exists.txt', 'Source content');
+        writeFileSync('/tmp/dest-exists.txt', 'Will be overwritten');
+      } else if (name === '014-move-permission-denied-destination') {
+        // Create source file
+        writeFileSync('/tmp/moveable.txt', 'Content to move');
       }
       
       // Parse SHAM to get actions

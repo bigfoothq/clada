@@ -1,3 +1,266 @@
+=== START FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/index.ts ===
+/**
+ * SHAM Action Parser - Parses SHAM blocks into validated clada actions
+ */
+
+import { ParseResult, CladaAction, ParseError, ValidationResult, TransformError, ActionDefinition } from './types.js';
+import { validateShamBlock } from './validateShamBlock.js';
+import { transformToAction } from './transformToAction.js';
+import { parseSham, type Block, type ParseResult as NeslParseResult } from 'nesl-js';
+import { load as loadYaml } from 'js-yaml';
+import { readFile } from 'fs/promises';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+// Re-export types for consumers
+export { ParseResult, CladaAction, ParseError, ValidationResult, TransformError };
+
+// Cache for action schema
+let actionSchemaCache: Map<string, ActionDefinition> | null = null;
+
+/**
+ * Clear the action schema cache - useful for testing
+ * Forces reload of unified-design.yaml on next parse
+ */
+export function clearActionSchemaCache(): void {
+  actionSchemaCache = null;
+}
+
+/**
+ * Parse SHAM blocks from text into validated clada actions
+ * Processes all blocks, collecting successes and errors
+ */
+export async function parseShamResponse(shamText: string): Promise<ParseResult> {
+  const actions: CladaAction[] = [];
+  const errors: ParseError[] = [];
+
+  // Parse SHAM blocks using nesl-js
+  let parseResult: NeslParseResult;
+  try {
+   
+    parseResult = parseSham(shamText);
+    
+    // Handle case where parseSham returns undefined or null
+    if (!parseResult) {
+      parseResult = { blocks: [], errors: [] };
+    }
+  } catch (error) {
+    return {
+      actions: [],
+      errors: [{
+        blockId: 'unknown',
+        errorType: 'syntax',
+        message: `Failed to parse SHAM: ${error}`,
+        shamContent: shamText
+      }],
+      summary: {
+        totalBlocks: 0,
+        successCount: 0,
+        errorCount: 1
+      }
+    };
+  }
+
+  // Process syntax errors from nesl-js parser
+  if (parseResult.errors && parseResult.errors.length > 0) {
+    for (const parseError of parseResult.errors) {
+      // Find the block this error belongs to
+      const block = parseResult.blocks?.find(b => b.id === parseError.blockId);
+      
+      errors.push({
+        blockId: parseError.blockId || 'unknown',
+        action: block?.properties?.action,
+        errorType: 'syntax',
+        message: parseError.message,
+        blockStartLine: block?.startLine || parseError.line,
+        shamContent: parseError.context 
+          ? `#!SHAM [@three-char-SHA-256: ${parseError.blockId}]\n${parseError.context}`.trimEnd()
+          : reconstructShamBlock(block || { id: parseError.blockId, properties: {} })
+      });
+    }
+  }
+
+  // Load action schema
+  const actionSchema = await loadActionSchema();
+
+  // Process each SHAM block
+  const blocks = parseResult.blocks || [];
+  
+  // If no blocks found, return empty result
+  if (blocks.length === 0) {
+    return {
+      actions: [],
+      errors: [],
+      summary: {
+        totalBlocks: 0,
+        successCount: 0,
+        errorCount: 0
+      }
+    };
+  }
+  
+  // Track blocks with syntax errors to skip them
+  const blocksWithSyntaxErrors = new Set(
+    parseResult.errors?.map(e => e.blockId) || []
+  );
+  
+  for (const block of blocks) {
+    const blockId = block.id || 'unknown';
+    
+    // Skip blocks that already have syntax errors
+    if (blocksWithSyntaxErrors.has(blockId)) {
+      continue;
+    }
+    
+    try {
+      // Get action type from block
+      const actionType = block.properties?.action;
+      const actionDef = actionType ? actionSchema.get(actionType) : undefined;
+
+      // Debug: trace the lookup
+      if (actionType === 'files_read') {
+        console.log('DEBUG files_read lookup:');
+        console.log('  actionType:', actionType, typeof actionType);
+        console.log('  actionSchema has files_read:', actionSchema.has('files_read'));
+        console.log('  actionDef:', actionDef);
+        console.log('  all keys:', Array.from(actionSchema.keys()));
+      }
+
+      // Validate block
+      const validation = validateShamBlock(block, actionDef ?? null);
+      
+      if (!validation.valid) {
+        errors.push({
+          blockId,
+          action: actionType,
+          errorType: 'validation',
+          message: validation.errors?.[0] || 'Validation failed',
+          blockStartLine: block.startLine,
+          shamContent: reconstructShamBlock(block)
+        });
+        continue;
+      }
+
+      // Transform to action
+      try {
+        const action = transformToAction(block, actionDef!);
+        actions.push(action);
+      } catch (error) {
+        if (error instanceof TransformError) {
+          errors.push({
+            blockId,
+            action: actionType,
+            errorType: 'type',
+            message: error.message,
+            blockStartLine: block.startLine,
+            shamContent: reconstructShamBlock(block)
+          });
+        } else {
+          throw error;
+        }
+      }
+    } catch (error) {
+      errors.push({
+        blockId,
+        action: block.properties?.action,
+        errorType: 'validation',
+        message: `Unexpected error: ${error}`,
+        blockStartLine: block.startLine,
+        shamContent: reconstructShamBlock(block)
+      });
+    }
+  }
+
+  const result = {
+    actions,
+    errors,
+    summary: {
+      totalBlocks: blocks.length,
+      successCount: actions.length,
+      errorCount: errors.length
+    }
+  };
+  return result;
+}
+
+/**
+ * Load and cache action definitions from unified-design.yaml
+ */
+async function loadActionSchema(): Promise<Map<string, ActionDefinition>> {
+ 
+  if (actionSchemaCache) {
+    return actionSchemaCache;
+  }
+
+  // Get the directory of this module
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  
+  // Navigate to project root and find unified-design.yaml
+  const yamlPath = join(__dirname, '../../../../unified-design.yaml');
+  
+  try {
+    // Add timeout to file read operation
+    const yamlContent = await Promise.race([
+      readFile(yamlPath, 'utf8'),
+      new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('YAML read timeout')), 5000)
+      )
+    ]);
+    const design = loadYaml(yamlContent) as any;
+    
+    actionSchemaCache = new Map();
+    
+    // Extract tool definitions
+    if (design.tools) {
+      for (const [toolName, toolDef] of Object.entries(design.tools)) {
+        actionSchemaCache.set(toolName, toolDef as ActionDefinition);
+      }
+    }
+    
+    // Debug: log what actions were loaded
+    console.log('Loaded actions from unified-design.yaml:', Array.from(actionSchemaCache.keys()));
+    
+    return actionSchemaCache;
+  } catch (error) {
+    throw new Error(`Failed to load unified-design.yaml: ${error}`);
+  }
+}
+
+/**
+ * Reconstruct SHAM block text for error context
+ */
+function reconstructShamBlock(block: Block): string {
+  const lines: string[] = [];
+  
+  // Start line
+  lines.push(`#!SHAM [@three-char-SHA-256: ${block.id || 'unknown'}]`);
+  
+  // Properties
+  for (const [key, value] of Object.entries(block.properties || {})) {
+    if (key.startsWith('@')) continue; // Skip annotations
+    
+    if (typeof value === 'string' && value.includes('\n')) {
+      // Multi-line value with heredoc
+      lines.push(`${key} = <<'EOT_SHAM_${block.id}'`);
+      lines.push(value);
+      lines.push(`EOT_SHAM_${block.id}`);
+    } else {
+      // Single line value - use JSON.stringify to handle quotes properly
+      lines.push(`${key} = ${JSON.stringify(value)}`);
+    }
+  }
+  
+  // End line
+  lines.push(`#!END_SHAM_${block.id || 'unknown'}`);
+  
+  return lines.join('\n');
+}
+
+// Re-export functions for consumers
+export { validateShamBlock, transformToAction };
+=== END FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/index.ts ===
+
 === START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts ===
 /**
  * fs-ops - File system operations executor for clada
@@ -37,6 +300,14 @@ export class FileOpError extends Error {
 export async function executeFileOperation(action: CladaAction): Promise<FileOpResult> {
   try {
     const handler = actionHandlers[action.action];
+    
+    // Debug: log what's happening with files_read
+    if (action.action === 'files_read') {
+      console.log('DEBUG executeFileOperation:');
+      console.log('  action.action:', action.action);
+      console.log('  handler exists:', !!handler);
+      console.log('  available handlers:', Object.keys(actionHandlers));
+    }
     
     if (!handler) {
       return {
@@ -186,6 +457,71 @@ async function handleFileRead(action: CladaAction): Promise<FileOpResult> {
       error: formatNodeError(error, path, 'open')
     };
   }
+}
+
+/**
+ * Handle files_read action - reads multiple files and concatenates with delimiters
+ * Parses multi-line paths parameter, one absolute path per line
+ * Returns concatenated content with === /path/to/file === delimiters
+ */
+async function handleFilesRead(action: CladaAction): Promise<FileOpResult> {
+  const { paths } = action.parameters;
+  
+  // Parse the multi-line paths string
+  const pathList = paths
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0);  // Remove empty lines
+  
+  if (pathList.length === 0) {
+    return {
+      success: false,
+      error: 'files_read: No paths provided'
+    };
+  }
+  
+  // Read all files, collecting content and errors
+  const results: Array<{ path: string; content?: string; error?: string }> = [];
+  
+  for (const filePath of pathList) {
+    try {
+      const content = await readFile(filePath, 'utf8');
+      results.push({ path: filePath, content });
+    } catch (error: any) {
+      // Collect error for this file
+      const errorMsg = formatNodeError(error, filePath, 'open');
+      results.push({ path: filePath, error: errorMsg });
+    }
+  }
+  
+  // Check if any files failed to read
+  const failedFiles = results.filter(r => r.error);
+  if (failedFiles.length > 0) {
+    // Return error listing all failed files
+    const errorDetails = failedFiles
+      .map(f => `  ${f.path}: ${f.error}`)
+      .join('\n');
+    return {
+      success: false,
+      error: `files_read: Failed to read ${failedFiles.length} file(s):\n${errorDetails}`
+    };
+  }
+  
+  // All files read successfully - concatenate with delimiters
+  const concatenated = results
+    .map(r => {
+      const header = `=== ${r.path} ===`;
+      return `${header}\n${r.content}`;
+    })
+    .join('\n\n');
+  
+  return {
+    success: true,
+    data: {
+      paths: pathList,
+      content: concatenated
+    }
+  };
 }
 
 /**
@@ -395,6 +731,7 @@ const actionHandlers: Record<string, (action: CladaAction) => Promise<FileOpResu
   'file_delete': handleFileDelete,
   'file_move': handleFileMove,
   'file_read': handleFileRead,
+  'files_read': handleFilesRead,
   'dir_create': async (action) => {
     return { success: false, error: 'Not implemented' };
   },
@@ -413,2230 +750,683 @@ const actionHandlers: Record<string, (action: CladaAction) => Promise<FileOpResu
 };
 === END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts ===
 
-=== START FILE: /Users/stuart/repos/clada/unified-design.yaml ===
-# AI Coder Tools Schema - Unified Design
+=== START FILE: /Users/stuart/repos/clada/proj/src/index.ts ===
+import type { CladaAction, ParseResult, ParseError } from '../comp/sham-action-parser/src/index.js';
+import { parseShamResponse } from '../comp/sham-action-parser/src/index.js';
+import type { FileOpResult } from '../comp/fs-ops/src/index.js';
 
-# Clada executes filesystem and runtime commands embedded in LLM output using SHAM syntax. It provides deterministic filesystem access and shell command execution for LLM coding agents.
-
-# SHAM syntax example:
-
-SHAM_synatx_example: |
-  ```sh sham
-  #!SHAM [@three-char-SHA-256: k7m]
-  action = "file_write"
-  path = "/tmp/\"hello\".txt"
-  content = <<'EOT_SHAM_k7m'
-  Hello world!
-  how are you?
-  EOT_SHAM_k7m
-  #!END_SHAM_k7m
-  ```
-
-
-tools:
-  # File Operations
-  file_write:
-    type: write
-    description: Create new file while creating any necessary parent dirs. overwrites if already exists
-    accessibility: [llm]
-    parameters:
-      path: {type: string, required: true, format: absolute_path}
-      content: {type: string, required: true}
-    returns: {success: boolean, error?: string}
-    
-  file_replace_text:
-    type: write
-    description: Replace first and only instance of substring in file. must exist only once
-    accessibility: [llm]
-    parameters:
-      path: {type: string, required: true, format: absolute_path}
-      old_text: {type: string, required: true}
-      new_text: {type: string, required: true}
-    returns: {success: boolean, replacements_made?: integer, error?: string}
-    
-  file_replace_all_text:
-    type: write
-    description: Replace each matching substring in file.  Number of matches (count) should usually be known and declared ahead of time.
-    accessibility: [llm]
-    parameters:
-      path: {type: string, required: true, format: absolute_path}
-      old_text: {type: string, required: true}
-      new_text: {type: string, required: true}
-      count: {type: integer, required: false}
-    returns: {success: boolean, replacements_made?: integer, error?: string}
-    
-  file_append:
-    type: write
-    description: Append to file
-    accessibility: [llm]
-    parameters:
-      path: {type: string, required: true, format: absolute_path}
-      content: {type: string, required: true}
-    returns: {success: boolean, error?: string}
-    
-  file_delete:
-    type: write
-    description: Delete file
-    accessibility: [llm]
-    parameters:
-      path: {type: string, required: true, format: absolute_path}
-    returns: {success: boolean, error?: string}
-    
-  file_move:
-    type: write
-    description: Move/rename file
-    accessibility: [llm]
-    parameters:
-      old_path: {type: string, required: true, format: absolute_path}
-      new_path: {type: string, required: true, format: absolute_path}
-    returns: {success: boolean, error?: string}
-    
-  file_read:
-    type: read
-    description: Read and concatenate contents of multiple files into a single string, with clear file delimiters
-    accessibility: [llm]
-    parameters:
-      paths: {
-        type: string, 
-        required: true, 
-        format: "multiline_absolute_paths",
-        description: "One absolute file path per line. Empty lines are ignored."
-      }
-    returns: {
-      success: boolean, 
-      content?: string,  # Files concatenated with headers like "=== /path/to/file.txt ==="
-      error?: string
-    }  
-    example: |
-      paths: |
-        /home/user/projects/src/main.py
-        /home/user/projects/src/utils.py
-        /home/user/projects/README.md
-    
-  # Directory Operations
-  dir_create:
-    type: write
-    description: Create directory
-    accessibility: [llm]
-    parameters:
-      path: {type: string, required: true, format: absolute_path}
-    returns: {success: boolean, error?: string}
-    
-  dir_delete:
-    type: write
-    description: Delete directory
-    accessibility: [llm]
-    parameters:
-      path: {type: string, required: true, format: absolute_path}
-    returns: {success: boolean, error?: string}
-    
-  # Read Operations
-  ls:
-    type: read
-    description: List directory contents
-    accessibility: [llm]
-    parameters:
-      path: {type: string, required: true, format: absolute_path}
-    returns: 
-      success: boolean
-      data:
-        type: array
-        items:
-          name: string
-          type: string  # file|directory
-          size: integer
-          modified: timestamp
-      error: string
-    
-  grep:
-    type: read
-    description: Search pattern in files
-    accessibility: [llm]
-    parameters:
-      pattern: {type: string, required: true}
-      path: {type: string, required: true, format: absolute_path}
-      include: {type: string, required: false}
-    returns: 
-      success: boolean
-      data:
-        type: array
-        items:
-          file: string
-          line_number: integer
-          line: string
-      error: string
-    
-  glob:
-    type: read
-    description: Find files matching pattern
-    accessibility: [llm]
-    parameters:
-      pattern: {type: string, required: true}
-      base_path: {type: string, required: true, format: absolute_path}
-    returns: 
-      success: boolean
-      data:
-        type: array
-        items: string
-      error: string
-    
-  # Execution
-  exec:
-    type: dynamic
-    description: Execute code
-    accessibility: [llm]
-    parameters:
-      code: {type: string, required: true}
-      lang: {type: enum, values: [python, javascript, bash, ruby], required: true}
-      version: {type: string, required: false}
-      cwd: {type: string, required: false, format: absolute_path}
-    returns: {success: boolean, stdout?: string, stderr?: string, exit_code?: integer, error?: string}
-
-  # Context Operations -- for much later.  dont do this until clada has been integrated into bigfoot, the ai llm coder
-  context_add:
-    type: meta
-    description: Add item to working context (persistent)
-    accessibility: [llm, user]
-    parameters:
-      path: {type: string, required: true, format: absolute_path}
-    returns: {success: boolean, error?: string}
-      
-  context_remove:
-    type: meta
-    description: Remove item from working context
-    accessibility: [llm, user]
-    parameters:
-      path: {type: string, required: true, format: absolute_path}
-    returns: {success: boolean, error?: string}
-      
-  context_list:
-    type: meta
-    description: List items in working context
-    accessibility: [llm, user]
-    parameters: {}
-    returns: 
-      success: boolean
-      data:
-        type: array
-        items:
-          path: string
-          size: integer
-      error: string
-    
-  context_prune:
-    type: meta
-    description: Remove unused items from working context
-    accessibility: [llm, user]
-    parameters: {}
-    returns: {success: boolean, removed?: array of strings, error?: string}
-    
-  context_clear:
-    type: meta
-    description: Clear all working context items
-    accessibility: [llm, user]
-    parameters: {}
-    returns: {success: boolean, error?: string}
-    
-  # Git Operations
-  git_squash:
-    type: git
-    description: Squash commits
-    slash_command: true
-    parameters:
-      mode: {type: enum, values: [auto_ai, ai_messages, hours, days, contiguous_only=true, msg_contains], required: true}
-      message: {type: string, required: false}
-      hours: {type: integer, required: false, when: "mode=hours"}
-      days: {type: integer, required: false, when: "mode=days"}
-      msg_target: {type: string, required: false, when: "mode=msg_contains"}
-    returns: {success: boolean, error?: string}
-      
-  undo:
-    type: git
-    description: Undo last AI changes
-    accessibility: [user]
-    constraints: ["No changes since last AI operation"]
-    parameters: {}
-    returns: {success: boolean, error?: string}
-    
-  git_step_back:
-    type: git
-    description: Move to previous commit
-    accessibility: [user]
-    behavior: Stashes untracked changes
-    parameters: {}
-    returns: {success: boolean, stashed_files?: array of strings, error?: string}
-    
-  git_step_forward:
-    type: git
-    description: Move to next commit
-    accessibility: [user]
-    behavior: Attempts to pop stashed changes
-    parameters: {}
-    returns: {success: boolean, conflicts?: array of strings, error?: string}
-
-# Transaction Management
-transaction_model:
-  strategy: operation_group
-  conflict_detection:
-    methods:
-      - mtime comparison (fast but unreliable)
-      - checksum comparison (slower but accurate)
-      - git status check (catches git-tracked changes)
-    timing:
-      - Check immediately before operation group
-      - Check after each write operation
-      - Final check before commit
-  implementation:
-    - Begin: git commit current state
-    - Execute: track all operations
-    - Validate: check for external modifications
-    - Success: git commit with summary
-    - Failure: git reset --hard to start
-  atomicity: none  # Git operations are NOT atomic at filesystem level
-  
-# Security Model
-security:
-  path_validation:
-    type: allowlist
-    allowed_roots:
-      - /home/user/projects
-      - /tmp/ai-coder
-    blacklist_patterns:
-      - .*\.ssh.*
-      - .*\.git/config
-      - /etc/.*
-      - /sys/.*
-      - /proc/.*
-  canonicalization: required  # Resolve ../ and symlinks before checking
-  
-# System Configuration
-config:
-  encoding: utf-8
-  line_endings: preserve  # Don't normalize
-  max_file_size: 10485760  # 10MB
-  git_auto_push: false  # Require explicit push
-  commit_message_format: "AI: {operation_summary}"
-
-TODO: |   
-  Transaction Safety: The git-based transaction model has race conditions:
-
-    Gap between "git commit" and first operation
-    Non-atomic filesystem ops vs git state
-=== END FILE: /Users/stuart/repos/clada/unified-design.yaml ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test-data/integration/file-operations.cases.md ===
-# File Operations Integration Tests
-
-**Status**: [PLANNED] - Preliminary test format, subject to change
-
-## file_write
-
-### 001-simple-file-create
-
-```sh sham
-#!SHAM [@three-char-SHA-256: abc]
-action = "file_write"
-path = "/tmp/test.txt"
-content = "Hello, World!"
-#!END_SHAM_abc
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "path": "/tmp/test.txt",
-    "bytesWritten": 13
-  }
+export interface ExecutionResult {
+  success: boolean;
+  totalBlocks: number;
+  executedActions: number;
+  results: ActionResult[];
+  parseErrors: ParseError[];
+  fatalError?: string;
 }
-```
 
-### 002-create-with-parent-dirs
-
-```sh sham
-#!SHAM [@three-char-SHA-256: pdr]
-action = "file_write"
-path = "/tmp/deeply/nested/dir/file.txt"
-content = "Creates parent directories"
-#!END_SHAM_pdr
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "path": "/tmp/deeply/nested/dir/file.txt",
-    "bytesWritten": 26
-  }
+export interface ActionResult {
+  seq: number;
+  blockId: string;
+  action: string;
+  params: Record<string, any>;
+  success: boolean;
+  error?: string;
+  data?: any;
 }
-```
 
-
-### 003-write-with-special-characters
-
-```sh sham
-#!SHAM [@three-char-SHA-256: spc]
-action = "file_write"
-path = "/tmp/special-chars.txt"
-content = "Line with \"quotes\" and 'apostrophes'"
-#!END_SHAM_spc
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "path": "/tmp/special-chars.txt",
-    "bytesWritten": 36
-  }
+export interface CladaOptions {
+  repoPath?: string;
+  gitCommit?: boolean;
 }
-```
 
-### 004-multiline-content
-
-```sh sham
-#!SHAM [@three-char-SHA-256: mlt]
-action = "file_write"
-path = "/tmp/multiline.txt"
-content = <<'EOT_SHAM_mlt'
-Line 1
-Line 2
-Line 3
-EOT_SHAM_mlt
-#!END_SHAM_mlt
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "path": "/tmp/multiline.txt",
-    "bytesWritten": 20
-  }
-}
-```
-
-## file_delete
-
-### 001-delete-existing-file
-
-```sh sham
-#!SHAM [@three-char-SHA-256: del]
-action = "file_delete"
-path = "/tmp/to-delete.txt"
-#!END_SHAM_del
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "path": "/tmp/to-delete.txt"
-  }
-}
-```
-
-### 002-delete-nonexistent-file
-
-```sh sham
-#!SHAM [@three-char-SHA-256: dnf]
-action = "file_delete"
-path = "/tmp/does-not-exist.txt"
-#!END_SHAM_dnf
-```
-
-```json
-{
-  "success": false,
-  "error": "ENOENT: no such file or directory, unlink '/tmp/does-not-exist.txt'"
-}
-```
-
-## file_replace_text
-
-### 001-simple-text-replacement
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rpl]
-action = "file_replace_text"
-path = "/tmp/replace-test.txt"
-old_text = "Hello"
-new_text = "Goodbye"
-#!END_SHAM_rpl
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "path": "/tmp/replace-test.txt",
-    "replacements": 1
-  }
-}
-```
-
-### 002-replace-with-count-limit
-
-```sh sham
-#!SHAM [@three-char-SHA-256: cnt]
-action = "file_replace_all_text"
-path = "/tmp/multi-replace.txt"
-old_text = "foo"
-new_text = "bar"
-count = "2"
-#!END_SHAM_cnt
-```
-
-```json
-{
-  "success": false,
-  "error": "file_replace_all_text: expected 2 occurrences but found 4"
-}
-```
-
-### 003-replace-text-not-found
-
-```sh sham
-#!SHAM [@three-char-SHA-256: nfr]
-action = "file_replace_text"
-path = "/tmp/no-match.txt"
-old_text = "nonexistent"
-new_text = "replacement"
-#!END_SHAM_nfr
-```
-
-```json
-{
-  "success": false,
-  "error": "file_replace_text: old_text not found in file"
-}
-```
-
-### 004-replace-in-nonexistent-file
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rnf]
-action = "file_replace_text"
-path = "/tmp/does-not-exist-replace.txt"
-old_text = "text"
-new_text = "other"
-#!END_SHAM_rnf
-```
-
-```json
-{
-  "success": false,
-  "error": "ENOENT: no such file or directory, open '/tmp/does-not-exist-replace.txt'"
-}
-```
-
-### 005-multiline-replacement
-
-```sh sham
-#!SHAM [@three-char-SHA-256: mlr]
-action = "file_replace_text"
-path = "/tmp/multiline-replace.txt"
-old_text = <<'EOT_SHAM_mlr'
-export function oldName() {
-  console.log('oldName');
-  return oldName;
-}
-EOT_SHAM_mlr
-new_text = <<'EOT_SHAM_mlr'
-export function newName() {
-  console.log('newName');
-  return newName;
-}
-EOT_SHAM_mlr
-#!END_SHAM_mlr
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "path": "/tmp/multiline-replace.txt",
-    "replacements": 1
-  }
-}
-```
-
-### 006-empty-old-text-error
-
-```sh sham
-#!SHAM [@three-char-SHA-256: emt]
-action = "file_replace_text"
-path = "/tmp/empty-search.txt"
-old_text = ""
-new_text = "something"
-#!END_SHAM_emt
-```
-
-```json
-{
-  "success": false,
-  "error": "file_replace_text: old_text cannot be empty"
-}
-```
-
-### 007-file-replace-text-multiple-occurrences
-
-```sh sham
-#!SHAM [@three-char-SHA-256: mul]
-action = "file_replace_text"
-path = "/tmp/multiple-occurrences.txt"
-old_text = "duplicate"
-new_text = "unique"
-#!END_SHAM_mul
-```
-
-```json
-{
-  "success": false,
-  "error": "file_replace_text: old_text appears 3 times, must appear exactly once"
-}
-```
-
-### 008-file-replace-all-text-no-count
-
-```sh sham
-#!SHAM [@three-char-SHA-256: all]
-action = "file_replace_all_text"
-path = "/tmp/replace-all.txt"
-old_text = "foo"
-new_text = "bar"
-#!END_SHAM_all
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "path": "/tmp/replace-all.txt",
-    "replacements": 3
-  }
-}
-```
-
-### 009-file-replace-all-text-count-mismatch
-
-```sh sham
-#!SHAM [@three-char-SHA-256: mis]
-action = "file_replace_all_text"
-path = "/tmp/count-mismatch.txt"
-old_text = "test"
-new_text = "check"
-count = "5"
-#!END_SHAM_mis
-```
-
-```json
-{
-  "success": false,
-  "error": "file_replace_all_text: expected 5 occurrences but found 2"
-}
-```
-
-## file_read
-
-### 001-read-existing-file
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rdf]
-action = "file_read"
-path = "/tmp/readable.txt"
-#!END_SHAM_rdf
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "path": "/tmp/readable.txt",
-    "content": "This is readable content"
-  }
-}
-```
-
-### 002-read-nonexistent-file
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rnx]
-action = "file_read"
-path = "/tmp/not-there.txt"
-#!END_SHAM_rnx
-```
-
-```json
-{
-  "success": false,
-  "error": "ENOENT: no such file or directory, open '/tmp/not-there.txt'"
-}
-```
-
-## file_move
-
-### 001-move-file-simple
-
-```sh sham
-#!SHAM [@three-char-SHA-256: mvs]
-action = "file_move"
-old_path = "/tmp/source.txt"
-new_path = "/tmp/destination.txt"
-#!END_SHAM_mvs
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "old_path": "/tmp/source.txt",
-    "new_path": "/tmp/destination.txt"
-  }
-}
-```
-
-### 002-move-file-to-new-directory
-
-```sh sham
-#!SHAM [@three-char-SHA-256: mvd]
-action = "file_move"
-old_path = "/tmp/original.txt"
-new_path = "/tmp/new-dir/moved.txt"
-#!END_SHAM_mvd
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "old_path": "/tmp/original.txt",
-    "new_path": "/tmp/new-dir/moved.txt"
-  }
-}
-```
-
-### 003-move-nonexistent-file
-
-```sh sham
-#!SHAM [@three-char-SHA-256: mnf]
-action = "file_move"
-old_path = "/tmp/ghost.txt"
-new_path = "/tmp/nowhere.txt"
-#!END_SHAM_mnf
-```
-
-```json
-{
-  "success": false,
-  "error": "file_move: Source file not found '/tmp/ghost.txt' (ENOENT)"
-}
-```
-
-### 004-move-to-existing-file
-
-```sh sham
-#!SHAM [@three-char-SHA-256: mef]
-action = "file_move"
-old_path = "/tmp/source-exists.txt"
-new_path = "/tmp/dest-exists.txt"
-#!END_SHAM_mef
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "old_path": "/tmp/source-exists.txt",
-    "new_path": "/tmp/dest-exists.txt",
-    "overwrote": true
-  }
-}
-```
-=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test-data/integration/file-operations.cases.md ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/test/execute.test.ts ===
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { readFileSync, existsSync, rmSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { marked, Token } from 'marked';
-import { Clada } from '../src/index.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const testPath = join(__dirname, '../test-data/execute/basic-operations.md');
-const mdContent = readFileSync(testPath, 'utf8');
-
-const tokens = marked.lexer(mdContent);
-const codeBlocks = tokens.filter(t => t.type === 'code') as Array<Token & {type: 'code', text: string, lang?: string}>;
-const testNames = tokens
-  .filter(t => t.type === 'heading' && 'depth' in t && t.depth === 3)
-  .map(t => (t as any).text as string);
-
-const testFiles = [
-  '/tmp/test.txt',
-  '/tmp/first.txt',
-  '/tmp/second.txt',
-  '/tmp/bad.txt',
-  '/tmp/duplicate.txt',
-  '/tmp/good.txt',
-  '/tmp/does-not-exist.txt',
-  '/tmp/read-test.txt',
-  '/tmp/source-file.txt',
-  '/tmp/destination-file.txt',
-  '/tmp/replace-single.txt',
-  '/tmp/replace-all.txt',
-  '/tmp/multiline.txt',
-  '/tmp/multiple-foo.txt',
-  '/tmp/count-test.txt',
-  '/tmp/move-source.txt',
-  '/tmp/move-dest.txt',
-  '/tmp/empty-replace.txt',
-  '/tmp/parent-test.txt'
-];
-
-const testDirs = [
-  '/tmp/new',
-  '/tmp/007-file-move-success',
-  '/tmp/016-file-move-creates-parent-dirs'
-];
-
-describe('Clada.execute()', () => {
-  let clada: Clada;
-
-  beforeEach(() => {
-    clada = new Clada();
-    // Clean up files
-    for (const path of testFiles) {
-      try {
-        if (existsSync(path)) rmSync(path);
-      } catch (err) {
-        // Continue cleanup even if one fails
-      }
-    }
-    // Clean up directories
-    for (const path of testDirs) {
-      try {
-        if (existsSync(path)) rmSync(path, { recursive: true, force: true });
-      } catch (err) {
-        // Continue cleanup even if one fails
-      }
-    }
-  });
-
-  afterEach(() => {
-    // Clean up files
-    for (const path of testFiles) {
-      try {
-        if (existsSync(path)) rmSync(path);
-      } catch (err) {
-        // Continue cleanup even if one fails
-      }
-    }
-    // Clean up directories
-    for (const path of testDirs) {
-      try {
-        if (existsSync(path)) rmSync(path, { recursive: true, force: true });
-      } catch (err) {
-        // Continue cleanup even if one fails
-      }
-    }
-  });
-
-  testNames.forEach((name, i) => {
-    const baseIndex = i * 2;
-    it(name, async () => {
-      const input = codeBlocks[baseIndex].text;
-      const expected = JSON.parse(codeBlocks[baseIndex + 1].text);
-      const result = await clada.execute(input);
-      expect(result).toEqual(expected);
-    });
-  });
-});
-=== END FILE: /Users/stuart/repos/clada/proj/test/execute.test.ts ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/test-data/execute/basic-operations.md ===
-# Execute Test Cases
-
-## Single Action Success
-
-### 001-simple-file-write
-
-```sh sham
-#!SHAM [@three-char-SHA-256: abc]
-action = "file_write"
-path = "/tmp/001-simple-file-write/test.txt"
-content = "Hello, World!"
-#!END_SHAM_abc
-```
-
-```json
-{
-  "success": true,
-  "totalBlocks": 1,
-  "executedActions": 1,
-  "results": [{
-    "seq": 1,
-    "blockId": "abc",
-    "action": "file_write",
-    "params": {
-      "path": "/tmp/001-simple-file-write/test.txt",
-      "content": "Hello, World!"
-    },
-    "success": true,
-    "data": {
-      "path": "/tmp/001-simple-file-write/test.txt",
-      "bytesWritten": 13
-    }
-  }],
-  "parseErrors": []
-}
-```
-
-## Multiple Actions Mixed
-
-### 002-mixed-implemented-unimplemented
-
-```sh sham
-#!SHAM [@three-char-SHA-256: fw1]
-action = "file_write"
-path = "/tmp/002-mixed-implemented-unimplemented/first.txt"
-content = "First file"
-#!END_SHAM_fw1
-
-#!SHAM [@three-char-SHA-256: ex1]
-action = "exec"
-code = "echo 'hello'"
-lang = "bash"
-#!END_SHAM_ex1
-
-#!SHAM [@three-char-SHA-256: fw2]
-action = "file_write"
-path = "/tmp/002-mixed-implemented-unimplemented/second.txt"
-content = "Second file"
-#!END_SHAM_fw2
-```
-
-```json
-{
-  "success": false,
-  "totalBlocks": 3,
-  "executedActions": 3,
-  "results": [{
-    "seq": 1,
-    "blockId": "fw1",
-    "action": "file_write",
-    "params": {
-      "path": "/tmp/002-mixed-implemented-unimplemented/first.txt",
-      "content": "First file"
-    },
-    "success": true,
-    "data": {
-      "path": "/tmp/002-mixed-implemented-unimplemented/first.txt",
-      "bytesWritten": 10
-    }
-  }, {
-    "seq": 2,
-    "blockId": "ex1",
-    "action": "exec",
-    "params": {
-      "code": "echo 'hello'",
-      "lang": "bash"
-    },
-    "success": false,
-    "error": "Action not implemented: exec"
-  }, {
-    "seq": 3,
-    "blockId": "fw2",
-    "action": "file_write",
-    "params": {
-      "path": "/tmp/002-mixed-implemented-unimplemented/second.txt",
-      "content": "Second file"
-    },
-    "success": true,
-    "data": {
-      "path": "/tmp/002-mixed-implemented-unimplemented/second.txt",
-      "bytesWritten": 11
-    }
-  }],
-  "parseErrors": []
-}
-```
-
-## Parse Errors
-
-### 003-parse-error-with-valid-action
-
-```sh sham
-#!SHAM [@three-char-SHA-256: bad]
-action = "file_write"
-path = "/tmp/003-parse-error-with-valid-action/bad.txt"
-path = "/tmp/003-parse-error-with-valid-action/duplicate.txt"
-#!END_SHAM_bad
-
-#!SHAM [@three-char-SHA-256: gud]
-action = "file_write"
-path = "/tmp/003-parse-error-with-valid-action/good.txt"
-content = "Valid content"
-#!END_SHAM_gud
-```
-
-```json
-{
-  "success": false,
-  "totalBlocks": 2,
-  "executedActions": 1,
-  "results": [{
-    "seq": 1,
-    "blockId": "gud",
-    "action": "file_write",
-    "params": {
-      "path": "/tmp/003-parse-error-with-valid-action/good.txt",
-      "content": "Valid content"
-    },
-    "success": true,
-    "data": {
-      "path": "/tmp/003-parse-error-with-valid-action/good.txt",
-      "bytesWritten": 13
-    }
-  }],
-  "parseErrors": [{
-    "blockId": "bad",
-    "action": "file_write",
-    "errorType": "syntax",
-    "message": "Duplicate key 'path' in block 'bad'",
-    "blockStartLine": 1,
-    "shamContent": "#!SHAM [@three-char-SHA-256: bad]\naction = \"file_write\"\npath = \"/tmp/003-parse-error-with-valid-action/bad.txt\"\npath = \"/tmp/003-parse-error-with-valid-action/duplicate.txt\"\n#!END_SHAM_bad"
-  }]
-}
-```
-
-## Execution Failures
-
-### 004-file-operation-failure
-
-```sh sham
-#!SHAM [@three-char-SHA-256: nop]
-action = "file_delete"
-path = "/tmp/004-file-operation-failure/does-not-exist.txt"
-#!END_SHAM_nop
-```
-
-```json
-{
-  "success": false,
-  "totalBlocks": 1,
-  "executedActions": 1,
-  "results": [{
-    "seq": 1,
-    "blockId": "nop",
-    "action": "file_delete",
-    "params": {
-      "path": "/tmp/004-file-operation-failure/does-not-exist.txt"
-    },
-    "success": false,
-    "error": "ENOENT: no such file or directory, unlink '/tmp/004-file-operation-failure/does-not-exist.txt'"
-  }],
-  "parseErrors": []
-}
-```
-
-## Empty Input
-
-### 005-no-sham-blocks
-
-```
-This is just regular text without any SHAM blocks.
-```
-
-```json
-{
-  "success": true,
-  "totalBlocks": 0,
-  "executedActions": 0,
-  "results": [],
-  "parseErrors": []
-}
-```
-
-## File Operations
-
-### 006-file-read-success
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rd1]
-action = "file_write"
-path = "/tmp/006-file-read-success/read-test.txt"
-content = "Content to read later"
-#!END_SHAM_rd1
-
-#!SHAM [@three-char-SHA-256: rd2]
-action = "file_read"
-path = "/tmp/006-file-read-success/read-test.txt"
-#!END_SHAM_rd2
-```
-
-```json
-{
-  "success": true,
-  "totalBlocks": 2,
-  "executedActions": 2,
-  "results": [{
-    "seq": 1,
-    "blockId": "rd1",
-    "action": "file_write",
-    "params": {
-      "path": "/tmp/006-file-read-success/read-test.txt",
-      "content": "Content to read later"
-    },
-    "success": true,
-    "data": {
-      "path": "/tmp/006-file-read-success/read-test.txt",
-      "bytesWritten": 21
-    }
-  }, {
-    "seq": 2,
-    "blockId": "rd2",
-    "action": "file_read",
-    "params": {
-      "path": "/tmp/006-file-read-success/read-test.txt"
-    },
-    "success": true,
-    "data": {
-      "path": "/tmp/006-file-read-success/read-test.txt",
-      "content": "Content to read later"
-    }
-  }],
-  "parseErrors": []
-}
-```
-
-### 007-file-move-success
-
-```sh sham
-#!SHAM [@three-char-SHA-256: mv1]
-action = "file_write"
-path = "/tmp/007-file-move-success/source-file.txt"
-content = "File to be moved"
-#!END_SHAM_mv1
-
-#!SHAM [@three-char-SHA-256: mv2]
-action = "file_move"
-old_path = "/tmp/007-file-move-success/source-file.txt"
-new_path = "/tmp/007-file-move-success/destination-file.txt"
-#!END_SHAM_mv2
-```
-
-```json
-{
-  "success": true,
-  "totalBlocks": 2,
-  "executedActions": 2,
-  "results": [{
-    "seq": 1,
-    "blockId": "mv1",
-    "action": "file_write",
-    "params": {
-      "path": "/tmp/007-file-move-success/source-file.txt",
-      "content": "File to be moved"
-    },
-    "success": true,
-    "data": {
-      "path": "/tmp/007-file-move-success/source-file.txt",
-      "bytesWritten": 16
-    }
-  }, {
-    "seq": 2,
-    "blockId": "mv2",
-    "action": "file_move",
-    "params": {
-      "old_path": "/tmp/007-file-move-success/source-file.txt",
-      "new_path": "/tmp/007-file-move-success/destination-file.txt"
-    },
-    "success": true,
-    "data": {
-      "old_path": "/tmp/007-file-move-success/source-file.txt",
-      "new_path": "/tmp/007-file-move-success/destination-file.txt"
-    }
-  }],
-  "parseErrors": []
-}
-```
-
-### 008-file-replace-text-single
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rp1]
-action = "file_write"
-path = "/tmp/008-file-replace-text-single/replace-single.txt"
-content = "Hello world! This is a test."
-#!END_SHAM_rp1
-
-#!SHAM [@three-char-SHA-256: rp2]
-action = "file_replace_text"
-path = "/tmp/008-file-replace-text-single/replace-single.txt"
-old_text = "world"
-new_text = "universe"
-#!END_SHAM_rp2
-```
-
-```json
-{
-  "success": true,
-  "totalBlocks": 2,
-  "executedActions": 2,
-  "results": [{
-    "seq": 1,
-    "blockId": "rp1",
-    "action": "file_write",
-    "params": {
-      "path": "/tmp/008-file-replace-text-single/replace-single.txt",
-      "content": "Hello world! This is a test."
-    },
-    "success": true,
-    "data": {
-      "path": "/tmp/008-file-replace-text-single/replace-single.txt",
-      "bytesWritten": 28
-    }
-  }, {
-    "seq": 2,
-    "blockId": "rp2",
-    "action": "file_replace_text",
-    "params": {
-      "path": "/tmp/008-file-replace-text-single/replace-single.txt",
-      "old_text": "world",
-      "new_text": "universe"
-    },
-    "success": true,
-    "data": {
-      "path": "/tmp/008-file-replace-text-single/replace-single.txt",
-      "replacements": 1
-    }
-  }],
-  "parseErrors": []
-}
-```
-
-### 009-file-replace-all-text
-
-```sh sham
-#!SHAM [@three-char-SHA-256: ra1]
-action = "file_write"
-path = "/tmp/009-file-replace-all-text/replace-all.txt"
-content = "foo bar foo baz foo"
-#!END_SHAM_ra1
-
-#!SHAM [@three-char-SHA-256: ra2]
-action = "file_replace_all_text"
-path = "/tmp/009-file-replace-all-text/replace-all.txt"
-old_text = "foo"
-new_text = "qux"
-#!END_SHAM_ra2
-```
-
-```json
-{
-  "success": true,
-  "totalBlocks": 2,
-  "executedActions": 2,
-  "results": [{
-    "seq": 1,
-    "blockId": "ra1",
-    "action": "file_write",
-    "params": {
-      "path": "/tmp/009-file-replace-all-text/replace-all.txt",
-      "content": "foo bar foo baz foo"
-    },
-    "success": true,
-    "data": {
-      "path": "/tmp/009-file-replace-all-text/replace-all.txt",
-      "bytesWritten": 19
-    }
-  }, {
-    "seq": 2,
-    "blockId": "ra2",
-    "action": "file_replace_all_text",
-    "params": {
-      "path": "/tmp/009-file-replace-all-text/replace-all.txt",
-      "old_text": "foo",
-      "new_text": "qux"
-    },
-    "success": true,
-    "data": {
-      "path": "/tmp/009-file-replace-all-text/replace-all.txt",
-      "replacements": 3
-    }
-  }],
-  "parseErrors": []
-}
-```
-
-### 010-multiline-content-handling
-
-```sh sham
-#!SHAM [@three-char-SHA-256: ml1]
-action = "file_write"
-path = "/tmp/010-multiline-content-handling/multiline.txt"
-content = <<'EOT_SHAM_ml1'
-Line one
-Line two
-Line three
-EOT_SHAM_ml1
-#!END_SHAM_ml1
-
-#!SHAM [@three-char-SHA-256: ml2]
-action = "file_replace_text"
-path = "/tmp/010-multiline-content-handling/multiline.txt"
-old_text = <<'EOT_SHAM_ml2'
-Line two
-EOT_SHAM_ml2
-new_text = <<'EOT_SHAM_ml2'
-Line TWO (modified)
-EOT_SHAM_ml2
-#!END_SHAM_ml2
-```
-
-```json
-{
-  "success": true,
-  "totalBlocks": 2,
-  "executedActions": 2,
-  "results": [{
-    "seq": 1,
-    "blockId": "ml1",
-    "action": "file_write",
-    "params": {
-      "path": "/tmp/010-multiline-content-handling/multiline.txt",
-      "content": "Line one\nLine two\nLine three"
-    },
-    "success": true,
-    "data": {
-      "path": "/tmp/010-multiline-content-handling/multiline.txt",
-      "bytesWritten": 28
-    }
-  }, {
-    "seq": 2,
-    "blockId": "ml2",
-    "action": "file_replace_text",
-    "params": {
-      "path": "/tmp/010-multiline-content-handling/multiline.txt",
-      "old_text": "Line two",
-      "new_text": "Line TWO (modified)"
-    },
-    "success": true,
-    "data": {
-      "path": "/tmp/010-multiline-content-handling/multiline.txt",
-      "replacements": 1
-    }
-  }],
-  "parseErrors": []
-}
-```
-
-### 011-file-replace-text-multiple-occurrences-failure
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rf1]
-action = "file_write"
-path = "/tmp/011-file-replace-text-multiple-occurrences-failure/multiple-foo.txt"
-content = "foo bar foo baz"
-#!END_SHAM_rf1
-
-#!SHAM [@three-char-SHA-256: rf2]
-action = "file_replace_text"
-path = "/tmp/011-file-replace-text-multiple-occurrences-failure/multiple-foo.txt"
-old_text = "foo"
-new_text = "qux"
-#!END_SHAM_rf2
-```
-
-```json
-{
-  "success": false,
-  "totalBlocks": 2,
-  "executedActions": 2,
-  "results": [{
-    "seq": 1,
-    "blockId": "rf1",
-    "action": "file_write",
-    "params": {
-      "path": "/tmp/011-file-replace-text-multiple-occurrences-failure/multiple-foo.txt",
-      "content": "foo bar foo baz"
-    },
-    "success": true,
-    "data": {
-      "path": "/tmp/011-file-replace-text-multiple-occurrences-failure/multiple-foo.txt",
-      "bytesWritten": 15
-    }
-  }, {
-    "seq": 2,
-    "blockId": "rf2",
-    "action": "file_replace_text",
-    "params": {
-      "path": "/tmp/011-file-replace-text-multiple-occurrences-failure/multiple-foo.txt",
-      "old_text": "foo",
-      "new_text": "qux"
-    },
-    "success": false,
-    "error": "file_replace_text: old_text appears 2 times, must appear exactly once"
-  }],
-  "parseErrors": []
-}
-```
-
-### 012-file-replace-all-text-with-count
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rc1]
-action = "file_write"
-path = "/tmp/012-file-replace-all-text-with-count/count-test.txt"
-content = "test test test"
-#!END_SHAM_rc1
-
-#!SHAM [@three-char-SHA-256: rc2]
-action = "file_replace_all_text"
-path = "/tmp/012-file-replace-all-text-with-count/count-test.txt"
-old_text = "test"
-new_text = "check"
-count = "2"
-#!END_SHAM_rc2
-```
-
-```json
-{
-  "success": false,
-  "totalBlocks": 2,
-  "executedActions": 2,
-  "results": [{
-    "seq": 1,
-    "blockId": "rc1",
-    "action": "file_write",
-    "params": {
-      "path": "/tmp/012-file-replace-all-text-with-count/count-test.txt",
-      "content": "test test test"
-    },
-    "success": true,
-    "data": {
-      "path": "/tmp/012-file-replace-all-text-with-count/count-test.txt",
-      "bytesWritten": 14
-    }
-  }, {
-    "seq": 2,
-    "blockId": "rc2",
-    "action": "file_replace_all_text",
-    "params": {
-      "path": "/tmp/012-file-replace-all-text-with-count/count-test.txt",
-      "old_text": "test",
-      "new_text": "check",
-      "count": 2
-    },
-    "success": false,
-    "error": "file_replace_all_text: expected 2 occurrences but found 3"
-  }],
-  "parseErrors": []
-}
-```
-
-### 013-file-move-overwrite-existing
-
-```sh sham
-#!SHAM [@three-char-SHA-256: ow1]
-action = "file_write"
-path = "/tmp/013-file-move-overwrite-existing/move-source.txt"
-content = "source content"
-#!END_SHAM_ow1
-
-#!SHAM [@three-char-SHA-256: ow2]
-action = "file_write"
-path = "/tmp/013-file-move-overwrite-existing/move-dest.txt"
-content = "will be overwritten"
-#!END_SHAM_ow2
-
-#!SHAM [@three-char-SHA-256: ow3]
-action = "file_move"
-old_path = "/tmp/013-file-move-overwrite-existing/move-source.txt"
-new_path = "/tmp/013-file-move-overwrite-existing/move-dest.txt"
-#!END_SHAM_ow3
-```
-
-```json
-{
-  "success": true,
-  "totalBlocks": 3,
-  "executedActions": 3,
-  "results": [{
-    "seq": 1,
-    "blockId": "ow1",
-    "action": "file_write",
-    "params": {
-      "path": "/tmp/013-file-move-overwrite-existing/move-source.txt",
-      "content": "source content"
-    },
-    "success": true,
-    "data": {
-      "path": "/tmp/013-file-move-overwrite-existing/move-source.txt",
-      "bytesWritten": 14
-    }
-  }, {
-    "seq": 2,
-    "blockId": "ow2",
-    "action": "file_write",
-    "params": {
-      "path": "/tmp/013-file-move-overwrite-existing/move-dest.txt",
-      "content": "will be overwritten"
-    },
-    "success": true,
-    "data": {
-      "path": "/tmp/013-file-move-overwrite-existing/move-dest.txt",
-      "bytesWritten": 19
-    }
-  }, {
-    "seq": 3,
-    "blockId": "ow3",
-    "action": "file_move",
-    "params": {
-      "old_path": "/tmp/013-file-move-overwrite-existing/move-source.txt",
-      "new_path": "/tmp/013-file-move-overwrite-existing/move-dest.txt"
-    },
-    "success": true,
-    "data": {
-      "old_path": "/tmp/013-file-move-overwrite-existing/move-source.txt",
-      "new_path": "/tmp/013-file-move-overwrite-existing/move-dest.txt",
-      "overwrote": true
-    }
-  }],
-  "parseErrors": []
-}
-```
-
-### 014-empty-old-text-validation
-
-```sh sham
-#!SHAM [@three-char-SHA-256: et1]
-action = "file_write"
-path = "/tmp/014-empty-old-text-validation/empty-replace.txt"
-content = "some content"
-#!END_SHAM_et1
-
-#!SHAM [@three-char-SHA-256: et2]
-action = "file_replace_text"
-path = "/tmp/014-empty-old-text-validation/empty-replace.txt"
-old_text = ""
-new_text = "replacement"
-#!END_SHAM_et2
-
-#!SHAM [@three-char-SHA-256: et3]
-action = "file_replace_all_text"
-path = "/tmp/014-empty-old-text-validation/empty-replace.txt"
-old_text = ""
-new_text = "replacement"
-#!END_SHAM_et3
-```
-
-```json
-{
-  "success": false,
-  "totalBlocks": 3,
-  "executedActions": 3,
-  "results": [{
-    "seq": 1,
-    "blockId": "et1",
-    "action": "file_write",
-    "params": {
-      "path": "/tmp/014-empty-old-text-validation/empty-replace.txt",
-      "content": "some content"
-    },
-    "success": true,
-    "data": {
-      "path": "/tmp/014-empty-old-text-validation/empty-replace.txt",
-      "bytesWritten": 12
-    }
-  }, {
-    "seq": 2,
-    "blockId": "et2",
-    "action": "file_replace_text",
-    "params": {
-      "path": "/tmp/014-empty-old-text-validation/empty-replace.txt",
-      "old_text": "",
-      "new_text": "replacement"
-    },
-    "success": false,
-    "error": "file_replace_text: old_text cannot be empty"
-  }, {
-    "seq": 3,
-    "blockId": "et3",
-    "action": "file_replace_all_text",
-    "params": {
-      "path": "/tmp/014-empty-old-text-validation/empty-replace.txt",
-      "old_text": "",
-      "new_text": "replacement"
-    },
-    "success": false,
-    "error": "file_replace_all_text: old_text cannot be empty"
-  }],
-  "parseErrors": []
-}
-```
-
-### 015-file-read-nonexistent
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rnx]
-action = "file_read"
-path = "/tmp/015-file-read-nonexistent/does-not-exist-read.txt"
-#!END_SHAM_rnx
-```
-
-```json
-{
-  "success": false,
-  "totalBlocks": 1,
-  "executedActions": 1,
-  "results": [{
-    "seq": 1,
-    "blockId": "rnx",
-    "action": "file_read",
-    "params": {
-      "path": "/tmp/015-file-read-nonexistent/does-not-exist-read.txt"
-    },
-    "success": false,
-    "error": "ENOENT: no such file or directory, open '/tmp/015-file-read-nonexistent/does-not-exist-read.txt'"
-  }],
-  "parseErrors": []
-}
-```
-
-### 016-file-move-creates-parent-dirs
-
-```sh sham
-#!SHAM [@three-char-SHA-256: pd1]
-action = "file_write"
-path = "/tmp/016-file-move-creates-parent-dirs/parent-test.txt"
-content = "moving to new dir"
-#!END_SHAM_pd1
-
-#!SHAM [@three-char-SHA-256: pd2]
-action = "file_move"
-old_path = "/tmp/016-file-move-creates-parent-dirs/parent-test.txt"
-new_path = "/tmp/016-file-move-creates-parent-dirs/new/deeply/nested/moved-file.txt"
-#!END_SHAM_pd2
-```
-
-```json
-{
-  "success": true,
-  "totalBlocks": 2,
-  "executedActions": 2,
-  "results": [{
-    "seq": 1,
-    "blockId": "pd1",
-    "action": "file_write",
-    "params": {
-      "path": "/tmp/016-file-move-creates-parent-dirs/parent-test.txt",
-      "content": "moving to new dir"
-    },
-    "success": true,
-    "data": {
-      "path": "/tmp/016-file-move-creates-parent-dirs/parent-test.txt",
-      "bytesWritten": 17
-    }
-  }, {
-    "seq": 2,
-    "blockId": "pd2",
-    "action": "file_move",
-    "params": {
-      "old_path": "/tmp/016-file-move-creates-parent-dirs/parent-test.txt",
-      "new_path": "/tmp/016-file-move-creates-parent-dirs/new/deeply/nested/moved-file.txt"
-    },
-    "success": true,
-    "data": {
-      "old_path": "/tmp/016-file-move-creates-parent-dirs/parent-test.txt",
-      "new_path": "/tmp/016-file-move-creates-parent-dirs/new/deeply/nested/moved-file.txt"
-    }
-  }],
-  "parseErrors": []
-}
-```
-
-=== END FILE: /Users/stuart/repos/clada/proj/test-data/execute/basic-operations.md ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/index.ts ===
-/**
- * SHAM Action Parser - Parses SHAM blocks into validated clada actions
- */
-
-import { ParseResult, CladaAction, ParseError, ValidationResult, TransformError, ActionDefinition } from './types.js';
-import { validateShamBlock } from './validateShamBlock.js';
-import { transformToAction } from './transformToAction.js';
-import { parseSham, type Block, type ParseResult as NeslParseResult } from 'nesl-js';
-import { load as loadYaml } from 'js-yaml';
-import { readFile } from 'fs/promises';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-// Re-export types for consumers
-export { ParseResult, CladaAction, ParseError, ValidationResult, TransformError };
-
-// Cache for action schema
-let actionSchemaCache: Map<string, ActionDefinition> | null = null;
-
-/**
- * Parse SHAM blocks from text into validated clada actions
- * Processes all blocks, collecting successes and errors
- */
-export async function parseShamResponse(shamText: string): Promise<ParseResult> {
-  const actions: CladaAction[] = [];
-  const errors: ParseError[] = [];
-
-  // Parse SHAM blocks using nesl-js
-  let parseResult: NeslParseResult;
-  try {
-   
-    parseResult = parseSham(shamText);
-    
-    // Handle case where parseSham returns undefined or null
-    if (!parseResult) {
-      parseResult = { blocks: [], errors: [] };
-    }
-  } catch (error) {
-    return {
-      actions: [],
-      errors: [{
-        blockId: 'unknown',
-        errorType: 'syntax',
-        message: `Failed to parse SHAM: ${error}`,
-        shamContent: shamText
-      }],
-      summary: {
-        totalBlocks: 0,
-        successCount: 0,
-        errorCount: 1
-      }
+export class Clada {
+  private options: CladaOptions;
+  private executors: Map<string, (action: CladaAction) => Promise<FileOpResult>> | null = null;
+
+  constructor(options: CladaOptions = {}) {
+    this.options = {
+      repoPath: options.repoPath || process.cwd(),
+      gitCommit: options.gitCommit ?? true
     };
   }
 
-  // Process syntax errors from nesl-js parser
-  if (parseResult.errors && parseResult.errors.length > 0) {
-    for (const parseError of parseResult.errors) {
-      // Find the block this error belongs to
-      const block = parseResult.blocks?.find(b => b.id === parseError.blockId);
-      
-      errors.push({
-        blockId: parseError.blockId || 'unknown',
-        action: block?.properties?.action,
-        errorType: 'syntax',
-        message: parseError.message,
-        blockStartLine: block?.startLine || parseError.line,
-        shamContent: parseError.context 
-          ? `#!SHAM [@three-char-SHA-256: ${parseError.blockId}]\n${parseError.context}`.trimEnd()
-          : reconstructShamBlock(block || { id: parseError.blockId, properties: {} })
-      });
-    }
-  }
-
-  // Load action schema
-  const actionSchema = await loadActionSchema();
-
-  // Process each SHAM block
-  const blocks = parseResult.blocks || [];
-  
-  // If no blocks found, return empty result
-  if (blocks.length === 0) {
-    return {
-      actions: [],
-      errors: [],
-      summary: {
-        totalBlocks: 0,
-        successCount: 0,
-        errorCount: 0
-      }
-    };
-  }
-  
-  // Track blocks with syntax errors to skip them
-  const blocksWithSyntaxErrors = new Set(
-    parseResult.errors?.map(e => e.blockId) || []
-  );
-  
-  for (const block of blocks) {
-    const blockId = block.id || 'unknown';
-    
-    // Skip blocks that already have syntax errors
-    if (blocksWithSyntaxErrors.has(blockId)) {
-      continue;
-    }
-    
+  /**
+   * Parse and execute all SHAM blocks in LLM output
+   * Executes all valid actions sequentially, collecting both successes and failures
+   */
+  async execute(llmOutput: string): Promise<ExecutionResult> {
     try {
-      // Get action type from block
-      const actionType = block.properties?.action;
-      const actionDef = actionType ? actionSchema.get(actionType) : undefined;
-
-      // Validate block
-      const validation = validateShamBlock(block, actionDef ?? null);
+      // Parse SHAM blocks
+      const parseResult = await parseShamResponse(llmOutput);
       
-      if (!validation.valid) {
-        errors.push({
-          blockId,
-          action: actionType,
-          errorType: 'validation',
-          message: validation.errors?.[0] || 'Validation failed',
-          blockStartLine: block.startLine,
-          shamContent: reconstructShamBlock(block)
-        });
-        continue;
-      }
-
-      // Transform to action
-      try {
-        const action = transformToAction(block, actionDef!);
-        actions.push(action);
-      } catch (error) {
-        if (error instanceof TransformError) {
-          errors.push({
-            blockId,
-            action: actionType,
-            errorType: 'type',
-            message: error.message,
-            blockStartLine: block.startLine,
-            shamContent: reconstructShamBlock(block)
-          });
-        } else {
-          throw error;
+      // Initialize executors if needed
+      if (!this.executors) {
+        try {
+          await this.initializeExecutors();
+        } catch (error) {
+          return {
+            success: false,
+            totalBlocks: parseResult.summary.totalBlocks,
+            executedActions: 0,
+            results: [],
+            parseErrors: parseResult.errors,
+            fatalError: `Failed to initialize executors: ${error instanceof Error ? error.message : String(error)}`
+          };
         }
       }
+      
+      // Execute each valid action sequentially
+      const results: ActionResult[] = [];
+      let seq = 1;
+      
+      for (const action of parseResult.actions) {
+        const result = await this.executeAction(action, seq++);
+        results.push(result);
+      }
+      
+      // Calculate overall success
+      const allActionsSucceeded = results.every(r => r.success);
+      const noParseErrors = parseResult.errors.length === 0;
+      
+      return {
+        success: allActionsSucceeded && noParseErrors,
+        totalBlocks: parseResult.summary.totalBlocks,
+        executedActions: results.length,
+        results,
+        parseErrors: parseResult.errors
+      };
+      
     } catch (error) {
-      errors.push({
-        blockId,
-        action: block.properties?.action,
-        errorType: 'validation',
-        message: `Unexpected error: ${error}`,
-        blockStartLine: block.startLine,
-        shamContent: reconstructShamBlock(block)
-      });
+      // Only truly unexpected errors should reach here
+      return {
+        success: false,
+        totalBlocks: 0,
+        executedActions: 0,
+        results: [],
+        parseErrors: [],
+        fatalError: `Unexpected error in execute: ${error instanceof Error ? error.message : String(error)}`
+      };
     }
   }
 
-  const result = {
-    actions,
-    errors,
-    summary: {
-      totalBlocks: blocks.length,
-      successCount: actions.length,
-      errorCount: errors.length
+  /**
+   * Initialize action executors with dynamic imports
+   * Treats import failures as fatal errors
+   */
+  private async initializeExecutors(): Promise<void> {
+    this.executors = new Map();
+    
+    // Import fs-ops executor
+    const fsOpsModule = await import('../comp/fs-ops/src/index.js');
+    const { executeFileOperation } = fsOpsModule;
+    
+    // Map file operations
+    const fileOps = [
+      'file_write',
+      'file_read',
+      'files_read',
+      'file_delete',
+      'file_move',
+      'file_replace_text',
+      'file_replace_all_text',
+      'file_append',
+      'dir_create',
+      'dir_delete',
+      'ls',
+      'grep',
+      'glob'
+    ];
+    
+    for (const op of fileOps) {
+      this.executors.set(op, executeFileOperation);
     }
-  };
-  return result;
+    
+    // Exec operations will return "not implemented" for now
+    this.executors.set('exec', async (action) => ({
+      success: false,
+      error: 'Action not implemented: exec'
+    }));
+  }
+
+  /**
+   * Execute a single action and format the result
+   * Never throws - all errors returned in ActionResult
+   */
+  private async executeAction(action: CladaAction, seq: number): Promise<ActionResult> {
+    const executor = this.executors?.get(action.action);
+    
+    if (!executor) {
+      return {
+        seq,
+        blockId: action.metadata.blockId,
+        action: action.action,
+        params: action.parameters,
+        success: false,
+        error: `Unknown action: ${action.action}`
+      };
+    }
+    
+    try {
+      // Add default cwd for exec actions if not specified
+      const enhancedAction = action.action === 'exec' && !action.parameters.cwd
+        ? { ...action, parameters: { ...action.parameters, cwd: this.options.repoPath } }
+        : action;
+      
+      const result = await executor(enhancedAction);
+      
+      return {
+        seq,
+        blockId: action.metadata.blockId,
+        action: action.action,
+        params: action.parameters,
+        success: result.success,
+        ...(result.error && { error: result.error }),
+        ...(result.data && { data: result.data })
+      };
+      
+    } catch (error) {
+      // Executors should never throw, but handle just in case
+      return {
+        seq,
+        blockId: action.metadata.blockId,
+        action: action.action,
+        params: action.parameters,
+        success: false,
+        error: `Unexpected executor error: ${error instanceof Error ? error.message : String(error)}`
+      };
+    }
+  }
+}
+=== END FILE: /Users/stuart/repos/clada/proj/src/index.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts ===
+/**
+ * fs-ops - File system operations executor for clada
+ * 
+ * Handles all file and directory operations from parsed SHAM actions
+ */
+
+import type { CladaAction } from '../../sham-action-parser/src/index.js';
+import { writeFile, mkdir, unlink, rename, readFile } from 'fs/promises';
+import { dirname } from 'path';
+import { formatNodeError } from './formatNodeError.js';
+import { fileExists } from './fileSystemUtils.js';
+import { replaceText } from './replaceText.js';
+
+export interface FileOpResult {
+  success: boolean;
+  data?: any;
+  error?: string;
+}
+
+export class FileOpError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public path?: string,
+    public operation?: string
+  ) {
+    super(message);
+    this.name = 'FileOpError';
+  }
 }
 
 /**
- * Load and cache action definitions from unified-design.yaml
+ * Execute a file system operation from a parsed SHAM action
+ * Never throws - all errors returned in result
  */
-async function loadActionSchema(): Promise<Map<string, ActionDefinition>> {
- 
-  if (actionSchemaCache) {
-    return actionSchemaCache;
+export async function executeFileOperation(action: CladaAction): Promise<FileOpResult> {
+  try {
+    const handler = actionHandlers[action.action];
+    
+    // Debug: log what's happening with files_read
+    if (action.action === 'files_read') {
+      console.log('DEBUG executeFileOperation:');
+      console.log('  action.action:', action.action);
+      console.log('  handler exists:', !!handler);
+      console.log('  available handlers:', Object.keys(actionHandlers));
+    }
+    
+    if (!handler) {
+      return {
+        success: false,
+        error: `Unknown action: ${action.action}`
+      };
+    }
+    
+    const result = await handler(action);
+    return result;
+    
+  } catch (error: any) {
+    // This should never happen - handlers should catch their own errors
+    return {
+      success: false,
+      error: `Unexpected error in executeFileOperation: ${error.message}`
+    };
   }
+}
 
-  // Get the directory of this module
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = dirname(__filename);
-  
-  // Navigate to project root and find unified-design.yaml
-  const yamlPath = join(__dirname, '../../../../unified-design.yaml');
+/**
+ * Handle file_move action - moves/renames a file
+ * Creates parent directories for destination if needed
+ * Overwrites destination if it exists
+ */
+async function handleFileMove(action: CladaAction): Promise<FileOpResult> {
+  const { old_path, new_path } = action.parameters;
   
   try {
-    // Add timeout to file read operation
-    const yamlContent = await Promise.race([
-      readFile(yamlPath, 'utf8'),
-      new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('YAML read timeout')), 5000)
-      )
-    ]);
-    const design = loadYaml(yamlContent) as any;
-    
-    actionSchemaCache = new Map();
-    
-    // Extract tool definitions
-    if (design.tools) {
-      for (const [toolName, toolDef] of Object.entries(design.tools)) {
-        actionSchemaCache.set(toolName, toolDef as ActionDefinition);
-      }
+    // Pre-flight check for better error messages
+    const sourceExists = await fileExists(old_path);
+    if (!sourceExists) {
+      return {
+        success: false,
+        error: `file_move: Source file not found '${old_path}' (ENOENT)`
+      };
     }
     
-    return actionSchemaCache;
-  } catch (error) {
-    throw new Error(`Failed to load unified-design.yaml: ${error}`);
+    // Check if destination exists (for overwrote flag)
+    const destExists = await fileExists(new_path);
+    
+    // Create parent directories for destination
+    const parentDir = dirname(new_path);
+    await mkdir(parentDir, { recursive: true });
+    
+    // Move the file
+    await rename(old_path, new_path);
+    
+    const result: FileOpResult = {
+      success: true,
+      data: {
+        old_path,
+        new_path
+      }
+    };
+    
+    if (destExists) {
+      result.data.overwrote = true;
+    }
+    
+    return result;
+    
+  } catch (error: any) {
+    return {
+      success: false,
+      error: formatNodeError(error, old_path, 'rename', new_path)
+    };
   }
 }
 
 /**
- * Reconstruct SHAM block text for error context
+ * Handle file_delete action - removes a file
  */
-function reconstructShamBlock(block: Block): string {
-  const lines: string[] = [];
+async function handleFileDelete(action: CladaAction): Promise<FileOpResult> {
+  const { path } = action.parameters;
   
-  // Start line
-  lines.push(`#!SHAM [@three-char-SHA-256: ${block.id || 'unknown'}]`);
-  
-  // Properties
-  for (const [key, value] of Object.entries(block.properties || {})) {
-    if (key.startsWith('@')) continue; // Skip annotations
+  try {
+    await unlink(path);
     
-    if (typeof value === 'string' && value.includes('\n')) {
-      // Multi-line value with heredoc
-      lines.push(`${key} = <<'EOT_SHAM_${block.id}'`);
-      lines.push(value);
-      lines.push(`EOT_SHAM_${block.id}`);
-    } else {
-      // Single line value - use JSON.stringify to handle quotes properly
-      lines.push(`${key} = ${JSON.stringify(value)}`);
-    }
+    return {
+      success: true,
+      data: {
+        path
+      }
+    };
+    
+  } catch (error: any) {
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'unlink')
+    };
   }
-  
-  // End line
-  lines.push(`#!END_SHAM_${block.id || 'unknown'}`);
-  
-  return lines.join('\n');
 }
 
-// Re-export functions for consumers
-export { validateShamBlock, transformToAction };
-=== END FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/index.ts ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/validateShamBlock.ts ===
-import { ValidationResult, ActionDefinition } from './types.js';
-import type { Block } from 'nesl-js';
-
 /**
- * Validate a single SHAM block against action schema
- * Checks action exists and required params present
+ * Handle file_write action - writes/creates/overwrites a file with content
+ * Automatically creates parent directories if needed
  */
-export function validateShamBlock(
-  block: Block,
-  actionSchema: ActionDefinition | null
-): ValidationResult {
-  // Check if block has properties object
-  if (!block.properties) {
-    return {
-      valid: false,
-      errors: ['Block missing properties object']
-    };
-  }
-
-  // Check if action field exists
-  if (!block.properties.action) {
-    return {
-      valid: false,
-      errors: ['Missing \'action\' field in SHAM block']
-    };
-  }
-
-  const actionType = block.properties.action;
-
-  // If no schema provided, it's an unknown action
-  if (!actionSchema) {
-    return {
-      valid: false,
-      errors: [`Unknown action: ${actionType}`]
-    };
-  }
-
-  // Check all required parameters are present
-  const errors: string[] = [];
+async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
+  const { path, content } = action.parameters;
   
-  if (actionSchema.parameters) {
-    for (const [paramName, paramDef] of Object.entries(actionSchema.parameters)) {
-      if (paramDef.required && !(paramName in block.properties)) {
-        errors.push(`Missing required parameter: ${paramName}`);
-      }
-    }
-  }
-
-  if (errors.length > 0) {
+  try {
+    // Create parent directories if needed
+    const parentDir = dirname(path);
+    await mkdir(parentDir, { recursive: true });
+    
+    // Write file
+    await writeFile(path, content, 'utf8');
+    const bytesWritten = Buffer.byteLength(content, 'utf8');
+    
     return {
-      valid: false,
-      errors
+      success: true,
+      data: {
+        path,
+        bytesWritten
+      }
+    };
+    
+  } catch (error: any) {
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'open')
     };
   }
-
-  return {
-    valid: true,
-    actionType,
-    errors: []
-  };
 }
-=== END FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/validateShamBlock.ts ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/transformToAction.ts ===
-import { CladaAction, TransformError, ActionDefinition } from './types.js';
-import type { Block } from 'nesl-js';
 
 /**
- * Transform validated SHAM block into typed clada action
- * Converts string values to proper types based on schema
+ * Handle file_read action - reads file content
  */
-export function transformToAction(
-  block: Block,
-  actionDef: ActionDefinition
-): CladaAction {
-  const action = block.properties.action;
-  if (!action) {
-    throw new TransformError(
-      'Block missing action property',
-      'action',
-      'string',
-      'undefined'
-    );
-  }
-  const parameters: Record<string, any> = {};
-
-  // Process each parameter defined in the schema
-  for (const [paramName, paramDef] of Object.entries(actionDef.parameters || {})) {
-    // Skip if parameter not provided and has a default
-    if (!(paramName in block.properties)) {
-      if ('default' in paramDef) {
-        parameters[paramName] = paramDef.default;
-      }
-      continue;
-    }
-
-    const rawValue = block.properties[paramName];
+async function handleFileRead(action: CladaAction): Promise<FileOpResult> {
+  const { path } = action.parameters;
+  
+  try {
+    const content = await readFile(path, 'utf8');
     
-    // Skip if value is undefined (shouldn't happen if we got here, but TypeScript needs this)
-    if (rawValue === undefined) {
-      continue;
-    }
+    return {
+      success: true,
+      data: {
+        path,
+        content
+      }
+    };
+    
+  } catch (error: any) {
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'open')
+    };
+  }
+}
 
+/**
+ * Handle files_read action - reads multiple files and concatenates with delimiters
+ * Parses multi-line paths parameter, one absolute path per line
+ * Returns concatenated content with === /path/to/file === delimiters
+ */
+async function handleFilesRead(action: CladaAction): Promise<FileOpResult> {
+  const { paths } = action.parameters;
+  
+  // Parse the multi-line paths string
+  const pathList = paths
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0);  // Remove empty lines
+  
+  if (pathList.length === 0) {
+    return {
+      success: false,
+      error: 'files_read: No paths provided'
+    };
+  }
+  
+  // Read all files, collecting content and errors
+  const results: Array<{ path: string; content?: string; error?: string }> = [];
+  
+  for (const filePath of pathList) {
     try {
-      // Convert based on parameter type
-      switch (paramDef.type) {
-        case 'string':
-          parameters[paramName] = rawValue;
-          // Validate format if specified
-          if (paramDef.format === 'absolute_path' && !validateAbsolutePath(rawValue)) {
-            throw new TransformError(
-              `Invalid absolute path: ${rawValue}`,
-              paramName,
-              'absolute_path',
-              rawValue
-            );
-          }
-          break;
-
-        case 'integer':
-          parameters[paramName] = parseInteger(rawValue);
-          break;
-
-        case 'boolean':
-          parameters[paramName] = parseBoolean(rawValue);
-          break;
-
-        case 'enum':
-          if (!paramDef.values || !paramDef.values.includes(rawValue)) {
-            throw new TransformError(
-              `Invalid enum value: ${rawValue}. Allowed: ${paramDef.values?.join(', ')}`,
-              paramName,
-              'enum',
-              rawValue
-            );
-          }
-          parameters[paramName] = rawValue;
-          break;
-
-        default:
-          // Default to string for unknown types
-          parameters[paramName] = rawValue;
-      }
-    } catch (error) {
-      if (error instanceof TransformError) {
-        // Update parameter name in error
-        error.parameterName = paramName;
-        throw error;
-      }
-      throw new TransformError(
-        `Failed to transform parameter ${paramName}: ${error}`,
-        paramName,
-        paramDef.type,
-        rawValue
-      );
+      const content = await readFile(filePath, 'utf8');
+      results.push({ path: filePath, content });
+    } catch (error: any) {
+      // Collect error for this file
+      const errorMsg = formatNodeError(error, filePath, 'open');
+      results.push({ path: filePath, error: errorMsg });
     }
   }
-
+  
+  // Check if any files failed to read
+  const failedFiles = results.filter(r => r.error);
+  if (failedFiles.length > 0) {
+    // Return error listing all failed files
+    const errorDetails = failedFiles
+      .map(f => `  ${f.path}: ${f.error}`)
+      .join('\n');
+    return {
+      success: false,
+      error: `files_read: Failed to read ${failedFiles.length} file(s):\n${errorDetails}`
+    };
+  }
+  
+  // All files read successfully - concatenate with delimiters
+  const concatenated = results
+    .map(r => {
+      const header = `=== ${r.path} ===`;
+      return `${header}\n${r.content}`;
+    })
+    .join('\n\n');
+  
   return {
-    action,
-    parameters,
-    metadata: {
-      blockId: block.id,
-      startLine: block.startLine,
-      endLine: block.endLine ?? block.startLine // Use startLine if endLine is null
+    success: true,
+    data: {
+      paths: pathList,
+      content: concatenated
     }
   };
 }
 
-// Helper functions for type conversion and validation
-
-function parseBoolean(value: string): boolean {
-  if (value === 'true') return true;
-  if (value === 'false') return false;
-  throw new TransformError(
-    `Invalid boolean value: ${value}`,
-    'unknown',
-    'boolean',
-    value
-  );
-}
-
-function parseInteger(value: string): number {
-  const num = parseInt(value, 10);
-  if (isNaN(num) || num.toString() !== value.trim()) {
-    throw new TransformError(
-      `Invalid integer value: ${value}`,
-      'unknown',
-      'integer',
-      value
-    );
+/**
+ * Handle file_replace_text action - replaces EXACTLY ONE occurrence
+ * Fails if old_text appears 0 or 2+ times
+ */
+async function handleFileReplaceText(action: CladaAction): Promise<FileOpResult> {
+  const { path, old_text, new_text } = action.parameters;
+  
+  // Validate old_text is not empty
+  if (!old_text || old_text.length === 0) {
+    return {
+      success: false,
+      error: 'file_replace_text: old_text cannot be empty'
+    };
   }
-  return num;
-}
-
-function validateAbsolutePath(path: string): boolean {
-  // Unix/Linux/Mac absolute paths start with /
-  // Windows absolute paths like C:\ or \\server\share
-  return /^(\/|[A-Za-z]:\\|\\\\)/.test(path);
-}
-=== END FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/transformToAction.ts ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md ===
-# Component: fs-ops
-
-## Component Type
-standard
-
-## Status
-[PARTIALLY IMPLEMENTED] - Only file operations implemented. Directory operations, search operations pending.
-
-## Documentation Debt
-- [ ] Integration test format is preliminary [IMPLEMENTED]
-- [ ] Error handling strategy needs refinement
-- [ ] Consider batching operations for efficiency
-
-## Dependencies
-
-```yaml
-dependencies:
-  node:fs/promises:
-    functions: [writeFile, unlink, mkdir, rename, stat]
-    # Note: removed unused - readFile, rmdir, readdir (not yet implemented)
+  
+  try {
+    // Read existing file content
+    const content = await readFile(path, 'utf8');
     
-  node:path:
-    functions: [dirname]
-    # Note: removed unused - resolve, join (not yet needed)
+    // Count occurrences first
+    let count = 0;
+    let searchIndex = 0;
+    while (true) {
+      const index = content.indexOf(old_text, searchIndex);
+      if (index === -1) break;
+      count++;
+      searchIndex = index + 1;
+    }
     
-  # Removed node:util - not used
-  # Removed node:child_process - grep not yet implemented
-```
-
-## Exports
-
-```yaml
-exports:
-  functions: [executeFileOperation]
-  types: [FileOpResult]
-  classes:
-    FileOpError:
-      extends: Error
-```
-
-### executeFileOperation
-- **Signature**: `executeFileOperation(action: CladaAction) -> Promise<FileOpResult>`
-- **Purpose**: Execute file system operations from parsed SHAM actions
-- **Throws**: Never - all errors captured in FileOpResult
-- **Test-data**: `test-data/integration/file-operations.md` [PLANNED]
-
-### FileOpResult (type)
-```typescript
-interface FileOpResult {
-  success: boolean
-  data?: any           // Operation-specific return data
-  error?: string       // Error message if failed
+    // Validate exactly one occurrence
+    if (count === 0) {
+      return {
+        success: false,
+        error: `file_replace_text: old_text not found in file`
+      };
+    }
+    if (count > 1) {
+      return {
+        success: false,
+        error: `file_replace_text: old_text appears ${count} times, must appear exactly once`
+      };
+    }
+    
+    // Replace the single occurrence
+    const { result, replacements } = replaceText(content, old_text, new_text, 1);
+    
+    // Write updated content back
+    await writeFile(path, result, 'utf8');
+    
+    return {
+      success: true,
+      data: {
+        path,
+        replacements
+      }
+    };
+    
+  } catch (error: any) {
+    // Special case for empty old_text validation error
+    if (error.message === 'old_text cannot be empty') {
+      return {
+        success: false,
+        error: 'file_replace_text: old_text cannot be empty'
+      };
+    }
+    
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'open')
+    };
+  }
 }
-```
 
-### FileOpError (type)
-```typescript
-interface FileOpError extends Error {
-  code: string         // e.g., 'ENOENT', 'EACCES'
-  path?: string        // File path involved
-  operation: string    // Which operation failed
+/**
+ * Handle file_replace_all_text action - replaces all occurrences
+ * If count provided, validates exact match
+ */
+async function handleFileReplaceAllText(action: CladaAction): Promise<FileOpResult> {
+  const { path, old_text, new_text, count } = action.parameters;
+  
+  // Validate old_text is not empty
+  if (!old_text || old_text.length === 0) {
+    return {
+      success: false,
+      error: 'file_replace_all_text: old_text cannot be empty'
+    };
+  }
+  
+  try {
+    // Read existing file content
+    const content = await readFile(path, 'utf8');
+    
+    // If count specified, validate it matches actual occurrences
+    if (count !== undefined) {
+      // Count actual occurrences
+      let actualCount = 0;
+      let searchIndex = 0;
+      while (true) {
+        const index = content.indexOf(old_text, searchIndex);
+        if (index === -1) break;
+        actualCount++;
+        searchIndex = index + 1;
+      }
+      
+      if (actualCount !== count) {
+        return {
+          success: false,
+          error: `file_replace_all_text: expected ${count} occurrences but found ${actualCount}`
+        };
+      }
+    }
+    
+    // Replace all occurrences
+    const { result, replacements } = replaceText(content, old_text, new_text);
+    
+    // Write updated content back
+    await writeFile(path, result, 'utf8');
+    
+    return {
+      success: true,
+      data: {
+        path,
+        replacements
+      }
+    };
+    
+  } catch (error: any) {
+    // Special case for empty old_text validation error
+    if (error.message === 'old_text cannot be empty') {
+      return {
+        success: false,
+        error: 'file_replace_all_text: old_text cannot be empty'
+      };
+    }
+    
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'open')
+    };
+  }
 }
-```
 
-## Internal Functions
+// Internal function stubs for each operation
 
-### createFile
-- **Signature**: `createFile(path: string, content: string) -> Promise<void>`
-- **Purpose**: Create new file with content, creating parent directories as needed
+async function createFile(path: string, content: string): Promise<void> {
+  throw new Error('Not implemented');
+}
 
-### writeFile  
-- **Signature**: `writeFile(path: string, content: string) -> Promise<void>`
-- **Purpose**: Overwrite existing file content
+ 
 
-### replaceText
-- **Signature**: `replaceText(content: string, oldText: string, newText: string, count?: number) -> {result: string, replacements: number}`
-- **Purpose**: Pure function to replace text occurrences in string content
+async function replaceTextInFile(path: string, oldText: string, newText: string, count?: number): Promise<number> {
+  throw new Error('Not implemented');
+}
 
-### deleteFile
-- **Signature**: `deleteFile(path: string) -> Promise<void>`
-- **Purpose**: Remove file
+async function deleteFile(path: string): Promise<void> {
+  throw new Error('Not implemented');
+}
 
-### moveFile
-- **Signature**: `moveFile(oldPath: string, newPath: string) -> Promise<void>`
-- **Purpose**: Move or rename file
+async function moveFile(oldPath: string, newPath: string): Promise<void> {
+  throw new Error('Not implemented');
+}
 
-### readFileContent
-- **Signature**: `readFileContent(path: string) -> Promise<string>`
-- **Purpose**: Read file content as UTF-8 string
+async function readFileContent(path: string): Promise<string> {
+  throw new Error('Not implemented');
+}
 
-### createDirectory
-- **Signature**: `createDirectory(path: string) -> Promise<void>`
-- **Purpose**: Create directory, including parent directories
+async function createDirectory(path: string): Promise<void> {
+  throw new Error('Not implemented');
+}
 
-### deleteDirectory
-- **Signature**: `deleteDirectory(path: string) -> Promise<void>`
-- **Purpose**: Remove directory (must be empty)
+async function deleteDirectory(path: string): Promise<void> {
+  throw new Error('Not implemented');
+}
 
-### listDirectory
-- **Signature**: `listDirectory(path: string) -> Promise<DirEntry[]>`
-- **Purpose**: List directory contents with metadata
+interface DirEntry {
+  name: string;
+  type: 'file' | 'directory';
+  size: number;
+  modified: Date;
+}
 
-### searchFiles
-- **Signature**: `searchFiles(pattern: string, path: string, include?: string) -> Promise<GrepResult[]>`
-- **Purpose**: Search for pattern in files (grep-like)
+async function listDirectory(path: string): Promise<DirEntry[]> {
+  throw new Error('Not implemented');
+}
 
-### globFiles
-- **Signature**: `globFiles(pattern: string, basePath: string) -> Promise<string[]>`
-- **Purpose**: Find files matching glob pattern
+interface GrepResult {
+  file: string;
+  line_number: number;
+  line: string;
+}
 
-## Action Mapping
+async function searchFiles(pattern: string, path: string, include?: string): Promise<GrepResult[]> {
+  throw new Error('Not implemented');
+}
 
-```typescript
-const actionHandlers = {
+async function globFiles(pattern: string, basePath: string): Promise<string[]> {
+  throw new Error('Not implemented');
+}
+
+// Action handler mapping
+const actionHandlers: Record<string, (action: CladaAction) => Promise<FileOpResult>> = {
   'file_write': handleFileWrite,
   'file_replace_text': handleFileReplaceText,
   'file_replace_all_text': handleFileReplaceAllText,
   'file_delete': handleFileDelete,
   'file_move': handleFileMove,
   'file_read': handleFileRead,
-  'dir_create': createDirectory,
-  'dir_delete': deleteDirectory,
-  'ls': listDirectory,
-  'grep': searchFiles,
-  'glob': globFiles
-}
-```
-=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md ===
+  'files_read': handleFilesRead,
+  'dir_create': async (action) => {
+    return { success: false, error: 'Not implemented' };
+  },
+  'dir_delete': async (action) => {
+    return { success: false, error: 'Not implemented' };
+  },
+  'ls': async (action) => {
+    return { success: false, error: 'Action not implemented: ls' };
+  },
+  'grep': async (action) => {
+    return { success: false, error: 'Not implemented' };
+  },
+  'glob': async (action) => {
+    return { success: false, error: 'Not implemented' };
+  }
+};
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts ===
 
 === START FILE: /Users/stuart/repos/clada/proj/doc/API.md ===
 # Component: clada

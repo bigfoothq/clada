@@ -111,6 +111,7 @@ export class Clada {
     const fileOps = [
       'file_write',
       'file_read',
+      'files_read',
       'file_delete',
       'file_move',
       'file_replace_text',

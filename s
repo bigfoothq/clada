@@ -4,18 +4,11 @@ output_file="snapshot_selections.txt"
 
 file_list=$(cat <<'EOF'
 
-
-
-
-/Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts
-/Users/stuart/repos/clada/unified-design.yaml
-/Users/stuart/repos/clada/proj/comp/fs-ops/test-data/integration/file-operations.cases.md
-/Users/stuart/repos/clada/proj/test/execute.test.ts
-/Users/stuart/repos/clada/proj/test-data/execute/basic-operations.md
 /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/index.ts
-/Users/stuart/repos/clada/proj/comp/sham-action-parser/src/validateShamBlock.ts
-/Users/stuart/repos/clada/proj/comp/sham-action-parser/src/transformToAction.ts
-/Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
+/Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts
+/Users/stuart/repos/clada/proj/src/index.ts
+/Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts
+
 
 
 /Users/stuart/repos/clada/proj/doc/API.md

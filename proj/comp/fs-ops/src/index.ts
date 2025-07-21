@@ -37,6 +37,14 @@ export async function executeFileOperation(action: CladaAction): Promise<FileOpR
   try {
     const handler = actionHandlers[action.action];
     
+    // Debug: log what's happening with files_read
+    if (action.action === 'files_read') {
+      console.log('DEBUG executeFileOperation:');
+      console.log('  action.action:', action.action);
+      console.log('  handler exists:', !!handler);
+      console.log('  available handlers:', Object.keys(actionHandlers));
+    }
+    
     if (!handler) {
       return {
         success: false,

@@ -116,6 +116,15 @@ export async function parseShamResponse(shamText: string): Promise<ParseResult> 
       const actionType = block.properties?.action;
       const actionDef = actionType ? actionSchema.get(actionType) : undefined;
 
+      // Debug: trace the lookup
+      if (actionType === 'files_read') {
+        console.log('DEBUG files_read lookup:');
+        console.log('  actionType:', actionType, typeof actionType);
+        console.log('  actionSchema has files_read:', actionSchema.has('files_read'));
+        console.log('  actionDef:', actionDef);
+        console.log('  all keys:', Array.from(actionSchema.keys()));
+      }
+
       // Validate block
       const validation = validateShamBlock(block, actionDef ?? null);
       
@@ -207,6 +216,9 @@ async function loadActionSchema(): Promise<Map<string, ActionDefinition>> {
         actionSchemaCache.set(toolName, toolDef as ActionDefinition);
       }
     }
+    
+    // Debug: log what actions were loaded
+    console.log('Loaded actions from unified-design.yaml:', Array.from(actionSchemaCache.keys()));
     
     return actionSchemaCache;
   } catch (error) {

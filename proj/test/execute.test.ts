@@ -17,7 +17,7 @@ const testNames = tokens
   .filter(t => t.type === 'heading' && 'depth' in t && t.depth === 3)
   .map(t => (t as any).text as string);
 
-const testPaths = [
+const testFiles = [
   '/tmp/test.txt',
   '/tmp/first.txt',
   '/tmp/second.txt',
@@ -36,8 +36,12 @@ const testPaths = [
   '/tmp/move-source.txt',
   '/tmp/move-dest.txt',
   '/tmp/empty-replace.txt',
-  '/tmp/parent-test.txt',
-  '/tmp/new'
+  '/tmp/parent-test.txt'
+];
+
+const testDirs = [
+  '/tmp/new',
+  '/tmp/deeply'
 ];
 
 describe('Clada.execute()', () => {
@@ -45,19 +49,41 @@ describe('Clada.execute()', () => {
 
   beforeEach(() => {
     clada = new Clada();
-    testPaths.forEach(path => {
-      if (existsSync(path)) {
-        rmSync(path, { recursive: true, force: true });
+    // Clean up files
+    for (const path of testFiles) {
+      try {
+        if (existsSync(path)) rmSync(path);
+      } catch (err) {
+        // Continue cleanup even if one fails
       }
-    });
+    }
+    // Clean up directories
+    for (const path of testDirs) {
+      try {
+        if (existsSync(path)) rmSync(path, { recursive: true, force: true });
+      } catch (err) {
+        // Continue cleanup even if one fails
+      }
+    }
   });
 
   afterEach(() => {
-    testPaths.forEach(path => {
-      if (existsSync(path)) {
-        rmSync(path, { recursive: true, force: true });
+    // Clean up files
+    for (const path of testFiles) {
+      try {
+        if (existsSync(path)) rmSync(path);
+      } catch (err) {
+        // Continue cleanup even if one fails
       }
-    });
+    }
+    // Clean up directories
+    for (const path of testDirs) {
+      try {
+        if (existsSync(path)) rmSync(path, { recursive: true, force: true });
+      } catch (err) {
+        // Continue cleanup even if one fails
+      }
+    }
   });
 
   testNames.forEach((name, i) => {

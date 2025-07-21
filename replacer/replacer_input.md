@@ -1,103 +1,85 @@
-=== PROCESSED: 2025-07-21 15:33:46 ===
-SUCCESS Block 1: Created /Users/stuart/repos/clada/proj/comp/exec/test-data/executeCommand.json
+=== PROCESSED: 2025-07-21 15:56:38 ===
+SUCCESS Block 1: Updated /Users/stuart/repos/clada/proj/comp/exec/test-data/integration/exec_errors.cases.md
+SUCCESS Block 2: Updated /Users/stuart/repos/clada/proj/comp/exec/test-data/integration/exec_errors.cases.md
+SUCCESS Block 3: Updated /Users/stuart/repos/clada/proj/comp/exec/test-data/integration/exec_errors.cases.md
 ===
 
-Looking at your test pattern, I'll create the unit test files. First, let me create the unit test data files in JSON format, then the test harnesses.
+Right. The implementation's consistent shape is correct. Need to update test expectations to match.
+
+Already fixed the "invalid language" test case above. Need to check if other test cases have the same inconsistency:
+
+Looking at the test data files:
+- `formatExecResult.json` - already includes all fields consistently
+- `executeCommand.json` - just fixed the one case
+- `buildSpawnOptions.json` - doesn't deal with ExecResult
+- `mapLanguageToCommand.json` - doesn't deal with ExecResult
+
+The integration tests might have similar issues. Let me check the expected outputs in the `.cases.md` files for any that expect errors without stdout/stderr fields.
 
 <<<EXPLANATION>>>
-Creating unit test data for executeCommand function - the main entry point that orchestrates the execution flow.
-
+Update integration test expectation for missing interpreter to include stdout/stderr
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/exec/test-data/executeCommand.json
-
-<<<OVERWRITE>>>
+/Users/stuart/repos/clada/proj/comp/exec/test-data/integration/exec_errors.cases.md
+<<<SEARCH>>>
+```json
 {
-  "cases": [
-    {
-      "name": "basic bash execution",
-      "input": {
-        "action": "exec",
-        "parameters": {
-          "lang": "bash",
-          "code": "echo 'test'"
-        }
-      },
-      "expected": {
-        "success": true,
-        "stdout": "test\n",
-        "stderr": "",
-        "exit_code": 0
-      }
-    },
-    {
-      "name": "execution with custom cwd",
-      "input": {
-        "action": "exec",
-        "parameters": {
-          "lang": "bash",
-          "code": "pwd",
-          "cwd": "/tmp"
-        }
-      },
-      "expected": {
-        "success": true,
-        "stdout": "/tmp\n",
-        "stderr": "",
-        "exit_code": 0
-      }
-    },
-    {
-      "name": "non-zero exit code",
-      "input": {
-        "action": "exec",
-        "parameters": {
-          "lang": "bash",
-          "code": "exit 42"
-        }
-      },
-      "expected": {
-        "success": false,
-        "stdout": "",
-        "stderr": "",
-        "exit_code": 42
-      }
-    },
-    {
-      "name": "invalid language",
-      "input": {
-        "action": "exec",
-        "parameters": {
-          "lang": "rust",
-          "code": "println!(\"hello\");"
-        }
-      },
-      "expected": {
-        "success": false,
-        "error": "exec: Unsupported language 'rust' (LANG_UNSUPPORTED)"
-      }
-    }
-  ]
+  "success": false,
+  "error": "exec: python3 not found in PATH (ENOENT)"
 }
+```
+<<<REPLACE>>>
+```json
+{
+  "success": false,
+  "stdout": "",
+  "stderr": "",
+  "error": "exec: python3 not found in PATH (ENOENT)"
+}
+```
 <<<END>>>
 
 <<<EXPLANATION>>>
-Creating unit test data for mapLanguageToCommand - converts language and code to spawn command format.
-
+Update integration test expectation for invalid working directory
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/exec/test-data/mapLanguageToCommand.json
-
-<<<OVERWRITE>>>
+/Users/stuart/repos/clada/proj/comp/exec/test-data/integration/exec_errors.cases.md
+<<<SEARCH>>>
+```json
 {
-  "cases": [
-    {
-      "name": "bash mapping",
-      "input": ["bash", "echo 'hello'"],
-      "expected": {
-        "command": "bash",
-        "args": ["-c", "echo 'hello'"]
-      }
-    },
-    {
-      "name": "javascript mapping",
-      "input": ["javascript", "console.log('test')"],
-      "expected": {
+  "success": false,
+  "error": "exec: Working directory does not exist '/nonexistent/directory/path' (ENOENT)"
+}
+```
+<<<REPLACE>>>
+```json
+{
+  "success": false,
+  "stdout": "",
+  "stderr": "",
+  "error": "exec: Working directory does not exist '/nonexistent/directory/path' (ENOENT)"
+}
+```
+<<<END>>>
+
+<<<EXPLANATION>>>
+Update integration test expectation for unsupported language
+<<<FILE>>>
+/Users/stuart/repos/clada/proj/comp/exec/test-data/integration/exec_errors.cases.md
+<<<SEARCH>>>
+```json
+{
+  "success": false,
+  "error": "exec: Unsupported language 'rust' (LANG_UNSUPPORTED)"
+}
+```
+<<<REPLACE>>>
+```json
+{
+  "success": false,
+  "stdout": "",
+  "stderr": "",
+  "error": "exec: Unsupported language 'rust' (LANG_UNSUPPORTED)"
+}
+```
+<<<END>>>
+
+That should align all test expectations with the consistent ExecResult shape.

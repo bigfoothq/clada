@@ -12,6 +12,8 @@ code = "print('hello')"
 ```json
 {
   "success": false,
+  "stdout": "",
+  "stderr": "",
   "error": "exec: python3 not found in PATH (ENOENT)"
 }
 ```
@@ -29,6 +31,8 @@ cwd = "/nonexistent/directory/path"
 ```json
 {
   "success": false,
+  "stdout": "",
+  "stderr": "",
   "error": "exec: Working directory does not exist '/nonexistent/directory/path' (ENOENT)"
 }
 ```
@@ -153,6 +157,8 @@ code = "println!(\"Hello\");"
 ```json
 {
   "success": false,
+  "stdout": "",
+  "stderr": "",
   "error": "exec: Unsupported language 'rust' (LANG_UNSUPPORTED)"
 }
 ```

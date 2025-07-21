@@ -7,7 +7,8 @@
         "cwd": "{PROCESS_CWD}",
         "env": "{PROCESS_ENV}",
         "shell": false,
-        "windowsHide": true
+        "windowsHide": true,
+        "detached": true
       }
     },
     {
@@ -17,7 +18,8 @@
         "cwd": "/tmp",
         "env": "{PROCESS_ENV}",
         "shell": false,
-        "windowsHide": true
+        "windowsHide": true,
+        "detached": true
       }
     },
     {
@@ -27,7 +29,8 @@
         "cwd": "{RESOLVED_PATH}",
         "env": "{PROCESS_ENV}",
         "shell": false,
-        "windowsHide": true
+        "windowsHide": true,
+        "detached": true
       }
     },
     {

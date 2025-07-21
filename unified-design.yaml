@@ -21,6 +21,7 @@ tools:
   # File Operations
   file_write:
     type: write
+    executor: fs-ops
     description: Create new file while creating any necessary parent dirs. overwrites if already exists
     accessibility: [llm]
     parameters:
@@ -30,6 +31,7 @@ tools:
     
   file_replace_text:
     type: write
+    executor: fs-ops
     description: Replace first and only instance of substring in file. must exist only once
     accessibility: [llm]
     parameters:
@@ -40,6 +42,7 @@ tools:
     
   file_replace_all_text:
     type: write
+    executor: fs-ops
     description: Replace each matching substring in file.  Number of matches (count) should usually be known and declared ahead of time.
     accessibility: [llm]
     parameters:
@@ -53,6 +56,7 @@ tools:
   #tentative!  under consideration
   files_replace_all_text:
     type: write
+    executor: fs-ops
     description: Replace all occurrences of substring in multiple files. Processes each file independently
     accessibility: [llm]
     parameters:
@@ -75,8 +79,13 @@ tools:
 
 
   #tentative!  under consideration.  dont implement yet
+  # actually.... for "in parents" stuff lets just use our exisitng tools, but allow "parent" stuff to be added to the path, like ina  syntax we created earlier but forgot about
+  # like:
+  # path/to/file.md@@## Section 2@@### part 3
+  # path/to/code.rs@@MyModuleOrClass@@myFunction
   files_replace_text_in_parents:
     type: write
+    executor: fs-ops
     description: Replace all occurrences of substring in a given node of a parsed file that supports grouping, like markdown, code (ast), etc 
     accessibility: [llm]
     parameters:
@@ -88,6 +97,7 @@ tools:
 
   file_append:
     type: write
+    executor: fs-ops
     description: Append to file
     accessibility: [llm]
     parameters:
@@ -97,6 +107,7 @@ tools:
     
   file_delete:
     type: write
+    executor: fs-ops
     description: Delete file
     accessibility: [llm]
     parameters:
@@ -105,6 +116,7 @@ tools:
     
   file_move:
     type: write
+    executor: fs-ops
     description: Move/rename file
     accessibility: [llm]
     parameters:
@@ -116,6 +128,7 @@ tools:
 
   file_read:
     type: read
+    executor: fs-ops
     description: Read single file content
     accessibility: [llm]
     parameters:
@@ -125,6 +138,7 @@ tools:
 
   files_read:
     type: read
+    executor: fs-ops
     description: Read and concatenate contents of multiple files into a single string, with clear file delimiters
     accessibility: [llm]
     parameters:
@@ -148,6 +162,7 @@ tools:
   # Directory Operations
   dir_create:
     type: write
+    executor: fs-ops
     description: Create directory
     accessibility: [llm]
     parameters:
@@ -156,6 +171,7 @@ tools:
     
   dir_delete:
     type: write
+    executor: fs-ops
     description: Delete directory
     accessibility: [llm]
     parameters:
@@ -165,6 +181,7 @@ tools:
   # Read Operations
   ls:
     type: read
+    executor: fs-ops
     description: List directory contents
     accessibility: [llm]
     parameters:

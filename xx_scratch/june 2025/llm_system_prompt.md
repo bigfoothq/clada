@@ -96,3 +96,5 @@ IMPORTANT EDIT INSTRUCTIONS NOTE:
 - always use full absolute file paths for edit instructions
 
 - to delete a file, share bash commands with the user in your response.  do not use edit instructions to delete a file
+
+- DO NOT USE EDIT INSTRUCTIONS TO DELETE A FILE

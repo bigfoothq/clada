@@ -8,6 +8,8 @@ file_list=$(cat <<'EOF'
 /Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts
 /Users/stuart/repos/clada/proj/src/index.ts
 /Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts
+/Users/stuart/repos/clada/unified-design.yaml
+
 
 
 

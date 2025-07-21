@@ -1,6 +1,10 @@
 import type { CladaAction, ParseResult, ParseError } from '../comp/sham-action-parser/src/index.js';
 import { parseShamResponse } from '../comp/sham-action-parser/src/index.js';
 import type { FileOpResult } from '../comp/fs-ops/src/index.js';
+import { load as loadYaml } from 'js-yaml';
+import { readFile } from 'fs/promises';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
 export interface ExecutionResult {
   success: boolean;
@@ -98,41 +102,88 @@ export class Clada {
 
   /**
    * Initialize action executors with dynamic imports
-   * Treats import failures as fatal errors
+   * Loads routing from unified-design.yaml
    */
   private async initializeExecutors(): Promise<void> {
     this.executors = new Map();
     
-    // Import fs-ops executor
-    const fsOpsModule = await import('../comp/fs-ops/src/index.js');
-    const { executeFileOperation } = fsOpsModule;
+    // Load unified-design.yaml
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    const yamlPath = join(__dirname, '../../unified-design.yaml');
     
-    // Map file operations
-    const fileOps = [
-      'file_write',
-      'file_read',
-      'files_read',
-      'file_delete',
-      'file_move',
-      'file_replace_text',
-      'file_replace_all_text',
-      'file_append',
-      'dir_create',
-      'dir_delete',
-      'ls',
-      'grep',
-      'glob'
-    ];
+    const yamlContent = await readFile(yamlPath, 'utf8');
+    const design = loadYaml(yamlContent) as any;
     
-    for (const op of fileOps) {
-      this.executors.set(op, executeFileOperation);
+    // Map executor names to modules
+    const executorModules: Record<string, () => Promise<any>> = {
+      'fs-ops': () => import('../comp/fs-ops/src/index.js'),
+      'exec': () => import('../comp/exec/src/index.js')
+    };
+    
+    // Load executors on demand
+    const loadedExecutors: Record<string, (action: CladaAction) => Promise<FileOpResult>> = {};
+    
+    // Build routing table from YAML
+    for (const [actionName, actionDef] of Object.entries(design.tools)) {
+      const executor = (actionDef as any).executor || this.inferExecutor(actionName, actionDef);
+      
+      if (!executor) {
+        console.warn(`No executor defined for action: ${actionName}`);
+        continue;
+      }
+      
+      // Load executor module if not already loaded
+      if (!loadedExecutors[executor]) {
+        if (executor === 'exec') {
+          // Temporary stub for exec
+          loadedExecutors[executor] = async (action) => ({
+            success: false,
+            error: 'Action not implemented: exec'
+          });
+        } else if (executorModules[executor]) {
+          const module = await executorModules[executor]();
+          loadedExecutors[executor] = module.executeFileOperation || module.executeOperation;
+        } else {
+          // Skip planned but unimplemented executors silently
+          if (!['context', 'git'].includes(executor)) {
+            console.warn(`Unknown executor: ${executor}`);
+          }
+          continue;
+        }
+      }
+      
+      this.executors.set(actionName, loadedExecutors[executor]);
+    }
+  }
+  
+  /**
+   * Infer executor from action name/type when not explicitly defined
+   * Temporary fallback until all YAML entries have executor field
+   */
+  private inferExecutor(actionName: string, actionDef: any): string | null {
+    // File/dir operations go to fs-ops
+    if (actionName.startsWith('file_') || actionName.startsWith('files_') || 
+        actionName.startsWith('dir_') || ['ls', 'grep', 'glob'].includes(actionName)) {
+      return 'fs-ops';
     }
     
-    // Exec operations will return "not implemented" for now
-    this.executors.set('exec', async (action) => ({
-      success: false,
-      error: 'Action not implemented: exec'
-    }));
+    // Exec operations
+    if (actionName === 'exec') {
+      return 'exec';
+    }
+    
+    // Context operations (future)
+    if (actionName.startsWith('context_')) {
+      return 'context';
+    }
+    
+    // Git operations (future)
+    if (actionName.startsWith('git_') || actionName === 'undo') {
+      return 'git';
+    }
+    
+    return null;
   }
 
   /**

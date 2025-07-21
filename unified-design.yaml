@@ -52,11 +52,13 @@ tools:
 
   #tentative!  under consideration
   files_replace_all_text:
+    type: write
+    description: Replace all occurrences of substring in multiple files. Processes each file independently
+    accessibility: [llm]
     parameters:
       paths: {type: string, format: multiline_absolute_paths}
-      old_text: {type: string}
-      new_text: {type: string}
-      count: {type: integer, required: false}
+      old_text: {type: string, required: true}
+      new_text: {type: string, required: true}
     returns: {
       success: boolean,
       results: {
@@ -69,6 +71,20 @@ tools:
       },
       error?: string  # for complete failure
     }
+
+
+
+  #tentative!  under consideration.  dont implement yet
+  files_replace_text_in_parents:
+    type: write
+    description: Replace all occurrences of substring in a given node of a parsed file that supports grouping, like markdown, code (ast), etc 
+    accessibility: [llm]
+    parameters:
+      path: {type: string, required: true}
+      parents: {type: string, required: true, format: multiline_absolute_paths} # need to better define how parents are defined
+      old_text: {type: string, required: true}
+      new_text: {type: string, required: true}
+
 
   file_append:
     type: write
@@ -96,7 +112,18 @@ tools:
       new_path: {type: string, required: true, format: absolute_path}
     returns: {success: boolean, error?: string}
     
+
+
   file_read:
+    type: read
+    description: Read single file content
+    accessibility: [llm]
+    parameters:
+      path: {type: string, required: true, format: absolute_path}
+    returns: {success: boolean, content?: string, error?: string}
+
+
+  files_read:
     type: read
     description: Read and concatenate contents of multiple files into a single string, with clear file delimiters
     accessibility: [llm]

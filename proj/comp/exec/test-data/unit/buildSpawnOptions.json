@@ -7,8 +7,7 @@
         "cwd": "{PROCESS_CWD}",
         "env": "{PROCESS_ENV}",
         "shell": false,
-        "windowsHide": true,
-        "timeout": 30000
+        "windowsHide": true
       }
     },
     {
@@ -18,8 +17,7 @@
         "cwd": "/tmp",
         "env": "{PROCESS_ENV}",
         "shell": false,
-        "windowsHide": true,
-        "timeout": 30000
+        "windowsHide": true
       }
     },
     {
@@ -29,8 +27,7 @@
         "cwd": "{RESOLVED_PATH}",
         "env": "{PROCESS_ENV}",
         "shell": false,
-        "windowsHide": true,
-        "timeout": 30000
+        "windowsHide": true
       }
     },
     {

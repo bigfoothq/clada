@@ -56,8 +56,22 @@ async function runProcess(
     let stdout = '';
     let stderr = '';
     let timedOut = false;
+    let timeoutId: NodeJS.Timeout | null = null;
     
     const child = spawn(command, args, options);
+    
+    // Set up timeout
+    const TIMEOUT_MS = 30000;
+    timeoutId = setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGTERM');
+      // Force kill after grace period
+      setTimeout(() => {
+        if (!child.killed) {
+          child.kill('SIGKILL');
+        }
+      }, 1000);
+    }, TIMEOUT_MS);
     
     // Capture output streams
     child.stdout?.on('data', (data) => {
@@ -72,6 +86,10 @@ async function runProcess(
     
     // Handle process completion
     child.on('exit', (code, signal) => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      
       if (timedOut) {
         resolve(formatExecResult(null, stdout, stderr, 
           new Error('exec: Process timeout after 30s (TIMEOUT)')));
@@ -85,6 +103,9 @@ async function runProcess(
     
     // Handle spawn errors (command not found, etc)
     child.on('error', (error) => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       // Check if it's ENOENT (command not found)
       if ((error as any).code === 'ENOENT') {
         resolve(formatExecResult(null, stdout, stderr,
@@ -94,18 +115,6 @@ async function runProcess(
       }
     });
     
-    // Timeout handling - Node's timeout option will kill the process
-    if (options.timeout) {
-      setTimeout(() => {
-        timedOut = true;
-        child.kill('SIGTERM');
-        // Force kill after grace period
-        setTimeout(() => {
-          if (!child.killed) {
-            child.kill('SIGKILL');
-          }
-        }, 1000);
-      }, options.timeout);
-    }
+ 
   });
 }

@@ -14,8 +14,7 @@ export async function buildSpawnOptions(cwd?: string): Promise<SpawnOptions> {
   const options: SpawnOptions = {
     env: process.env,
     shell: false,
-    windowsHide: true,
-    timeout: 30000
+    windowsHide: true
   };
   
   // Set and validate working directory

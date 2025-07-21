@@ -1,0 +1,84 @@
+import { describe, it, expect } from 'vitest';
+import { readFileSync, readdirSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { marked, Token } from 'marked';
+import { executeCommand } from '../src/index';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const testDataDir = join(__dirname, '../test-data/integration');
+
+// Get all .cases.md files
+const caseFiles = readdirSync(testDataDir)
+  .filter(f => f.endsWith('.cases.md'))
+  .sort();
+
+describe('exec integration tests', () => {
+  caseFiles.forEach(file => {
+    const content = readFileSync(join(testDataDir, file), 'utf8');
+    const tokens: Token[] = marked.lexer(content);
+    
+    // Extract test names from ## headings
+    const testNames = tokens
+      .filter(t => t.type === 'heading' && 'depth' in t && t.depth === 2)
+      .map(t => (t as any).text as string);
+    
+    // Extract code blocks
+    const codeBlocks = tokens
+      .filter(t => t.type === 'code')
+      .map(t => (t as any).text as string);
+    
+    describe(file, () => {
+      testNames.forEach((name, i) => {
+        const baseIndex = i * 2;
+        if (baseIndex + 1 < codeBlocks.length) {
+          it(name, async () => {
+            const shamBlock = codeBlocks[baseIndex];
+            const expectedJson = codeBlocks[baseIndex + 1];
+            
+            // Parse SHAM to get action
+            const action = parseShamToAction(shamBlock);
+            
+            // Execute command
+            const result = await executeCommand(action);
+            
+            // Parse expected result
+            const expected = JSON.parse(expectedJson);
+            
+            // Compare results
+            expect(result).toMatchObject(expected);
+          });
+        }
+      });
+    });
+  });
+});
+
+// Helper to parse SHAM blocks into action objects
+function parseShamToAction(shamBlock: string): any {
+  const lines = shamBlock.split('\n');
+  const action: any = { parameters: {} };
+  
+  for (const line of lines) {
+    if (line.startsWith('action = ')) {
+      action.action = line.slice(9).replace(/"/g, '');
+    } else if (line.startsWith('lang = ')) {
+      action.parameters.lang = line.slice(7).replace(/"/g, '');
+    } else if (line.startsWith('code = ')) {
+      // Handle simple single-line code
+      if (!line.includes('<<')) {
+        action.parameters.code = line.slice(7).replace(/"/g, '');
+      }
+    } else if (line.startsWith('cwd = ')) {
+      action.parameters.cwd = line.slice(6).replace(/"/g, '');
+    }
+  }
+  
+  // Handle multiline code blocks
+  const codeMatch = shamBlock.match(/code = <<'(.+?)'\n([\s\S]+?)\n\1/);
+  if (codeMatch) {
+    action.parameters.code = codeMatch[2];
+  }
+  
+  return action;
+}

@@ -18,6 +18,14 @@ export { ParseResult, CladaAction, ParseError, ValidationResult, TransformError 
 let actionSchemaCache: Map<string, ActionDefinition> | null = null;
 
 /**
+ * Clear the action schema cache - useful for testing
+ * Forces reload of unified-design.yaml on next parse
+ */
+export function clearActionSchemaCache(): void {
+  actionSchemaCache = null;
+}
+
+/**
  * Parse SHAM blocks from text into validated clada actions
  * Processes all blocks, collecting successes and errors
  */

@@ -4,6 +4,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { marked, Token } from 'marked';
 import { Clada } from '../src/index.js';
+import { clearActionSchemaCache } from '../comp/sham-action-parser/src/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -51,6 +52,8 @@ describe('Clada.execute()', () => {
   let clada: Clada;
 
   beforeEach(() => {
+    // Clear the action schema cache to pick up latest definitions
+    clearActionSchemaCache();
     clada = new Clada();
     // Clean up files
     for (const path of testFiles) {

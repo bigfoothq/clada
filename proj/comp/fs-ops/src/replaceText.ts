@@ -13,7 +13,7 @@ export function replaceText(
   count?: number
 ): { result: string; replacements: number } {
   if (oldText === '') {
-    return { result: content, replacements: 0 };
+    throw new Error('old_text cannot be empty');
   }
 
   let result = content;

@@ -1,63 +1,61 @@
-=== PROCESSED: 2025-07-20 21:19:00 ===
-ERROR Block 1: No match found in /Users/stuart/repos/clada/proj/comp/fs-ops/src/fileSystemUtils.ts
+=== PROCESSED: 2025-07-20 23:09:16 ===
+SUCCESS Block 1: Updated /Users/stuart/repos/clada/proj/comp/fs-ops/test/integration/integration.test.ts
+SUCCESS Block 2: Updated /Users/stuart/repos/clada/proj/comp/fs-ops/test/integration/integration.test.ts
 ===
 
-The tests are failing because we deleted the functions but didn't delete their test files. Either:
+Good - the `.only` isolation worked. The test completes successfully when run alone, confirming the issue isn't with the test itself but with running multiple tests in sequence.
 
-1. Delete the test files (they're testing trivial wrappers)
-2. Keep the functions
+The hanging was likely due to:
+1. **Resource contention** - Multiple tests trying to access the same files
+2. **Async timing issues** - Tests starting before previous cleanup completes
+3. **parseShamResponse caching** - The `actionSchemaCache` is shared across tests
 
-Since you already have tests written and they're passing, keeping the functions has merit. They do provide value:
-- `getParentDirectory` handles Windows paths specially (though `dirname` might already do this correctly)
-- `getByteLength` is more readable than `Buffer.byteLength(content, 'utf8')`
-
-**Recommendation**: Keep the pure functions, they're harmless and tested. Just fix `ensureDirectoryExists` to use `mkdir` with recursive:
+Let's remove the `.only` and fix the real issue:
 
 <<<EXPLANATION>>>
-
-Fix ensureDirectoryExists to use mkdir with recursive option
-
+Remove the .only isolation since we've confirmed the individual test works
 <<<FILE>>>
-
-/Users/stuart/repos/clada/proj/comp/fs-ops/src/fileSystemUtils.ts
-
+/Users/stuart/repos/clada/proj/comp/fs-ops/test/integration/integration.test.ts
 <<<SEARCH>>>
-/**
- * Create directory and all parent directories if they don't exist
- * @param dirPath - Directory path to create
- * @returns Array of directories that were created (not those that already existed)
- */
-export async function ensureDirectoryExists(dirPath: string): Promise<string[]> {
-  const created: string[] = [];
-  const parts = dirPath.split('/').filter(Boolean);
-  
-  // Handle root for Unix paths
-  let currentPath = dirPath.startsWith('/') ? '' : '.';
-  
-  for (const part of parts) {
-    currentPath = currentPath + '/' + part;
-    
-    try {
-      await mkdir(currentPath);
-      created.push(currentPath);
-    } catch (err: any) {
-      // EEXIST is fine - directory already exists
-      if (err.code !== 'EEXIST') {
-        throw err;
-      }
-    }
-  }
-  
-  return created;
-}
+      group.tests.forEach(test => {
+        // Temporarily isolate first test
+        const itFn = test.name === '001-simple-file-create' ? it.only : it;
+        itFn(test.name, async () => {
 <<<REPLACE>>>
-/**
- * Create directory and all parent directories if they don't exist
- * @param dirPath - Directory path to create
- */
-export async function ensureDirectoryExists(dirPath: string): Promise<void> {
-  await mkdir(dirPath, { recursive: true });
-}
+      group.tests.forEach(test => {
+        it(test.name, async () => {
 <<<END>>>
 
-This keeps your existing abstractions but fixes the bug and simplifies the implementation.
+<<<EXPLANATION>>>
+Make beforeEach async to ensure cleanup completes before test starts
+<<<FILE>>>
+/Users/stuart/repos/clada/proj/comp/fs-ops/test/integration/integration.test.ts
+<<<SEARCH>>>
+  beforeEach(() => {
+    console.log('[beforeEach] Starting cleanup');
+    // Clean up any existing test files
+    testPaths.forEach(path => {
+      if (existsSync(path)) {
+        console.log('[beforeEach] Removing:', path);
+        rmSync(path, { recursive: true, force: true });
+      }
+    });
+    console.log('[beforeEach] Cleanup complete');
+  });
+<<<REPLACE>>>
+  beforeEach(async () => {
+    console.log('[beforeEach] Starting cleanup');
+    // Clean up any existing test files
+    testPaths.forEach(path => {
+      if (existsSync(path)) {
+        console.log('[beforeEach] Removing:', path);
+        rmSync(path, { recursive: true, force: true });
+      }
+    });
+    console.log('[beforeEach] Cleanup complete');
+    // Small delay to ensure filesystem operations complete
+    await new Promise(resolve => setTimeout(resolve, 50));
+  });
+<<<END>>>
+
+The key insight: The `actionSchemaCache` in `parseShamResponse` is loaded once and shared. This shouldn't cause hanging, but the file system operations might be overlapping if cleanup isn't fully synchronous.

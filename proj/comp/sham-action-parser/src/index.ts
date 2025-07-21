@@ -22,13 +22,16 @@ let actionSchemaCache: Map<string, ActionDefinition> | null = null;
  * Processes all blocks, collecting successes and errors
  */
 export async function parseShamResponse(shamText: string): Promise<ParseResult> {
+  console.log('[parseShamResponse] Starting with text length:', shamText.length);
   const actions: CladaAction[] = [];
   const errors: ParseError[] = [];
 
   // Parse SHAM blocks using nesl-js
   let parseResult: NeslParseResult;
   try {
+    console.log('[parseShamResponse] About to call parseSham...');
     parseResult = parseSham(shamText);
+    console.log('[parseShamResponse] parseSham returned:', parseResult);
     
     // Handle case where parseSham returns undefined or null
     if (!parseResult) {
@@ -72,6 +75,7 @@ export async function parseShamResponse(shamText: string): Promise<ParseResult> 
   
   for (const block of blocks) {
     const blockId = block.id || 'unknown';
+    console.log('[parseShamResponse] Processing block', blockId, 'with properties:', block.properties);
     
     try {
       // Get action type from block
@@ -123,7 +127,7 @@ export async function parseShamResponse(shamText: string): Promise<ParseResult> 
     }
   }
 
-  return {
+  const result = {
     actions,
     errors,
     summary: {
@@ -132,12 +136,15 @@ export async function parseShamResponse(shamText: string): Promise<ParseResult> 
       errorCount: errors.length
     }
   };
+  console.log('[parseShamResponse] Returning result with', result.actions.length, 'actions and', result.errors.length, 'errors');
+  return result;
 }
 
 /**
  * Load and cache action definitions from unified-design.yaml
  */
 async function loadActionSchema(): Promise<Map<string, ActionDefinition>> {
+  console.log('[loadActionSchema] Called, cache exists?', !!actionSchemaCache);
   if (actionSchemaCache) {
     return actionSchemaCache;
   }
@@ -148,10 +155,15 @@ async function loadActionSchema(): Promise<Map<string, ActionDefinition>> {
   
   // Navigate to project root and find unified-design.yaml
   const yamlPath = join(__dirname, '../../../../unified-design.yaml');
+  console.log('[loadActionSchema] Attempting to load from:', yamlPath);
   
   try {
+    console.log('[loadActionSchema] About to read file...');
     const yamlContent = await readFile(yamlPath, 'utf8');
+    console.log('[loadActionSchema] File read complete, size:', yamlContent.length);
+    console.log('[loadActionSchema] About to parse YAML...');
     const design = loadYaml(yamlContent) as any;
+    console.log('[loadActionSchema] YAML parsed, top keys:', Object.keys(design || {}));
     
     actionSchemaCache = new Map();
     
@@ -162,8 +174,10 @@ async function loadActionSchema(): Promise<Map<string, ActionDefinition>> {
       }
     }
     
+    console.log('[loadActionSchema] Schema cached with', actionSchemaCache.size, 'actions');
     return actionSchemaCache;
   } catch (error) {
+    console.error('[loadActionSchema] Error:', error);
     throw new Error(`Failed to load unified-design.yaml: ${error}`);
   }
 }

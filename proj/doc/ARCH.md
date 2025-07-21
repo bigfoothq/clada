@@ -82,7 +82,7 @@ interface ActionResult {
 - **None**: Full filesystem access
 - **No validation**: Any path allowed
 - **No sandboxing**: Direct execution
-- **V2 Future**: Path allowlisting per unified-design.yaml
+- **V2 Future**: Path allowlisting per unified-design.yaml. FOR THIS REASON all fs stuff should immediately be implemented using our fs wrapper functions so this whitelisting/blacklisting is easy to implment in the future.
 
 ## Component Structure
 ```

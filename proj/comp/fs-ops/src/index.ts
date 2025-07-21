@@ -5,10 +5,11 @@
  */
 
 import type { CladaAction } from '../../sham-action-parser/src/index.js';
-import { writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir, unlink, rename, readFile } from 'fs/promises';
 import { dirname } from 'path';
 import { formatNodeError } from './formatNodeError.js';
 import { fileExists } from './fileSystemUtils.js';
+import { replaceText } from './replaceText.js';
 
 export interface FileOpResult {
   success: boolean;
@@ -55,6 +56,80 @@ export async function executeFileOperation(action: CladaAction): Promise<FileOpR
 }
 
 /**
+ * Handle file_move action - moves/renames a file
+ * Creates parent directories for destination if needed
+ * Overwrites destination if it exists
+ */
+async function handleFileMove(action: CladaAction): Promise<FileOpResult> {
+  const { old_path, new_path } = action.parameters;
+  
+  try {
+    // Pre-flight check for better error messages
+    const sourceExists = await fileExists(old_path);
+    if (!sourceExists) {
+      return {
+        success: false,
+        error: `file_move: Source file not found '${old_path}' (ENOENT)`
+      };
+    }
+    
+    // Check if destination exists (for overwrote flag)
+    const destExists = await fileExists(new_path);
+    
+    // Create parent directories for destination
+    const parentDir = dirname(new_path);
+    await mkdir(parentDir, { recursive: true });
+    
+    // Move the file
+    await rename(old_path, new_path);
+    
+    const result: FileOpResult = {
+      success: true,
+      data: {
+        old_path,
+        new_path
+      }
+    };
+    
+    if (destExists) {
+      result.data.overwrote = true;
+    }
+    
+    return result;
+    
+  } catch (error: any) {
+    return {
+      success: false,
+      error: formatNodeError(error, old_path, 'rename', new_path)
+    };
+  }
+}
+
+/**
+ * Handle file_delete action - removes a file
+ */
+async function handleFileDelete(action: CladaAction): Promise<FileOpResult> {
+  const { path } = action.parameters;
+  
+  try {
+    await unlink(path);
+    
+    return {
+      success: true,
+      data: {
+        path
+      }
+    };
+    
+  } catch (error: any) {
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'unlink')
+    };
+  }
+}
+
+/**
  * Handle file_write action - writes/creates/overwrites a file with content
  * Automatically creates parent directories if needed
  */
@@ -86,15 +161,164 @@ async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
   }
 }
 
+/**
+ * Handle file_read action - reads file content
+ */
+async function handleFileRead(action: CladaAction): Promise<FileOpResult> {
+  const { path } = action.parameters;
+  
+  try {
+    const content = await readFile(path, 'utf8');
+    
+    return {
+      success: true,
+      data: {
+        path,
+        content
+      }
+    };
+    
+  } catch (error: any) {
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'open')
+    };
+  }
+}
+
+/**
+ * Handle file_replace_text action - replaces EXACTLY ONE occurrence
+ * Fails if old_text appears 0 or 2+ times
+ */
+async function handleFileReplaceText(action: CladaAction): Promise<FileOpResult> {
+  const { path, old_text, new_text } = action.parameters;
+  
+  try {
+    // Read existing file content
+    const content = await readFile(path, 'utf8');
+    
+    // Count occurrences first
+    let count = 0;
+    let searchIndex = 0;
+    while (true) {
+      const index = content.indexOf(old_text, searchIndex);
+      if (index === -1) break;
+      count++;
+      searchIndex = index + 1;
+    }
+    
+    // Validate exactly one occurrence
+    if (count === 0) {
+      return {
+        success: false,
+        error: `file_replace_text: old_text not found in file`
+      };
+    }
+    if (count > 1) {
+      return {
+        success: false,
+        error: `file_replace_text: old_text appears ${count} times, must appear exactly once`
+      };
+    }
+    
+    // Replace the single occurrence
+    const { result, replacements } = replaceText(content, old_text, new_text, 1);
+    
+    // Write updated content back
+    await writeFile(path, result, 'utf8');
+    
+    return {
+      success: true,
+      data: {
+        path,
+        replacements
+      }
+    };
+    
+  } catch (error: any) {
+    // Special case for empty old_text validation error
+    if (error.message === 'old_text cannot be empty') {
+      return {
+        success: false,
+        error: 'file_replace_text: old_text cannot be empty'
+      };
+    }
+    
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'open')
+    };
+  }
+}
+
+/**
+ * Handle file_replace_all_text action - replaces all occurrences
+ * If count provided, validates exact match
+ */
+async function handleFileReplaceAllText(action: CladaAction): Promise<FileOpResult> {
+  const { path, old_text, new_text, count } = action.parameters;
+  
+  try {
+    // Read existing file content
+    const content = await readFile(path, 'utf8');
+    
+    // If count specified, validate it matches actual occurrences
+    if (count !== undefined) {
+      // Count actual occurrences
+      let actualCount = 0;
+      let searchIndex = 0;
+      while (true) {
+        const index = content.indexOf(old_text, searchIndex);
+        if (index === -1) break;
+        actualCount++;
+        searchIndex = index + 1;
+      }
+      
+      if (actualCount !== count) {
+        return {
+          success: false,
+          error: `file_replace_all_text: expected ${count} occurrences but found ${actualCount}`
+        };
+      }
+    }
+    
+    // Replace all occurrences
+    const { result, replacements } = replaceText(content, old_text, new_text);
+    
+    // Write updated content back
+    await writeFile(path, result, 'utf8');
+    
+    return {
+      success: true,
+      data: {
+        path,
+        replacements
+      }
+    };
+    
+  } catch (error: any) {
+    // Special case for empty old_text validation error
+    if (error.message === 'old_text cannot be empty') {
+      return {
+        success: false,
+        error: 'file_replace_all_text: old_text cannot be empty'
+      };
+    }
+    
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'open')
+    };
+  }
+}
+
 // Internal function stubs for each operation
 
 async function createFile(path: string, content: string): Promise<void> {
   throw new Error('Not implemented');
 }
 
-async function writeFile(path: string, content: string): Promise<void> {
-  throw new Error('Not implemented');
-}
+ 
 
 async function replaceTextInFile(path: string, oldText: string, newText: string, count?: number): Promise<number> {
   throw new Error('Not implemented');
@@ -148,18 +372,11 @@ async function globFiles(pattern: string, basePath: string): Promise<string[]> {
 // Action handler mapping
 const actionHandlers: Record<string, (action: CladaAction) => Promise<FileOpResult>> = {
   'file_write': handleFileWrite,
-  'file_replace_text': async (action) => {
-    return { success: false, error: 'Not implemented' };
-  },
-  'file_delete': async (action) => {
-    return { success: false, error: 'Not implemented' };
-  },
-  'file_move': async (action) => {
-    return { success: false, error: 'Not implemented' };
-  },
-  'file_read': async (action) => {
-    return { success: false, error: 'Not implemented' };
-  },
+  'file_replace_text': handleFileReplaceText,
+  'file_replace_all_text': handleFileReplaceAllText,
+  'file_delete': handleFileDelete,
+  'file_move': handleFileMove,
+  'file_read': handleFileRead,
   'dir_create': async (action) => {
     return { success: false, error: 'Not implemented' };
   },

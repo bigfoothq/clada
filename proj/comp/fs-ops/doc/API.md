@@ -13,16 +13,15 @@ standard
 ```yaml
 dependencies:
   node:fs/promises:
-    functions: [writeFile, readFile, unlink, mkdir, rmdir, readdir, stat]
+    functions: [writeFile, unlink, mkdir, rename, stat]
+    # Note: removed unused - readFile, rmdir, readdir (not yet implemented)
     
   node:path:
-    functions: [dirname, resolve, join]
+    functions: [dirname]
+    # Note: removed unused - resolve, join (not yet needed)
     
-  node:util:
-    functions: [promisify]
-    
-  node:child_process:
-    functions: [exec]  # for grep functionality
+  # Removed node:util - not used
+  # Removed node:child_process - grep not yet implemented
 ```
 
 ## Exports
@@ -67,9 +66,9 @@ interface FileOpError extends Error {
 - **Signature**: `writeFile(path: string, content: string) -> Promise<void>`
 - **Purpose**: Overwrite existing file content
 
-### editFile
-- **Signature**: `editFile(path: string, oldText: string, newText: string, count?: number) -> Promise<number>`
-- **Purpose**: Replace text occurrences in file, returns replacement count
+### replaceText
+- **Signature**: `replaceText(content: string, oldText: string, newText: string, count?: number) -> {result: string, replacements: number}`
+- **Purpose**: Pure function to replace text occurrences in string content
 
 ### deleteFile
 - **Signature**: `deleteFile(path: string) -> Promise<void>`
@@ -107,11 +106,12 @@ interface FileOpError extends Error {
 
 ```typescript
 const actionHandlers = {
-  'file_write': writeFile,
-  'file_replace_text': editFile,
-  'file_delete': deleteFile,
-  'file_move': moveFile,
-  'file_read': readFileContent,
+  'file_write': handleFileWrite,
+  'file_replace_text': handleFileReplaceText,
+  'file_replace_all_text': handleFileReplaceAllText,
+  'file_delete': handleFileDelete,
+  'file_move': handleFileMove,
+  'file_read': handleFileRead,
   'dir_create': createDirectory,
   'dir_delete': deleteDirectory,
   'ls': listDirectory,

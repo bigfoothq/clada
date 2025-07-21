@@ -30,13 +30,23 @@ tools:
     
   file_replace_text:
     type: write
-    description: Replace substring in file
+    description: Replace first and only instance of substring in file. must exist only once
     accessibility: [llm]
     parameters:
       path: {type: string, required: true, format: absolute_path}
       old_text: {type: string, required: true}
       new_text: {type: string, required: true}
-      count: {type: integer, required: false, default: 1}
+    returns: {success: boolean, replacements_made?: integer, error?: string}
+    
+  file_replace_all_text:
+    type: write
+    description: Replace each matching substring in file.  Number of matches (count) should usually be known and declared ahead of time.
+    accessibility: [llm]
+    parameters:
+      path: {type: string, required: true, format: absolute_path}
+      old_text: {type: string, required: true}
+      new_text: {type: string, required: true}
+      count: {type: integer, required: false}
     returns: {success: boolean, replacements_made?: integer, error?: string}
     
   file_append:

@@ -13,6 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest watch",
     "test:run": "vitest run",
+    "test:debug": "vitest run --reporter=verbose --no-coverage",
+    "test:handles": "node --expose-gc ./node_modules/.bin/vitest run --reporter=verbose --no-coverage",
     "typecheck": "tsc --noEmit",
     "lint": "eslint proj/**/*.ts",
     "lint:fix": "eslint proj/**/*.ts --fix"

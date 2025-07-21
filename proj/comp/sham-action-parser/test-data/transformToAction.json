@@ -72,7 +72,7 @@
         {
           "id": "int",
           "properties": {
-            "action": "file_replace_text",
+            "action": "file_replace_all_text",
             "path": "/tmp/edit.txt",
             "old_text": "foo",
             "new_text": "bar",
@@ -87,12 +87,12 @@
             "path": {"type": "string", "required": true, "format": "absolute_path"},
             "old_text": {"type": "string", "required": true},
             "new_text": {"type": "string", "required": true},
-            "count": {"type": "integer", "required": false, "default": 1}
+            "count": {"type": "integer", "required": false}
           }
         }
       ],
       "expected": {
-        "action": "file_replace_text",
+        "action": "file_replace_all_text",
         "parameters": {
           "path": "/tmp/edit.txt",
           "old_text": "foo",
@@ -146,7 +146,7 @@
         {
           "id": "bad",
           "properties": {
-            "action": "file_replace_text",
+            "action": "file_replace_all_text",
             "path": "/tmp/edit.txt",
             "old_text": "foo",
             "new_text": "bar",

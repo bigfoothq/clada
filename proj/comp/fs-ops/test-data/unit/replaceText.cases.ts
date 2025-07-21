@@ -115,10 +115,7 @@ Line 3`,
   {
     name: "empty old text",
     input: ["hello world", "", "xyz"],
-    expected: {
-      result: "hello world",
-      replacements: 0,
-    },
+    throws: "old_text cannot be empty",
   },
   {
     name: "overlapping replacements",

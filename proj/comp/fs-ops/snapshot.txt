@@ -19,56 +19,20 @@ describe('formatNodeError', () => {
 });
 === END FILE: ./test/unit/formatNodeError.test.ts ===
 
-=== START FILE: ./test/unit/getParentDirectory.test.ts ===
-import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
-import { join } from 'path';
-import { getParentDirectory } from '../../src/getParentDirectory.js';
-
-const testData = JSON.parse(
-  readFileSync(join(__dirname, '../../test-data/unit/getParentDirectory.cases.json'), 'utf8')
-);
-
-describe('getParentDirectory', () => {
-  testData.cases.forEach(({ name, input, expected }) => {
-    it(name, () => {
-      const result = getParentDirectory(...input);
-      expect(result).toEqual(expected);
-    });
-  });
-});
-=== END FILE: ./test/unit/getParentDirectory.test.ts ===
-
-=== START FILE: ./test/unit/getByteLength.test.ts ===
-import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
-import { join } from 'path';
-import { getByteLength } from '../../src/getByteLength.js';
-
-const testData = JSON.parse(
-  readFileSync(join(__dirname, '../../test-data/unit/getByteLength.cases.json'), 'utf8')
-);
-
-describe('getByteLength', () => {
-  testData.cases.forEach(({ name, input, expected }) => {
-    it(name, () => {
-      const result = getByteLength(...input);
-      expect(result).toEqual(expected);
-    });
-  });
-});
-=== END FILE: ./test/unit/getByteLength.test.ts ===
-
 === START FILE: ./test/unit/replaceText.test.ts ===
 import { describe, it, expect } from 'vitest';
 import { replaceText } from '../../src/replaceText';
 import { cases } from '../../test-data/unit/replaceText.cases';
 
 describe('replaceText', () => {
-  cases.forEach(({ name, input, expected }) => {
+  cases.forEach(({ name, input, expected, throws }) => {
     it(name, () => {
-      const result = replaceText(...input);
-      expect(result).toEqual(expected);
+      if (throws) {
+        expect(() => replaceText(...input)).toThrow(throws);
+      } else {
+        const result = replaceText(...input);
+        expect(result).toEqual(expected);
+      }
     });
   });
 });
@@ -87,12 +51,53 @@ import { executeFileOperation } from '../../src/index.js';
 const testPath = join(__dirname, '../../test-data/integration/file-operations.cases.md');
 const mdContent = readFileSync(testPath, 'utf8');
 
-// Parse markdown to extract test cases
+// Parse markdown to extract test cases with hierarchy
 const tokens: Token[] = marked.lexer(mdContent);
-const codeBlocks = tokens.filter(t => t.type === 'code') as Array<Token & {type: 'code', text: string}>;
-const testNames = tokens
-  .filter(t => t.type === 'heading' && 'depth' in t && t.depth === 3)
-  .map(t => (t as any).text as string);
+
+interface TestCase {
+  name: string;
+  shamBlock: string;
+  expectedBlock: string;
+}
+
+interface TestGroup {
+  name: string;
+  tests: TestCase[];
+}
+
+// Extract test structure from markdown
+const testGroups: TestGroup[] = [];
+let currentGroup: TestGroup | null = null;
+let currentTest: Partial<TestCase> | null = null;
+let codeBlockIndex = 0;
+
+tokens.forEach(token => {
+  if (token.type === 'heading' && 'depth' in token) {
+    if (token.depth === 2) {
+      // New test group (e.g., "file_write")
+      currentGroup = {
+        name: (token as any).text,
+        tests: []
+      };
+      testGroups.push(currentGroup);
+    } else if (token.depth === 3 && currentGroup) {
+      // New test case
+      currentTest = {
+        name: (token as any).text
+      };
+    }
+  } else if (token.type === 'code' && currentTest && currentGroup) {
+    const codeBlock = token as Token & {type: 'code', text: string};
+    if (!currentTest.shamBlock) {
+      currentTest.shamBlock = codeBlock.text;
+    } else if (!currentTest.expectedBlock) {
+      currentTest.expectedBlock = codeBlock.text;
+      // Test case complete
+      currentGroup.tests.push(currentTest as TestCase);
+      currentTest = null;
+    }
+  }
+});
 
 // Test cleanup paths
 const testPaths = [
@@ -110,7 +115,15 @@ const testPaths = [
   '/tmp/nowhere.txt',
   '/tmp/source-exists.txt',
   '/tmp/dest-exists.txt',
-  '/tmp/moveable.txt'
+  '/tmp/moveable.txt',
+  '/tmp/replace-test.txt',
+  '/tmp/multi-replace.txt',
+  '/tmp/no-match.txt',
+  '/tmp/does-not-exist-replace.txt',
+  '/tmp/multiline-replace.txt',
+  '/tmp/empty-search.txt',
+  '/tmp/readable.txt',
+  '/tmp/not-there.txt'
 ];
 
 describe('fs-ops integration tests', () => {
@@ -132,46 +145,72 @@ describe('fs-ops integration tests', () => {
     });
   });
 
-  testNames.forEach((name, i) => {
-    const baseIndex = i * 2;
-    it(name, async () => {
-      const shamInput = codeBlocks[baseIndex].text;
-      const expectedOutput = JSON.parse(codeBlocks[baseIndex + 1].text);
-      
-      // Set up test preconditions based on test name
-      if (name === '003-file-already-exists') {
-        // Create the file that should already exist
-        writeFileSync('/tmp/existing.txt', 'This file already exists');
-      } else if (name === '006-delete-existing-file') {
-        // Create file to be deleted
-        writeFileSync('/tmp/to-delete.txt', 'This file will be deleted');
-      } else if (name === '009-move-file-simple') {
-        // Create source file to be moved
-        writeFileSync('/tmp/source.txt', 'Content to move');
-      } else if (name === '010-move-file-to-new-directory') {
-        // Create file to move to new directory
-        writeFileSync('/tmp/original.txt', 'Moving to new directory');
-      } else if (name === '012-move-to-existing-file') {
-        // Create both source and destination files
-        writeFileSync('/tmp/source-exists.txt', 'Source content');
-        writeFileSync('/tmp/dest-exists.txt', 'Will be overwritten');
-      } else if (name === '014-move-permission-denied-destination') {
-        // Create source file
-        writeFileSync('/tmp/moveable.txt', 'Content to move');
-      }
-      
-      // Parse SHAM to get actions
-      const parseResult = await parseShamResponse(shamInput);
-      
-      // Should have exactly one action
-      expect(parseResult.actions).toHaveLength(1);
-      expect(parseResult.errors).toHaveLength(0);
-      
-      // Execute the action
-      const result = await executeFileOperation(parseResult.actions[0]);
-      
-      // Compare result
-      expect(result).toEqual(expectedOutput);
+  testGroups.forEach(group => {
+    describe(group.name, () => {
+      group.tests.forEach(test => {
+        it(test.name, async () => {
+          const expectedOutput = JSON.parse(test.expectedBlock);
+          
+          // Extract test name without number prefix
+          const tn = test.name.replace(/^\d{3}-/, '');
+          
+          // Set up test preconditions based on group and test name
+          if (group.name === 'file_delete' && tn === 'delete-existing-file') {
+            // Create file to be deleted
+            writeFileSync('/tmp/to-delete.txt', 'This file will be deleted');
+          } else if (group.name === 'file_move' && tn === 'move-file-simple') {
+            // Create source file to be moved
+            writeFileSync('/tmp/source.txt', 'Content to move');
+          } else if (group.name === 'file_move' && tn === 'move-file-to-new-directory') {
+            // Create file to move to new directory
+            writeFileSync('/tmp/original.txt', 'Moving to new directory');
+          } else if (group.name === 'file_move' && tn === 'move-to-existing-file') {
+            // Create both source and destination files
+            writeFileSync('/tmp/source-exists.txt', 'Source content');
+            writeFileSync('/tmp/dest-exists.txt', 'Will be overwritten');
+          } else if (group.name === 'file_replace_text' && tn === 'simple-text-replacement') {
+            // Create file with text to replace
+            writeFileSync('/tmp/replace-test.txt', 'Hello World');
+          } else if (group.name === 'file_replace_text' && tn === 'replace-with-count-limit') {
+            // Create file with multiple occurrences
+            writeFileSync('/tmp/multi-replace.txt', 'foo bar foo baz foo qux foo');
+          } else if (group.name === 'file_replace_text' && tn === 'replace-text-not-found') {
+            // Create file without the search text
+            writeFileSync('/tmp/no-match.txt', 'This file has no matches');
+          } else if (group.name === 'file_replace_text' && tn === 'multiline-replacement') {
+            // Create file with multiline content to replace
+            writeFileSync('/tmp/multiline-replace.txt', `export function oldName() {
+  console.log('oldName');
+  return oldName;
+}
+
+function oldName() {
+  return oldName;
+}
+
+const x = oldName();`);
+          } else if (group.name === 'file_replace_text' && tn === 'empty-old-text-error') {
+            // Create file for empty search test
+            writeFileSync('/tmp/empty-search.txt', 'Some content here');
+          } else if (group.name === 'file_read' && tn === 'read-existing-file') {
+            // Create file to read
+            writeFileSync('/tmp/readable.txt', 'This is readable content');
+          }
+          
+          // Parse SHAM to get actions
+          const parseResult = await parseShamResponse(test.shamBlock);
+          
+          // Should have exactly one action
+          expect(parseResult.actions).toHaveLength(1);
+          expect(parseResult.errors).toHaveLength(0);
+          
+          // Execute the action
+          const result = await executeFileOperation(parseResult.actions[0]);
+          
+          // Compare result
+          expect(result).toEqual(expectedOutput);
+        });
+      });
     });
   });
 });
@@ -295,10 +334,7 @@ Line 3`,
   {
     name: "empty old text",
     input: ["hello world", "", "xyz"],
-    expected: {
-      result: "hello world",
-      replacements: 0,
-    },
+    throws: "old_text cannot be empty",
   },
   {
     name: "overlapping replacements",
@@ -344,80 +380,6 @@ Line 3`,
 ];
 
 === END FILE: ./test-data/unit/replaceText.cases.ts ===
-
-=== START FILE: ./test-data/unit/getParentDirectory.cases.json ===
-{
-  "cases": [
-    {
-      "name": "simple file path",
-      "input": ["/tmp/test.txt"],
-      "expected": "/tmp"
-    },
-    {
-      "name": "nested file path",
-      "input": ["/tmp/deeply/nested/file.txt"],
-      "expected": "/tmp/deeply/nested"
-    },
-    {
-      "name": "root level file",
-      "input": ["/test.txt"],
-      "expected": "/"
-    },
-    {
-      "name": "directory path with trailing slash",
-      "input": ["/tmp/dir/"],
-      "expected": "/tmp"
-    },
-    {
-      "name": "directory path without trailing slash",
-      "input": ["/tmp/dir"],
-      "expected": "/tmp"
-    },
-    {
-      "name": "windows style path",
-      "input": ["C:\\Users\\test\\file.txt"],
-      "expected": "C:\\Users\\test"
-    }
-  ]
-}
-=== END FILE: ./test-data/unit/getParentDirectory.cases.json ===
-
-=== START FILE: ./test-data/unit/getByteLength.cases.json ===
-{
-  "cases": [
-    {
-      "name": "simple ASCII string",
-      "input": ["Hello, World!"],
-      "expected": 13
-    },
-    {
-      "name": "empty string",
-      "input": [""],
-      "expected": 0
-    },
-    {
-      "name": "string with newlines",
-      "input": ["Line 1\nLine 2\nLine 3"],
-      "expected": 20
-    },
-    {
-      "name": "unicode emoji",
-      "input": ["Hello 👋 World"],
-      "expected": 16
-    },
-    {
-      "name": "multi-byte characters",
-      "input": ["你好世界"],
-      "expected": 12
-    },
-    {
-      "name": "mixed ASCII and unicode",
-      "input": ["Test: 测试"],
-      "expected": 12
-    }
-  ]
-}
-=== END FILE: ./test-data/unit/getByteLength.cases.json ===
 
 === START FILE: ./test-data/unit/formatNodeError.cases.json ===
 {
@@ -551,18 +513,13 @@ content = "Creates parent directories"
   "success": true,
   "data": {
     "path": "/tmp/deeply/nested/dir/file.txt",
-    "bytesWritten": 26,
-    "createdDirs": [
-      "/tmp/deeply",
-      "/tmp/deeply/nested", 
-      "/tmp/deeply/nested/dir"
-    ]
+    "bytesWritten": 26
   }
 }
 ```
 
 
-### 004-write-with-special-characters
+### 003-write-with-special-characters
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: spc]
@@ -582,7 +539,7 @@ content = "Line with \"quotes\" and 'apostrophes'"
 }
 ```
 
-### 005-multiline-content
+### 004-multiline-content
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: mlt]
@@ -608,7 +565,7 @@ EOT_SHAM_mlt
 
 ## file_delete
 
-### 006-delete-existing-file
+### 001-delete-existing-file
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: del]
@@ -626,7 +583,7 @@ path = "/tmp/to-delete.txt"
 }
 ```
 
-### 007-delete-nonexistent-file
+### 002-delete-nonexistent-file
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: dnf]
@@ -642,9 +599,177 @@ path = "/tmp/does-not-exist.txt"
 }
 ```
 
+## file_replace_text
+
+### 001-simple-text-replacement
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rpl]
+action = "file_replace_text"
+path = "/tmp/replace-test.txt"
+old_text = "Hello"
+new_text = "Goodbye"
+#!END_SHAM_rpl
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/replace-test.txt",
+    "replacements": 1
+  }
+}
+```
+
+### 002-replace-with-count-limit
+
+```sh sham
+#!SHAM [@three-char-SHA-256: cnt]
+action = "file_replace_text"
+path = "/tmp/multi-replace.txt"
+old_text = "foo"
+new_text = "bar"
+count = 2
+#!END_SHAM_cnt
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/multi-replace.txt",
+    "replacements": 2
+  }
+}
+```
+
+### 003-replace-text-not-found
+
+```sh sham
+#!SHAM [@three-char-SHA-256: nfr]
+action = "file_replace_text"
+path = "/tmp/no-match.txt"
+old_text = "nonexistent"
+new_text = "replacement"
+#!END_SHAM_nfr
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/no-match.txt",
+    "replacements": 0
+  }
+}
+```
+
+### 004-replace-in-nonexistent-file
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rnf]
+action = "file_replace_text"
+path = "/tmp/does-not-exist-replace.txt"
+old_text = "text"
+new_text = "other"
+#!END_SHAM_rnf
+```
+
+```json
+{
+  "success": false,
+  "error": "ENOENT: no such file or directory, open '/tmp/does-not-exist-replace.txt'"
+}
+```
+
+### 005-multiline-replacement
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mlr]
+action = "file_replace_text"
+path = "/tmp/multiline-replace.txt"
+old_text = <<'EOT_SHAM_mlr'
+function oldName() {
+  return oldName;
+}
+EOT_SHAM_mlr
+new_text = <<'EOT_SHAM_mlr'
+function newName() {
+  return newName;
+}
+EOT_SHAM_mlr
+#!END_SHAM_mlr
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/multiline-replace.txt",
+    "replacements": 1
+  }
+}
+```
+
+### 006-empty-old-text-error
+
+```sh sham
+#!SHAM [@three-char-SHA-256: emt]
+action = "file_replace_text"
+path = "/tmp/empty-search.txt"
+old_text = ""
+new_text = "something"
+#!END_SHAM_emt
+```
+
+```json
+{
+  "success": false,
+  "error": "file_replace_text: old_text cannot be empty"
+}
+```
+
+## file_read
+
+### 001-read-existing-file
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rdf]
+action = "file_read"
+path = "/tmp/readable.txt"
+#!END_SHAM_rdf
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/readable.txt",
+    "content": "This is readable content"
+  }
+}
+```
+
+### 002-read-nonexistent-file
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rnx]
+action = "file_read"
+path = "/tmp/not-there.txt"
+#!END_SHAM_rnx
+```
+
+```json
+{
+  "success": false,
+  "error": "ENOENT: no such file or directory, open '/tmp/not-there.txt'"
+}
+```
+
 ## file_move
 
-### 008-move-file-simple
+### 001-move-file-simple
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: mvs]
@@ -664,7 +789,7 @@ new_path = "/tmp/destination.txt"
 }
 ```
 
-### 009-move-file-to-new-directory
+### 002-move-file-to-new-directory
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: mvd]
@@ -679,13 +804,12 @@ new_path = "/tmp/new-dir/moved.txt"
   "success": true,
   "data": {
     "old_path": "/tmp/original.txt",
-    "new_path": "/tmp/new-dir/moved.txt",
-    "createdDirs": ["/tmp/new-dir"]
+    "new_path": "/tmp/new-dir/moved.txt"
   }
 }
 ```
 
-### 010-move-nonexistent-file
+### 003-move-nonexistent-file
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: mnf]
@@ -702,7 +826,7 @@ new_path = "/tmp/nowhere.txt"
 }
 ```
 
-### 011-move-to-existing-file
+### 004-move-to-existing-file
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: mef]
@@ -740,16 +864,15 @@ standard
 ```yaml
 dependencies:
   node:fs/promises:
-    functions: [writeFile, readFile, unlink, mkdir, rmdir, readdir, stat]
+    functions: [writeFile, unlink, mkdir, rename, stat]
+    # Note: removed unused - readFile, rmdir, readdir (not yet implemented)
     
   node:path:
-    functions: [dirname, resolve, join]
+    functions: [dirname]
+    # Note: removed unused - resolve, join (not yet needed)
     
-  node:util:
-    functions: [promisify]
-    
-  node:child_process:
-    functions: [exec]  # for grep functionality
+  # Removed node:util - not used
+  # Removed node:child_process - grep not yet implemented
 ```
 
 ## Exports
@@ -1172,51 +1295,8 @@ export function formatNodeError(error: any, path: string, operation: string, des
 }
 === END FILE: ./src/formatNodeError.ts ===
 
-=== START FILE: ./src/getParentDirectory.ts ===
-import { dirname, sep } from 'path';
-
-/**
- * Extract parent directory from a file path
- * Handles both Unix and Windows style paths
- * @param filePath - Absolute path to file or directory
- * @returns Parent directory path
- */
-export function getParentDirectory(filePath: string): string {
-  // Check if it's a Windows path (C:\ or C:/)
-  const isWindowsPath = /^[A-Za-z]:[\\/]/.test(filePath);
-  
-  if (isWindowsPath) {
-    // Handle Windows paths manually
-    const normalized = filePath.replace(/\//g, '\\');
-    const lastSep = normalized.lastIndexOf('\\');
-    
-    // Handle root paths like C:\
-    if (lastSep <= 2) {
-      return normalized.substring(0, 3); // Return C:\ 
-    }
-    
-    return normalized.substring(0, lastSep);
-  }
-  
-  // Use native dirname for Unix paths
-  return dirname(filePath);
-}
-=== END FILE: ./src/getParentDirectory.ts ===
-
-=== START FILE: ./src/getByteLength.ts ===
-/**
- * Calculate UTF-8 byte length of a string
- * @param content - String content to measure
- * @returns Number of bytes in UTF-8 encoding
- */
-export function getByteLength(content: string): number {
-  return Buffer.byteLength(content, 'utf8');
-}
-=== END FILE: ./src/getByteLength.ts ===
-
 === START FILE: ./src/fileSystemUtils.ts ===
-import { writeFile, mkdir, stat } from 'fs/promises';
-import { dirname } from 'path';
+import { stat } from 'fs/promises';
 
 /**
  * Check if a file or directory exists
@@ -1230,46 +1310,6 @@ export async function fileExists(path: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-/**
- * Create directory and all parent directories if they don't exist
- * @param dirPath - Directory path to create
- * @returns Array of directories that were created (not those that already existed)
- */
-export async function ensureDirectoryExists(dirPath: string): Promise<string[]> {
-  const created: string[] = [];
-  const parts = dirPath.split('/').filter(Boolean);
-  
-  // Handle root for Unix paths
-  let currentPath = dirPath.startsWith('/') ? '' : '.';
-  
-  for (const part of parts) {
-    currentPath = currentPath + '/' + part;
-    
-    try {
-      await mkdir(currentPath);
-      created.push(currentPath);
-    } catch (err: any) {
-      // EEXIST is fine - directory already exists
-      if (err.code !== 'EEXIST') {
-        throw err;
-      }
-    }
-  }
-  
-  return created;
-}
-
-/**
- * Write file content and return number of bytes written
- * @param path - File path to write to
- * @param content - Content to write (UTF-8)
- * @returns Number of bytes written
- */
-export async function writeFileInternal(path: string, content: string): Promise<number> {
-  await writeFile(path, content, 'utf8');
-  return Buffer.byteLength(content, 'utf8');
 }
 === END FILE: ./src/fileSystemUtils.ts ===
 
@@ -1289,7 +1329,7 @@ export function replaceText(
   count?: number
 ): { result: string; replacements: number } {
   if (oldText === '') {
-    return { result: content, replacements: 0 };
+    throw new Error('old_text cannot be empty');
   }
 
   let result = content;
@@ -1319,9 +1359,10 @@ export function replaceText(
  */
 
 import type { CladaAction } from '../../sham-action-parser/src/index.js';
+import { writeFile, mkdir, unlink, rename } from 'fs/promises';
+import { dirname } from 'path';
 import { formatNodeError } from './formatNodeError.js';
-import { getParentDirectory } from './getParentDirectory.js';
-import { fileExists, ensureDirectoryExists, writeFileInternal } from './fileSystemUtils.js';
+import { fileExists } from './fileSystemUtils.js';
 
 export interface FileOpResult {
   success: boolean;
@@ -1368,32 +1409,43 @@ export async function executeFileOperation(action: CladaAction): Promise<FileOpR
 }
 
 /**
- * Handle file_write action - writes/creates/overwrites a file with content
- * Automatically creates parent directories if needed
+ * Handle file_move action - moves/renames a file
+ * Creates parent directories for destination if needed
+ * Overwrites destination if it exists
  */
-async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
-  const { path, content } = action.parameters;
+async function handleFileMove(action: CladaAction): Promise<FileOpResult> {
+  const { old_path, new_path } = action.parameters;
   
   try {
+    // Pre-flight check for better error messages
+    const sourceExists = await fileExists(old_path);
+    if (!sourceExists) {
+      return {
+        success: false,
+        error: `file_move: Source file not found '${old_path}' (ENOENT)`
+      };
+    }
     
-    // Create parent directories if needed
-    const parentDir = getParentDirectory(path);
-    const createdDirs = await ensureDirectoryExists(parentDir);
+    // Check if destination exists (for overwrote flag)
+    const destExists = await fileExists(new_path);
     
-    // Write file
-    const bytesWritten = await writeFileInternal(path, content);
+    // Create parent directories for destination
+    const parentDir = dirname(new_path);
+    await mkdir(parentDir, { recursive: true });
+    
+    // Move the file
+    await rename(old_path, new_path);
     
     const result: FileOpResult = {
       success: true,
       data: {
-        path,
-        bytesWritten
+        old_path,
+        new_path
       }
     };
     
-    // Add createdDirs only if we actually created any
-    if (createdDirs.length > 0) {
-      result.data.createdDirs = createdDirs;
+    if (destExists) {
+      result.data.overwrote = true;
     }
     
     return result;
@@ -1401,7 +1453,63 @@ async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
   } catch (error: any) {
     return {
       success: false,
-      error: formatNodeError(error, path, 'file_write')
+      error: formatNodeError(error, old_path, 'rename', new_path)
+    };
+  }
+}
+
+/**
+ * Handle file_delete action - removes a file
+ */
+async function handleFileDelete(action: CladaAction): Promise<FileOpResult> {
+  const { path } = action.parameters;
+  
+  try {
+    await unlink(path);
+    
+    return {
+      success: true,
+      data: {
+        path
+      }
+    };
+    
+  } catch (error: any) {
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'unlink')
+    };
+  }
+}
+
+/**
+ * Handle file_write action - writes/creates/overwrites a file with content
+ * Automatically creates parent directories if needed
+ */
+async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
+  const { path, content } = action.parameters;
+  
+  try {
+    // Create parent directories if needed
+    const parentDir = dirname(path);
+    await mkdir(parentDir, { recursive: true });
+    
+    // Write file
+    await writeFile(path, content, 'utf8');
+    const bytesWritten = Buffer.byteLength(content, 'utf8');
+    
+    return {
+      success: true,
+      data: {
+        path,
+        bytesWritten
+      }
+    };
+    
+  } catch (error: any) {
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'open')
     };
   }
 }
@@ -1412,9 +1520,7 @@ async function createFile(path: string, content: string): Promise<void> {
   throw new Error('Not implemented');
 }
 
-async function writeFile(path: string, content: string): Promise<void> {
-  throw new Error('Not implemented');
-}
+ 
 
 async function replaceTextInFile(path: string, oldText: string, newText: string, count?: number): Promise<number> {
   throw new Error('Not implemented');
@@ -1471,12 +1577,8 @@ const actionHandlers: Record<string, (action: CladaAction) => Promise<FileOpResu
   'file_replace_text': async (action) => {
     return { success: false, error: 'Not implemented' };
   },
-  'file_delete': async (action) => {
-    return { success: false, error: 'Not implemented' };
-  },
-  'file_move': async (action) => {
-    return { success: false, error: 'Not implemented' };
-  },
+  'file_delete': handleFileDelete,
+  'file_move': handleFileMove,
   'file_read': async (action) => {
     return { success: false, error: 'Not implemented' };
   },

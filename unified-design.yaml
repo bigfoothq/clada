@@ -236,7 +236,7 @@ tools:
     accessibility: [llm]
     parameters:
       code: {type: string, required: true}
-      lang: {type: enum, values: [python, javascript, bash, ruby], required: true}
+      lang: {type: enum, values: [python, javascript, bash], required: true}
       version: {type: string, required: false}
       cwd: {type: string, required: false, format: absolute_path}
     returns: {success: boolean, stdout?: string, stderr?: string, exit_code?: integer, error?: string}

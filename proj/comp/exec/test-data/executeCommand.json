@@ -1,16 +1,3 @@
-=== PROCESSED: 2025-07-21 15:33:46 ===
-SUCCESS Block 1: Created /Users/stuart/repos/clada/proj/comp/exec/test-data/executeCommand.json
-===
-
-Looking at your test pattern, I'll create the unit test files. First, let me create the unit test data files in JSON format, then the test harnesses.
-
-<<<EXPLANATION>>>
-Creating unit test data for executeCommand function - the main entry point that orchestrates the execution flow.
-
-<<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/exec/test-data/executeCommand.json
-
-<<<OVERWRITE>>>
 {
   "cases": [
     {
@@ -78,26 +65,3 @@ Creating unit test data for executeCommand function - the main entry point that 
     }
   ]
 }
-<<<END>>>
-
-<<<EXPLANATION>>>
-Creating unit test data for mapLanguageToCommand - converts language and code to spawn command format.
-
-<<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/exec/test-data/mapLanguageToCommand.json
-
-<<<OVERWRITE>>>
-{
-  "cases": [
-    {
-      "name": "bash mapping",
-      "input": ["bash", "echo 'hello'"],
-      "expected": {
-        "command": "bash",
-        "args": ["-c", "echo 'hello'"]
-      }
-    },
-    {
-      "name": "javascript mapping",
-      "input": ["javascript", "console.log('test')"],
-      "expected": {

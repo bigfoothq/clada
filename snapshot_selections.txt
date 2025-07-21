@@ -1,716 +1,402 @@
-=== START FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/index.ts ===
-/**
- * SHAM Action Parser - Parses SHAM blocks into validated clada actions
- */
+=== START FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/ABSTRACT.md ===
+# SHAM Action Parser
 
-import { ParseResult, CladaAction, ParseError, ValidationResult, TransformError, ActionDefinition } from './types.js';
-import { validateShamBlock } from './validateShamBlock.js';
-import { transformToAction } from './transformToAction.js';
-import { parseSham, type Block, type ParseResult as NeslParseResult } from 'nesl-js';
-import { load as loadYaml } from 'js-yaml';
-import { readFile } from 'fs/promises';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+Parses SHAM blocks from LLM responses into validated clada action objects, executing as many valid actions as possible while collecting errors for failed blocks.
 
-// Re-export types for consumers
-export { ParseResult, CladaAction, ParseError, ValidationResult, TransformError };
+## Overview
 
-// Cache for action schema
-let actionSchemaCache: Map<string, ActionDefinition> | null = null;
+This component bridges between LLM-generated SHAM syntax and clada's action system. It processes text containing SHAM blocks, validates each block independently against clada's action schema, and transforms valid blocks into executable action objects. The parser is intentionally permissive - it processes all blocks and collects both successes and failures, allowing clada to execute valid actions while reporting specific errors back to the LLM for correction. This design minimizes expensive LLM regeneration by salvaging partial success from responses containing some malformed blocks.
 
-/**
- * Clear the action schema cache - useful for testing
- * Forces reload of unified-design.yaml on next parse
- */
-export function clearActionSchemaCache(): void {
-  actionSchemaCache = null;
-}
+The parser handles:
+- SHAM syntax parsing via nesl-js
+- Action type validation against unified-design schema  
+- Parameter presence and type checking
+- String-to-type conversions (booleans, integers, paths)
+- Comprehensive error collection with block context
+- Preservation of SHAM metadata (IDs, line numbers)
 
-/**
- * Parse SHAM blocks from text into validated clada actions
- * Processes all blocks, collecting successes and errors
- */
-export async function parseShamResponse(shamText: string): Promise<ParseResult> {
-  const actions: CladaAction[] = [];
-  const errors: ParseError[] = [];
+This approach enables efficient LLM-clada interaction by providing detailed feedback on exactly which actions failed and why, allowing targeted corrections rather than full regeneration.
+=== END FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/ABSTRACT.md ===
 
-  // Parse SHAM blocks using nesl-js
-  let parseResult: NeslParseResult;
-  try {
-   
-    parseResult = parseSham(shamText);
-    
-    // Handle case where parseSham returns undefined or null
-    if (!parseResult) {
-      parseResult = { blocks: [], errors: [] };
-    }
-  } catch (error) {
-    return {
-      actions: [],
-      errors: [{
-        blockId: 'unknown',
-        errorType: 'syntax',
-        message: `Failed to parse SHAM: ${error}`,
-        shamContent: shamText
-      }],
-      summary: {
-        totalBlocks: 0,
-        successCount: 0,
-        errorCount: 1
-      }
-    };
-  }
+=== START FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/API.md ===
+# Component: sham-action-parser
 
-  // Process syntax errors from nesl-js parser
-  if (parseResult.errors && parseResult.errors.length > 0) {
-    for (const parseError of parseResult.errors) {
-      // Find the block this error belongs to
-      const block = parseResult.blocks?.find(b => b.id === parseError.blockId);
-      
-      errors.push({
-        blockId: parseError.blockId || 'unknown',
-        action: block?.properties?.action,
-        errorType: 'syntax',
-        message: parseError.message,
-        blockStartLine: block?.startLine || parseError.line,
-        shamContent: parseError.context 
-          ? `#!SHAM [@three-char-SHA-256: ${parseError.blockId}]\n${parseError.context}`.trimEnd()
-          : reconstructShamBlock(block || { id: parseError.blockId, properties: {} })
-      });
-    }
-  }
+## Component Type
+standard
 
-  // Load action schema
-  const actionSchema = await loadActionSchema();
+## Documentation Debt
+[Must be empty before implementation]
 
-  // Process each SHAM block
-  const blocks = parseResult.blocks || [];
+## Dependencies
+[Updated via STOP protocol - implementation complete]
+
+```yaml
+dependencies:
+  external/nesl-js:
+    functions: [parseSham]
+    types: [Block, ParseResult as NeslParseResult]
   
-  // If no blocks found, return empty result
-  if (blocks.length === 0) {
-    return {
-      actions: [],
-      errors: [],
-      summary: {
-        totalBlocks: 0,
-        successCount: 0,
-        errorCount: 0
-      }
-    };
-  }
+  external/js-yaml:
+    functions: [load as loadYaml]
+    types: []
   
-  // Track blocks with syntax errors to skip them
-  const blocksWithSyntaxErrors = new Set(
-    parseResult.errors?.map(e => e.blockId) || []
-  );
+  node:fs/promises:
+    functions: [readFile]
+    types: []
   
-  for (const block of blocks) {
-    const blockId = block.id || 'unknown';
+  node:path:
+    functions: [dirname, join]
+    types: []
     
-    // Skip blocks that already have syntax errors
-    if (blocksWithSyntaxErrors.has(blockId)) {
-      continue;
-    }
-    
-    try {
-      // Get action type from block
-      const actionType = block.properties?.action;
-      const actionDef = actionType ? actionSchema.get(actionType) : undefined;
+  node:url:
+    functions: [fileURLToPath]
+    types: []
+```
 
- 
+## Exports
+```yaml
+exports:
+  functions: [parseShamResponse, validateShamBlock, transformToAction, clearActionSchemaCache]
+  types: [ParseResult, CladaAction, ParseError, ValidationResult, TransformError]
+  errors: [TransformError]
+```
 
-      // Validate block
-      const validation = validateShamBlock(block, actionDef ?? null);
-      
-      if (!validation.valid) {
-        errors.push({
-          blockId,
-          action: actionType,
-          errorType: 'validation',
-          message: validation.errors?.[0] || 'Validation failed',
-          blockStartLine: block.startLine,
-          shamContent: reconstructShamBlock(block)
-        });
-        continue;
-      }
+### parseShamResponse
+- **Signature**: `parseShamResponse(shamText: string) -> Promise<ParseResult>`
+- **Purpose**: Parse SHAM blocks from text into validated clada actions.
+- **Test-data**: `test-data/parseShamResponse.json`
 
-      // Transform to action
-      try {
-        const action = transformToAction(block, actionDef!);
-        actions.push(action);
-      } catch (error) {
-        if (error instanceof TransformError) {
-          errors.push({
-            blockId,
-            action: actionType,
-            errorType: 'type',
-            message: error.message,
-            blockStartLine: block.startLine,
-            shamContent: reconstructShamBlock(block)
-          });
-        } else {
-          throw error;
-        }
-      }
-    } catch (error) {
-      errors.push({
-        blockId,
-        action: block.properties?.action,
-        errorType: 'validation',
-        message: `Unexpected error: ${error}`,
-        blockStartLine: block.startLine,
-        shamContent: reconstructShamBlock(block)
-      });
-    }
-  }
+### validateShamBlock
+- **Signature**: `validateShamBlock(block: ShamBlock, actionSchema: ActionDefinition) -> ValidationResult`
+- **Purpose**: Validate a single SHAM block against action schema.
+- **Test-data**: `test-data/validateShamBlock.json`
 
-  const result = {
-    actions,
-    errors,
-    summary: {
-      totalBlocks: blocks.length,
-      successCount: actions.length,
-      errorCount: errors.length
-    }
-  };
-  return result;
-}
+### transformToAction
+- **Signature**: `transformToAction(block: ShamBlock, actionDef: ActionDefinition) -> CladaAction`
+- **Purpose**: Transform validated SHAM block into typed clada action.
+- **Throws**: `TransformError` when type conversion fails
+- **Test-data**: `test-data/transformToAction.json`
 
-/**
- * Load and cache action definitions from unified-design.yaml
- */
-async function loadActionSchema(): Promise<Map<string, ActionDefinition>> {
- 
-  if (actionSchemaCache) {
-    return actionSchemaCache;
-  }
+### clearActionSchemaCache
+- **Signature**: `clearActionSchemaCache() -> void`
+- **Purpose**: Clear cached action schema to force reload on next parse.
+- **Test-data**: None (utility function for testing)
 
-  // Get the directory of this module
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = dirname(__filename);
-  
-  // Navigate to project root and find unified-design.yaml
-  const yamlPath = join(__dirname, '../../../../unified-design.yaml');
-  
-  try {
-    // Add timeout to file read operation
-    const yamlContent = await Promise.race([
-      readFile(yamlPath, 'utf8'),
-      new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('YAML read timeout')), 5000)
-      )
-    ]);
-    const design = loadYaml(yamlContent) as any;
-    
-    actionSchemaCache = new Map();
-    
-    // Extract tool definitions
-    if (design.tools) {
-      for (const [toolName, toolDef] of Object.entries(design.tools)) {
-        actionSchemaCache.set(toolName, toolDef as ActionDefinition);
-      }
-    }
-    
- 
-    
-    return actionSchemaCache;
-  } catch (error) {
-    throw new Error(`Failed to load unified-design.yaml: ${error}`);
+## Internal Functions
+[Discovered during implementation - not exported]
+
+### loadActionSchema
+- **Signature**: `loadActionSchema() -> Promise<Map<string, ActionDefinition>>`
+- **Purpose**: Load and parse unified-design.yaml action definitions with 5s timeout.
+
+### reconstructShamBlock
+- **Signature**: `reconstructShamBlock(block: Block) -> string`
+- **Purpose**: Recreate SHAM syntax from parsed block for error context.
+
+### parseBoolean (in transformToAction.ts)
+- **Signature**: `parseBoolean(value: string) -> boolean`
+- **Purpose**: Convert string "true"/"false" to boolean.
+
+### parseInteger (in transformToAction.ts)
+- **Signature**: `parseInteger(value: string) -> number`
+- **Purpose**: Convert numeric string to integer.
+- **Throws**: `TransformError` when not a valid integer
+
+### validateAbsolutePath (in transformToAction.ts)
+- **Signature**: `validateAbsolutePath(path: string) -> boolean`
+- **Purpose**: Check if string is valid absolute path.
+
+## Types
+
+### ParseResult
+```typescript
+{
+  actions: CladaAction[]      // Successfully parsed actions
+  errors: ParseError[]        // All errors encountered
+  summary: {
+    totalBlocks: number
+    successCount: number
+    errorCount: number
   }
 }
+```
 
-/**
- * Reconstruct SHAM block text for error context
- */
-function reconstructShamBlock(block: Block): string {
-  const lines: string[] = [];
-  
-  // Start line
-  lines.push(`#!SHAM [@three-char-SHA-256: ${block.id || 'unknown'}]`);
-  
-  // Properties
-  for (const [key, value] of Object.entries(block.properties || {})) {
-    if (key.startsWith('@')) continue; // Skip annotations
-    
-    if (typeof value === 'string' && value.includes('\n')) {
-      // Multi-line value with heredoc
-      lines.push(`${key} = <<'EOT_SHAM_${block.id}'`);
-      lines.push(value);
-      lines.push(`EOT_SHAM_${block.id}`);
-    } else {
-      // Single line value - use JSON.stringify to handle quotes properly
-      lines.push(`${key} = ${JSON.stringify(value)}`);
-    }
-  }
-  
-  // End line
-  lines.push(`#!END_SHAM_${block.id || 'unknown'}`);
-  
-  return lines.join('\n');
-}
-
-// Re-export functions for consumers
-export { validateShamBlock, transformToAction };
-=== END FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/index.ts ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts ===
-/**
- * fs-ops - File system operations executor for clada
- * 
- * Handles all file and directory operations from parsed SHAM actions
- */
-
-import type { CladaAction } from '../../sham-action-parser/src/index.js';
-import { writeFile, mkdir, unlink, rename, readFile } from 'fs/promises';
-import { dirname } from 'path';
-import { formatNodeError } from './formatNodeError.js';
-import { fileExists } from './fileSystemUtils.js';
-import { replaceText } from './replaceText.js';
-
-export interface FileOpResult {
-  success: boolean;
-  data?: any;
-  error?: string;
-}
-
-export class FileOpError extends Error {
-  constructor(
-    message: string,
-    public code: string,
-    public path?: string,
-    public operation?: string
-  ) {
-    super(message);
-    this.name = 'FileOpError';
+### CladaAction
+```typescript
+{
+  action: string              // Action name from unified-design
+  parameters: Record<string, any>  // Typed parameters
+  metadata: {
+    blockId: string          // SHAM block ID
+    startLine: number
+    endLine: number
   }
 }
+```
 
-/**
- * Execute a file system operation from a parsed SHAM action
- * Never throws - all errors returned in result
- */
-export async function executeFileOperation(action: CladaAction): Promise<FileOpResult> {
-  try {
-    const handler = actionHandlers[action.action];
-    
- 
-    
-    if (!handler) {
-      return {
-        success: false,
-        error: `Unknown action: ${action.action}`
-      };
-    }
-    
-    const result = await handler(action);
-    return result;
-    
-  } catch (error: any) {
-    // This should never happen - handlers should catch their own errors
-    return {
-      success: false,
-      error: `Unexpected error in executeFileOperation: ${error.message}`
-    };
-  }
+### ParseError
+```typescript
+{
+  blockId: string            // Which SHAM block failed
+  action?: string            // Action type if identified
+  errorType: 'syntax' | 'validation' | 'type'
+  message: string            // Specific error details
+  blockStartLine?: number    // Starting line of the SHAM block
+  shamContent?: string       // Original SHAM block for context
 }
+```
 
-/**
- * Handle file_move action - moves/renames a file
- * Creates parent directories for destination if needed
- * Overwrites destination if it exists
- */
-async function handleFileMove(action: CladaAction): Promise<FileOpResult> {
-  const { old_path, new_path } = action.parameters;
-  
-  try {
-    // Pre-flight check for better error messages
-    const sourceExists = await fileExists(old_path);
-    if (!sourceExists) {
-      return {
-        success: false,
-        error: `file_move: Source file not found '${old_path}' (ENOENT)`
-      };
-    }
-    
-    // Check if destination exists (for overwrote flag)
-    const destExists = await fileExists(new_path);
-    
-    // Create parent directories for destination
-    const parentDir = dirname(new_path);
-    await mkdir(parentDir, { recursive: true });
-    
-    // Move the file
-    await rename(old_path, new_path);
-    
-    const result: FileOpResult = {
-      success: true,
-      data: {
-        old_path,
-        new_path
-      }
-    };
-    
-    if (destExists) {
-      result.data.overwrote = true;
-    }
-    
-    return result;
-    
-  } catch (error: any) {
-    return {
-      success: false,
-      error: formatNodeError(error, old_path, 'rename', new_path)
-    };
-  }
+### ValidationResult
+```typescript
+{
+  valid: boolean
+  actionType?: string        // Identified action if valid
+  errors?: string[]          // Validation errors if invalid
 }
+```
 
-/**
- * Handle file_delete action - removes a file
- */
-async function handleFileDelete(action: CladaAction): Promise<FileOpResult> {
-  const { path } = action.parameters;
-  
-  try {
-    await unlink(path);
-    
-    return {
-      success: true,
-      data: {
-        path
-      }
-    };
-    
-  } catch (error: any) {
-    return {
-      success: false,
-      error: formatNodeError(error, path, 'unlink')
-    };
-  }
+### TransformError
+```typescript
+class TransformError extends Error {
+  parameterName: string
+  expectedType: string
+  actualValue: string
 }
+```
 
-/**
- * Handle file_write action - writes/creates/overwrites a file with content
- * Automatically creates parent directories if needed
- */
-async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
-  const { path, content } = action.parameters;
-  
-  try {
-    // Create parent directories if needed
-    const parentDir = dirname(path);
-    await mkdir(parentDir, { recursive: true });
-    
-    // Write file
-    await writeFile(path, content, 'utf8');
-    const bytesWritten = Buffer.byteLength(content, 'utf8');
-    
-    return {
-      success: true,
-      data: {
-        path,
-        bytesWritten
-      }
-    };
-    
-  } catch (error: any) {
-    return {
-      success: false,
-      error: formatNodeError(error, path, 'open')
-    };
-  }
+### ActionDefinition
+```typescript
+{
+  type: 'read' | 'write' | 'meta' | 'git' | 'dynamic'
+  description: string
+  parameters: Record<string, ParameterDef>
+  returns: Record<string, any>
 }
+```
 
-/**
- * Handle file_read action - reads file content
- */
-async function handleFileRead(action: CladaAction): Promise<FileOpResult> {
-  const { path } = action.parameters;
-  
-  try {
-    const content = await readFile(path, 'utf8');
+### ParameterDef
+```typescript
+{
+  type: string              // 'string' | 'integer' | 'boolean' | 'enum'
+  required: boolean
+  format?: string           // e.g. 'absolute_path'
+  values?: string[]         // for enum type
+  default?: any
+}
+```
+=== END FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/API.md ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/ARCH.md ===
+# SHAM Action Parser - Architecture
+
+## Design Philosophy
+
+**Maximize Execution, Minimize Regeneration**: Parse and validate each SHAM block independently. Execute all valid actions while collecting detailed errors for invalid ones. This avoids expensive LLM token usage for full response regeneration.
+
+## Processing Pipeline
+
+1. **SHAM Parsing** (via nesl-js)
+   - Input: Raw text with SHAM blocks
+   - Output: Parsed blocks with string properties
+   - Preserves: Block IDs, line numbers, raw content
+
+2. **Action Validation** (per block)
+   - Validate `action` field exists and matches known clada actions
+   - Check required parameters for specific action type
+   - Continue processing even if some blocks fail
+
+3. **Type Transformation** (per valid block)
+   - Convert string values to appropriate types
+   - Validate constraints (path formats, enum values, etc.)
+   - Preserve original SHAM metadata
+
+4. **Result Aggregation**
+   - Collect all successful action objects
+   - Collect all errors with context
+   - Return comprehensive ParseResult
+
+## Error Handling Strategy
+
+Each block processed independently with errors collected in structured format:
+- `blockId`: SHAM block identifier
+- `action`: Action type if identified before error
+- `blockStartLine`: Starting line number of the SHAM block in original text
+- `errorType`: Category (syntax, validation, type)
+- `message`: Specific error details
+- `shamContent`: Original SHAM block for LLM reference
+
+### Implementation Details
+- Tracks blocks with syntax errors to avoid double-processing
+- Handles null/undefined from parseSham gracefully
+- 5-second timeout on unified-design.yaml loading
+- Cache mechanism with clearing for tests
+- Block reconstruction uses JSON.stringify for proper quote escaping
+
+## Type Conversions
+
+All SHAM values are strings, requiring conversion:
+- **Booleans**: "true"/"false" → boolean
+- **Integers**: Numeric strings → number
+- **Paths**: Validate absolute path format
+- **Enums**: Validate against allowed values
+- **Arrays**: Not supported in SHAM (would need special syntax)
+
+## Action Mapping
+
+SHAM actions map directly to clada tool names from unified-design.yaml:
+- Must use exact tool names (e.g., `file_write`, not `write_file`)
+- No aliasing or fuzzy matching to avoid ambiguity
+
+## Constraints
+
+- SHAM doesn't support complex types (objects, arrays)
+- All values are strings requiring parsing
+- No nested structures
+- Heredoc strings preserve internal formatting
+- Unified-design.yaml must be at ../../../../unified-design.yaml relative to src/
+- Schema loading uses ES module URL resolution (fileURLToPath)
+
+## Dependencies on Other Components
+
+- Requires action schema definitions (types, required params)
+- Will need shared error types with response formatter
+- Path validation utilities
+=== END FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/ARCH.md ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/ABSTRACT.md ===
+# File System Operations
+
+Executes file and directory operations from parsed SHAM actions, providing consistent error handling and operation results for LLM feedback.
+
+## Overview
+
+The fs-ops component is the primary executor for file system operations in clada. It receives parsed CladaAction objects from the sham-action-parser and performs the requested file system operations, returning standardized results that include success status, operation-specific data, and detailed error information when operations fail.
+
+The component handles all file-related SHAM actions including file creation, editing, deletion, and reading, as well as directory operations and search functionality. It automatically handles common scenarios like creating parent directories for new files and provides detailed error messages that help the LLM understand why operations failed.
+
+Each operation is designed to be atomic and independent, with no shared state between operations. This ensures predictable behavior and makes it easy for the LLM to reason about the effects of each action.
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/ABSTRACT.md ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md ===
+# Component: fs-ops
+
+## Component Type
+standard
+
+## Status
+[IMPLEMENTED] - All file operations (write, read, delete, move, replace_text, replace_all_text, files_read)
+[NOT IMPLEMENTED] - Directory operations (dir_create, dir_delete, ls), search operations (grep, glob)
+
+## Documentation Debt
+- [ ] Integration test format is preliminary [IMPLEMENTED]
+- [ ] Error handling strategy needs refinement
+- [ ] Consider batching operations for efficiency
+
+## Dependencies
+
+[Updated via STOP protocol - initial hypothesis proved mostly correct]
+
+```yaml
+dependencies:
+  node:fs/promises:
+    functions: [writeFile, unlink, mkdir, rename, stat, readFile]
     
-    return {
-      success: true,
-      data: {
-        path,
-        content
-      }
-    };
+  node:path:
+    functions: [dirname]
+    # Note: removed unused - resolve, join (not yet needed)
     
-  } catch (error: any) {
-    return {
-      success: false,
-      error: formatNodeError(error, path, 'open')
-    };
-  }
+  # Removed node:util - not used
+  # Removed node:child_process - grep not yet implemented
+```
+
+## Exports
+
+```yaml
+exports:
+  functions: [executeFileOperation]
+  types: [FileOpResult]
+  classes:
+    FileOpError:
+      extends: Error
+```
+
+### executeFileOperation
+- **Signature**: `executeFileOperation(action: CladaAction) -> Promise<FileOpResult>`
+- **Purpose**: Execute file system operations from parsed SHAM actions
+- **Throws**: Never - all errors captured in FileOpResult
+- **Test-data**: `test-data/integration/*.cases.md` [IMPLEMENTED]
+
+### FileOpResult (type)
+```typescript
+interface FileOpResult {
+  success: boolean
+  data?: any           // Operation-specific return data
+  error?: string       // Error message if failed
 }
+```
 
-/**
- * Handle files_read action - reads multiple files and concatenates with delimiters
- * Parses multi-line paths parameter, one absolute path per line
- * Returns concatenated content with === /path/to/file === delimiters
- */
-async function handleFilesRead(action: CladaAction): Promise<FileOpResult> {
-  const { paths } = action.parameters;
-  
-  // Parse the multi-line paths string
-  const pathList = paths
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0);  // Remove empty lines
-  
-  if (pathList.length === 0) {
-    return {
-      success: false,
-      error: 'files_read: No paths provided'
-    };
-  }
-  
-  // Read all files, collecting content and errors
-  const results: Array<{ path: string; content?: string; error?: string }> = [];
-  
-  for (const filePath of pathList) {
-    try {
-      const content = await readFile(filePath, 'utf8');
-      results.push({ path: filePath, content });
-    } catch (error: any) {
-      // Collect error for this file
-      const errorMsg = formatNodeError(error, filePath, 'open');
-      results.push({ path: filePath, error: errorMsg });
-    }
-  }
-  
-  // Check if any files failed to read
-  const failedFiles = results.filter(r => r.error);
-  if (failedFiles.length > 0) {
-    // Return error listing all failed files
-    const errorDetails = failedFiles
-      .map(f => `  ${f.path}: ${f.error}`)
-      .join('\n');
-    return {
-      success: false,
-      error: `files_read: Failed to read ${failedFiles.length} file(s):\n${errorDetails}`
-    };
-  }
-  
-  // All files read successfully - concatenate with delimiters
-  const concatenated = results
-    .map(r => {
-      const header = `=== ${r.path} ===`;
-      return `${header}\n${r.content}`;
-    })
-    .join('\n\n');
-  
-  return {
-    success: true,
-    data: {
-      paths: pathList,
-      content: concatenated
-    }
-  };
+### FileOpError (type)
+```typescript
+interface FileOpError extends Error {
+  code: string         // e.g., 'ENOENT', 'EACCES'
+  path?: string        // File path involved
+  operation: string    // Which operation failed
 }
+```
 
-/**
- * Handle file_replace_text action - replaces EXACTLY ONE occurrence
- * Fails if old_text appears 0 or 2+ times
- */
-async function handleFileReplaceText(action: CladaAction): Promise<FileOpResult> {
-  const { path, old_text, new_text } = action.parameters;
-  
-  // Validate old_text is not empty
-  if (!old_text || old_text.length === 0) {
-    return {
-      success: false,
-      error: 'file_replace_text: old_text cannot be empty'
-    };
-  }
-  
-  try {
-    // Read existing file content
-    const content = await readFile(path, 'utf8');
-    
-    // Count occurrences first
-    let count = 0;
-    let searchIndex = 0;
-    while (true) {
-      const index = content.indexOf(old_text, searchIndex);
-      if (index === -1) break;
-      count++;
-      searchIndex = index + 1;
-    }
-    
-    // Validate exactly one occurrence
-    if (count === 0) {
-      return {
-        success: false,
-        error: `file_replace_text: old_text not found in file`
-      };
-    }
-    if (count > 1) {
-      return {
-        success: false,
-        error: `file_replace_text: old_text appears ${count} times, must appear exactly once`
-      };
-    }
-    
-    // Replace the single occurrence
-    const { result, replacements } = replaceText(content, old_text, new_text, 1);
-    
-    // Write updated content back
-    await writeFile(path, result, 'utf8');
-    
-    return {
-      success: true,
-      data: {
-        path,
-        replacements
-      }
-    };
-    
-  } catch (error: any) {
-    // Special case for empty old_text validation error
-    if (error.message === 'old_text cannot be empty') {
-      return {
-        success: false,
-        error: 'file_replace_text: old_text cannot be empty'
-      };
-    }
-    
-    return {
-      success: false,
-      error: formatNodeError(error, path, 'open')
-    };
-  }
-}
+## Internal Functions
 
-/**
- * Handle file_replace_all_text action - replaces all occurrences
- * If count provided, validates exact match
- */
-async function handleFileReplaceAllText(action: CladaAction): Promise<FileOpResult> {
-  const { path, old_text, new_text, count } = action.parameters;
-  
-  // Validate old_text is not empty
-  if (!old_text || old_text.length === 0) {
-    return {
-      success: false,
-      error: 'file_replace_all_text: old_text cannot be empty'
-    };
-  }
-  
-  try {
-    // Read existing file content
-    const content = await readFile(path, 'utf8');
-    
-    // If count specified, validate it matches actual occurrences
-    if (count !== undefined) {
-      // Count actual occurrences
-      let actualCount = 0;
-      let searchIndex = 0;
-      while (true) {
-        const index = content.indexOf(old_text, searchIndex);
-        if (index === -1) break;
-        actualCount++;
-        searchIndex = index + 1;
-      }
-      
-      if (actualCount !== count) {
-        return {
-          success: false,
-          error: `file_replace_all_text: expected ${count} occurrences but found ${actualCount}`
-        };
-      }
-    }
-    
-    // Replace all occurrences
-    const { result, replacements } = replaceText(content, old_text, new_text);
-    
-    // Write updated content back
-    await writeFile(path, result, 'utf8');
-    
-    return {
-      success: true,
-      data: {
-        path,
-        replacements
-      }
-    };
-    
-  } catch (error: any) {
-    // Special case for empty old_text validation error
-    if (error.message === 'old_text cannot be empty') {
-      return {
-        success: false,
-        error: 'file_replace_all_text: old_text cannot be empty'
-      };
-    }
-    
-    return {
-      success: false,
-      error: formatNodeError(error, path, 'open')
-    };
-  }
-}
+### createFile
+- **Signature**: `createFile(path: string, content: string) -> Promise<void>`
+- **Purpose**: Create new file with content, creating parent directories as needed
 
-// Internal function stubs for each operation
+### writeFile  
+- **Signature**: `writeFile(path: string, content: string) -> Promise<void>`
+- **Purpose**: Overwrite existing file content
 
-async function createFile(path: string, content: string): Promise<void> {
-  throw new Error('Not implemented');
-}
+### replaceText
+- **Signature**: `replaceText(content: string, oldText: string, newText: string, count?: number) -> {result: string, replacements: number}`
+- **Purpose**: Pure function to replace text occurrences in string content
+- **Throws**: Error when oldText is empty string
+- **Behavior**: Replaces up to `count` occurrences (all if count undefined)
 
- 
+### deleteFile
+- **Signature**: `deleteFile(path: string) -> Promise<void>`
+- **Purpose**: Remove file
 
-async function replaceTextInFile(path: string, oldText: string, newText: string, count?: number): Promise<number> {
-  throw new Error('Not implemented');
-}
+### moveFile
+- **Signature**: `moveFile(oldPath: string, newPath: string) -> Promise<void>`
+- **Purpose**: Move or rename file
 
-async function deleteFile(path: string): Promise<void> {
-  throw new Error('Not implemented');
-}
+### readFileContent
+- **Signature**: `readFileContent(path: string) -> Promise<string>`
+- **Purpose**: Read file content as UTF-8 string
 
-async function moveFile(oldPath: string, newPath: string): Promise<void> {
-  throw new Error('Not implemented');
-}
+### createDirectory
+- **Signature**: `createDirectory(path: string) -> Promise<void>`
+- **Purpose**: Create directory, including parent directories
 
-async function readFileContent(path: string): Promise<string> {
-  throw new Error('Not implemented');
-}
+### deleteDirectory
+- **Signature**: `deleteDirectory(path: string) -> Promise<void>`
+- **Purpose**: Remove directory (must be empty)
 
-async function createDirectory(path: string): Promise<void> {
-  throw new Error('Not implemented');
-}
+### listDirectory
+- **Signature**: `listDirectory(path: string) -> Promise<DirEntry[]>`
+- **Purpose**: List directory contents with metadata
 
-async function deleteDirectory(path: string): Promise<void> {
-  throw new Error('Not implemented');
-}
+### searchFiles
+- **Signature**: `searchFiles(pattern: string, path: string, include?: string) -> Promise<GrepResult[]>`
+- **Purpose**: Search for pattern in files (grep-like)
 
-interface DirEntry {
-  name: string;
-  type: 'file' | 'directory';
-  size: number;
-  modified: Date;
-}
+### globFiles
+- **Signature**: `globFiles(pattern: string, basePath: string) -> Promise<string[]>`
+- **Purpose**: Find files matching glob pattern
 
-async function listDirectory(path: string): Promise<DirEntry[]> {
-  throw new Error('Not implemented');
-}
+## Action Mapping
 
-interface GrepResult {
-  file: string;
-  line_number: number;
-  line: string;
-}
-
-async function searchFiles(pattern: string, path: string, include?: string): Promise<GrepResult[]> {
-  throw new Error('Not implemented');
-}
-
-async function globFiles(pattern: string, basePath: string): Promise<string[]> {
-  throw new Error('Not implemented');
-}
-
-// Action handler mapping
-const actionHandlers: Record<string, (action: CladaAction) => Promise<FileOpResult>> = {
+```typescript
+const actionHandlers = {
+  // Implemented
   'file_write': handleFileWrite,
   'file_replace_text': handleFileReplaceText,
   'file_replace_all_text': handleFileReplaceAllText,
@@ -718,746 +404,468 @@ const actionHandlers: Record<string, (action: CladaAction) => Promise<FileOpResu
   'file_move': handleFileMove,
   'file_read': handleFileRead,
   'files_read': handleFilesRead,
-  'dir_create': async (action) => {
-    return { success: false, error: 'Not implemented' };
-  },
-  'dir_delete': async (action) => {
-    return { success: false, error: 'Not implemented' };
-  },
-  'ls': async (action) => {
-    return { success: false, error: 'Action not implemented: ls' };
-  },
-  'grep': async (action) => {
-    return { success: false, error: 'Not implemented' };
-  },
-  'glob': async (action) => {
-    return { success: false, error: 'Not implemented' };
-  }
-};
-=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/src/index.ts ===
-import type { CladaAction, ParseResult, ParseError } from '../comp/sham-action-parser/src/index.js';
-import { parseShamResponse } from '../comp/sham-action-parser/src/index.js';
-import type { FileOpResult } from '../comp/fs-ops/src/index.js';
-import { load as loadYaml } from 'js-yaml';
-import { readFile } from 'fs/promises';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-export interface ExecutionResult {
-  success: boolean;
-  totalBlocks: number;
-  executedActions: number;
-  results: ActionResult[];
-  parseErrors: ParseError[];
-  fatalError?: string;
-}
-
-export interface ActionResult {
-  seq: number;
-  blockId: string;
-  action: string;
-  params: Record<string, any>;
-  success: boolean;
-  error?: string;
-  data?: any;
-}
-
-export interface CladaOptions {
-  repoPath?: string;
-  gitCommit?: boolean;
-}
-
-export class Clada {
-  private options: CladaOptions;
-  private executors: Map<string, (action: CladaAction) => Promise<FileOpResult>> | null = null;
-
-  constructor(options: CladaOptions = {}) {
-    this.options = {
-      repoPath: options.repoPath || process.cwd(),
-      gitCommit: options.gitCommit ?? true
-    };
-  }
-
-  /**
-   * Parse and execute all SHAM blocks in LLM output
-   * Executes all valid actions sequentially, collecting both successes and failures
-   */
-  async execute(llmOutput: string): Promise<ExecutionResult> {
-    try {
-      // Parse SHAM blocks
-      const parseResult = await parseShamResponse(llmOutput);
-      
-      // Initialize executors if needed
-      if (!this.executors) {
-        try {
-          await this.initializeExecutors();
-        } catch (error) {
-          return {
-            success: false,
-            totalBlocks: parseResult.summary.totalBlocks,
-            executedActions: 0,
-            results: [],
-            parseErrors: parseResult.errors,
-            fatalError: `Failed to initialize executors: ${error instanceof Error ? error.message : String(error)}`
-          };
-        }
-      }
-      
-      // Execute each valid action sequentially
-      const results: ActionResult[] = [];
-      let seq = 1;
-      
-      for (const action of parseResult.actions) {
-        const result = await this.executeAction(action, seq++);
-        results.push(result);
-      }
-      
-      // Calculate overall success
-      const allActionsSucceeded = results.every(r => r.success);
-      const noParseErrors = parseResult.errors.length === 0;
-      
-      return {
-        success: allActionsSucceeded && noParseErrors,
-        totalBlocks: parseResult.summary.totalBlocks,
-        executedActions: results.length,
-        results,
-        parseErrors: parseResult.errors
-      };
-      
-    } catch (error) {
-      // Only truly unexpected errors should reach here
-      return {
-        success: false,
-        totalBlocks: 0,
-        executedActions: 0,
-        results: [],
-        parseErrors: [],
-        fatalError: `Unexpected error in execute: ${error instanceof Error ? error.message : String(error)}`
-      };
-    }
-  }
-
-  /**
-   * Initialize action executors with dynamic imports
-   * Loads routing from unified-design.yaml
-   */
-  private async initializeExecutors(): Promise<void> {
-    this.executors = new Map();
-    
-    // Load unified-design.yaml
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-    const yamlPath = join(__dirname, '../../unified-design.yaml');
-    
-    const yamlContent = await readFile(yamlPath, 'utf8');
-    const design = loadYaml(yamlContent) as any;
-    
-    // Map executor names to modules
-    const executorModules: Record<string, () => Promise<any>> = {
-      'fs-ops': () => import('../comp/fs-ops/src/index.js'),
-      'exec': () => import('../comp/exec/src/index.js')
-    };
-    
-    // Load executors on demand
-    const loadedExecutors: Record<string, (action: CladaAction) => Promise<FileOpResult>> = {};
-    
-    // Build routing table from YAML
-    for (const [actionName, actionDef] of Object.entries(design.tools)) {
-      const executor = (actionDef as any).executor || this.inferExecutor(actionName, actionDef);
-      
-      if (!executor) {
-        console.warn(`No executor defined for action: ${actionName}`);
-        continue;
-      }
-      
-      // Load executor module if not already loaded
-      if (!loadedExecutors[executor]) {
-        if (executor === 'exec') {
-          // Temporary stub for exec
-          loadedExecutors[executor] = async (action) => ({
-            success: false,
-            error: 'Action not implemented: exec'
-          });
-        } else if (executorModules[executor]) {
-          const module = await executorModules[executor]();
-          loadedExecutors[executor] = module.executeFileOperation || module.executeOperation;
-        } else {
-          // Skip planned but unimplemented executors silently
-          if (!['context', 'git'].includes(executor)) {
-            console.warn(`Unknown executor: ${executor}`);
-          }
-          continue;
-        }
-      }
-      
-      this.executors.set(actionName, loadedExecutors[executor]);
-    }
-  }
   
-  /**
-   * Infer executor from action name/type when not explicitly defined
-   * Temporary fallback until all YAML entries have executor field
-   */
-  private inferExecutor(actionName: string, actionDef: any): string | null {
-    // File/dir operations go to fs-ops
-    if (actionName.startsWith('file_') || actionName.startsWith('files_') || 
-        actionName.startsWith('dir_') || ['ls', 'grep', 'glob'].includes(actionName)) {
-      return 'fs-ops';
-    }
-    
-    // Exec operations
-    if (actionName === 'exec') {
-      return 'exec';
-    }
-    
-    // Context operations (future)
-    if (actionName.startsWith('context_')) {
-      return 'context';
-    }
-    
-    // Git operations (future)
-    if (actionName.startsWith('git_') || actionName === 'undo') {
-      return 'git';
-    }
-    
-    return null;
-  }
-
-  /**
-   * Execute a single action and format the result
-   * Never throws - all errors returned in ActionResult
-   */
-  private async executeAction(action: CladaAction, seq: number): Promise<ActionResult> {
-    const executor = this.executors?.get(action.action);
-    
-    if (!executor) {
-      return {
-        seq,
-        blockId: action.metadata.blockId,
-        action: action.action,
-        params: action.parameters,
-        success: false,
-        error: `Unknown action: ${action.action}`
-      };
-    }
-    
-    try {
-      // Add default cwd for exec actions if not specified
-      const enhancedAction = action.action === 'exec' && !action.parameters.cwd
-        ? { ...action, parameters: { ...action.parameters, cwd: this.options.repoPath } }
-        : action;
-      
-      const result = await executor(enhancedAction);
-      
-      return {
-        seq,
-        blockId: action.metadata.blockId,
-        action: action.action,
-        params: action.parameters,
-        success: result.success,
-        ...(result.error && { error: result.error }),
-        ...(result.data && { data: result.data })
-      };
-      
-    } catch (error) {
-      // Executors should never throw, but handle just in case
-      return {
-        seq,
-        blockId: action.metadata.blockId,
-        action: action.action,
-        params: action.parameters,
-        success: false,
-        error: `Unexpected executor error: ${error instanceof Error ? error.message : String(error)}`
-      };
-    }
-  }
+  // Not implemented
+  'dir_create': async (action) => ({ success: false, error: 'Not implemented' }),
+  'dir_delete': async (action) => ({ success: false, error: 'Not implemented' }),
+  'ls': async (action) => ({ success: false, error: 'Action not implemented: ls' }),
+  'grep': async (action) => ({ success: false, error: 'Not implemented' }),
+  'glob': async (action) => ({ success: false, error: 'Not implemented' })
 }
-=== END FILE: /Users/stuart/repos/clada/proj/src/index.ts ===
+```
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md ===
 
-=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts ===
-/**
- * fs-ops - File system operations executor for clada
- * 
- * Handles all file and directory operations from parsed SHAM actions
- */
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/ARCH.md ===
+# fs-ops Architecture
 
-import type { CladaAction } from '../../sham-action-parser/src/index.js';
-import { writeFile, mkdir, unlink, rename, readFile } from 'fs/promises';
-import { dirname } from 'path';
-import { formatNodeError } from './formatNodeError.js';
-import { fileExists } from './fileSystemUtils.js';
-import { replaceText } from './replaceText.js';
+## Design Philosophy
 
-export interface FileOpResult {
-  success: boolean;
-  data?: any;
-  error?: string;
-}
+**Defensive Operations with Clear Errors**: Every operation should handle common failure cases gracefully and return descriptive errors that help the LLM understand what went wrong.
 
-export class FileOpError extends Error {
-  constructor(
-    message: string,
-    public code: string,
-    public path?: string,
-    public operation?: string
-  ) {
-    super(message);
-    this.name = 'FileOpError';
-  }
-}
+## Key Design Decisions
 
-/**
- * Execute a file system operation from a parsed SHAM action
- * Never throws - all errors returned in result
- */
-export async function executeFileOperation(action: CladaAction): Promise<FileOpResult> {
-  try {
-    const handler = actionHandlers[action.action];
-    
- 
-    
-    if (!handler) {
-      return {
-        success: false,
-        error: `Unknown action: ${action.action}`
-      };
-    }
-    
-    const result = await handler(action);
-    return result;
-    
-  } catch (error: any) {
-    // This should never happen - handlers should catch their own errors
-    return {
-      success: false,
-      error: `Unexpected error in executeFileOperation: ${error.message}`
-    };
-  }
-}
+### Parent Directory Creation
+- `file_write` automatically creates parent directories.  creates parent directory if it doesn't exist
 
-/**
- * Handle file_move action - moves/renames a file
- * Creates parent directories for destination if needed
- * Overwrites destination if it exists
- */
-async function handleFileMove(action: CladaAction): Promise<FileOpResult> {
-  const { old_path, new_path } = action.parameters;
+### Text Replacement Strategy  
+- Use exact string matching for both replace actions
+- `file_replace_text`: Must find EXACTLY ONE occurrence (fails if 0 or 2+)
+- `file_replace_all_text`: Replaces all occurrences, validates count if provided
+- Empty old_text validation: Both actions reject empty search strings
+- Return actual number of replacements made
+- No regex support (keep it simple, predictable)
+
+### Error Handling
+- Never throw - return errors in result object
+- Include original error codes (ENOENT, EACCES)
+- Add context about what operation was attempted
+- Preserve stack traces for debugging
+
+### Path Resolution
+- All paths must be absolute (validated by parser)
+- No path traversal validation (security is out of scope for v1)
+- Symlinks followed transparently
+
+### Directory Operations
+- `dir_delete` only removes empty directories
+- No recursive deletion option (safety)
+- `ls` returns flat listing with type info
+
+### Search Operations
+- `grep` uses simple substring matching
+- Include patterns use glob syntax
+- Results include line numbers
+- Large file handling: streaming for files >10MB
+
+## Performance Considerations
+
+- File operations are synchronous from caller perspective
+- No caching of file contents
+- No watch/monitor capabilities
+- Each operation is independent
+
+## Encoding
+
+- All text files assumed UTF-8
+- Binary files not supported in v1
+- Line endings preserved as-is
+
+## Limits
+
+- Max file size: 10MB (from unified-design.yaml)
+- No limit on number of operations
+- No timeout on individual operations
+
+## Test Conventions
+
+- Test files use `/tmp/t_{test-name}/` path pattern for isolation
+- Each test creates its own subdirectory to avoid conflicts
+- Integration tests track created paths for cleanup
+
+## Future Considerations
+
+- Batch operations for efficiency
+- Binary file support
+- File watching/monitoring
+- Atomic write operations (write to temp, rename)
+- Path validation against allowlist
+
+
+# fs-ops ARCH.md - Additional Sections
+
+## File Move Behavior
+
+### Overwrite Semantics
+- `file_move` overwrites existing destination files without warning
+- Matches Unix `mv` behavior and Node.js `rename()` semantics  
+- Rationale: LLM can check first if needed, but overwrite-by-default enables single-shot operations
+- Return data includes `overwrote: true` when destination existed
+
+### Directory Creation
+- `file_move` automatically creates parent directories for destination path
+- Diverges from standard `rename()` which fails with ENOENT
+- Rationale: Reduces LLM round-trips for common "move to new location" pattern
+
+## Error Message Enhancement
+
+### Problem: Ambiguous ENOENT
+Node.js returns ENOENT for multiple distinct failures:
+- Source file doesn't exist
+- Destination directory doesn't exist  
+- Parent directory permissions (sometimes)
+
+### Solution: Pre-flight Checks
+Operations perform checks before system calls to provide specific errors:
+- `file_move`: Check source exists → "Source file not found" vs generic ENOENT
+- `file_write`: Already creates parent dirs, avoiding ambiguity
+- `file_delete`: Pass through Node errors (unambiguous)
+
+### Error Format
+When enhancing errors for LLM clarity:
+```
+{operation}: {specific_issue} '{path}' ({error_code})
+```
+
+Example: `file_move: Source file not found '/tmp/ghost.txt' (ENOENT)`
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/ARCH.md ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/doc/API.md ===
+# Component: clada
+
+## Component Type
+standard
+
+## Dependencies
+
+```yaml
+dependencies:
+  proj/comp/sham-action-parser:  # [IMPLEMENTED]
+    functions: [parseShamResponse]
+    types: [ParseResult, CladaAction, ParseError, ValidationResult, TransformError]
   
-  try {
-    // Pre-flight check for better error messages
-    const sourceExists = await fileExists(old_path);
-    if (!sourceExists) {
-      return {
-        success: false,
-        error: `file_move: Source file not found '${old_path}' (ENOENT)`
-      };
-    }
-    
-    // Check if destination exists (for overwrote flag)
-    const destExists = await fileExists(new_path);
-    
-    // Create parent directories for destination
-    const parentDir = dirname(new_path);
-    await mkdir(parentDir, { recursive: true });
-    
-    // Move the file
-    await rename(old_path, new_path);
-    
-    const result: FileOpResult = {
-      success: true,
-      data: {
-        old_path,
-        new_path
-      }
-    };
-    
-    if (destExists) {
-      result.data.overwrote = true;
-    }
-    
-    return result;
-    
-  } catch (error: any) {
-    return {
-      success: false,
-      error: formatNodeError(error, old_path, 'rename', new_path)
-    };
+  proj/comp/fs-ops:              # [PARTIALLY IMPLEMENTED]
+    functions: [executeFileOperation]
+    types: [FileOpResult]
+    classes:
+      FileOpError:
+        extends: Error
+  
+  proj/comp/exec:                # [PLANNED]
+    functions: [executeCommand]
+    types: [ExecResult]
+  
+  proj/comp/git-tx:              # [PLANNED - v1.2]
+    functions: [ensureCleanRepo, commitChanges]
+    types: [GitError]
+  
+  proj/comp/context:             # [PLANNED]
+    functions: [addPath, removePath, listPaths, clearContext]
+    types: [ContextError]
+  
+  external/nesl-js:
+    functions: [parseSham]
+    types: [Block, ParseResult, ParseError]
+```
+
+## Exports
+
+```yaml
+exports:
+  classes:
+    Clada:
+      constructor: [options?: CladaOptions]
+      methods: [execute]
+  types: 
+    - ExecutionResult
+    - ActionResult  
+    - CladaOptions
+  # Note: ParseError is re-exported from sham-action-parser
+```
+
+### Clada (class)
+- **Purpose**: Main orchestrator executing SHAM blocks from LLM output
+- **Constructor**: `new Clada(options?: CladaOptions)`
+- **State**: Maintains working directory and context set across execute() calls
+
+### execute
+- **Signature**: `async execute(llmOutput: string): Promise<ExecutionResult>`
+- **Purpose**: Parse and execute all SHAM blocks in LLM output, commit results
+- **Process**: 
+  1. Parse SHAM blocks
+  2. Convert to actions
+  3. Execute all valid actions
+  4. (v1.2: Git commit with summary)
+- **Throws**: Never - all errors captured in ExecutionResult
+- **Test-data**: `test-data/execute/basic-operations.md` [IMPLEMENTED]
+
+### ExecutionResult (type)
+```typescript
+interface ExecutionResult {
+  success: boolean              // False if any action failed
+  totalBlocks: number          // Count of SHAM blocks found
+  executedActions: number      // Count of actions attempted
+  results: ActionResult[]      // All execution results
+  parseErrors: ParseError[]    // SHAM parsing errors
+  fatalError?: string         // System failure (v1.2: will include git errors)
+}
+```
+
+### ActionResult (type)
+```typescript
+interface ActionResult {
+  seq: number                  // Execution order
+  blockId: string             // SHAM block ID
+  action: string              // Action type
+  params: Record<string, any> // Input parameters
+  success: boolean
+  error?: string              // Error message if failed
+  data?: any                  // Action-specific output
+}
+```
+
+### ParseError (type)
+```typescript
+interface ParseError {
+  blockId?: string            // If error is block-specific
+  error: ShamError            // From parser
+}
+```
+
+### CladaOptions (type)
+```typescript
+interface CladaOptions {
+  repoPath?: string           // Default: process.cwd()
+  gitCommit?: boolean         // v1.2 feature - Default: true
+}
+```
+
+## Internal Architecture
+
+### Execution Flow
+```
+execute(llmOutput)
+  → parseSHAM(llmOutput) → ShamParseResult
+  → for each valid block:
+    → convertToActions(block) → CladaAction[]
+    → for each action:
+      → route to appropriate executor
+      → capture result
+  → commitChanges(results)
+  → return ExecutionResult
+```
+
+### Action Routing
+- file_* → fs-ops
+- dir_* → fs-ops
+- exec → exec
+- context_* → context
+- ls, grep, glob → fs-ops (read operations)
+
+### Error Handling
+- Parser errors: Skip block, record error
+- Conversion errors: Skip action, record error
+- Execution errors: Continue execution, record error
+- Git errors: Fatal, abort with fatalError
+=== END FILE: /Users/stuart/repos/clada/proj/doc/API.md ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/doc/ARCH.md ===
+# Clada Architecture
+
+
+IMPORTANT TOOL TESTING NOTES:
+
+- for test specific clada tools, each tool must get its own test case file, for easy visibility into which tools have been implemented and tested yet.
+- aka `proj/comp/fs-ops/test-data/integration/file_delete.cases.md`
+
+## Core Design Decisions
+
+### Transaction Model
+- **No automatic rollback** - All operations commit, including failures
+- **Failures are data** - LLM needs failure feedback for next steps
+- **Forward-only progress** - Cheaper than regenerating responses
+- **Manual rollback only** - Human-initiated via git commands
+- **Boundary**: One git commit per `execute()` call
+- **API**: Explicit transaction management (details TBD)
+
+### SHAM Processing Pipeline
+1. SHAM parser (external npm) → AST
+2. AST → Action objects (sham-ast-converter)
+3. Actions → Execution → Results
+
+### SHAM AST Structure
+```typescript
+interface ShamParseResult {
+  blocks: ShamBlock[]
+  errors: ShamError[]
+}
+
+interface ShamBlock {
+  id: string           // 3-char SHA-256
+  properties: {
+    action: string     // Maps to tool name (e.g., "file_write")
+    [key: string]: any // Tool-specific parameters
   }
+  startLine: number
+  endLine: number
 }
 
-/**
- * Handle file_delete action - removes a file
- */
-async function handleFileDelete(action: CladaAction): Promise<FileOpResult> {
-  const { path } = action.parameters;
-  
-  try {
-    await unlink(path);
-    
-    return {
-      success: true,
-      data: {
-        path
-      }
-    };
-    
-  } catch (error: any) {
-    return {
-      success: false,
-      error: formatNodeError(error, path, 'unlink')
-    };
-  }
+interface ShamError {
+  code: string         // e.g., "DUPLICATE_KEY"
+  line: number
+  column: number
+  length: number
+  blockId: string
+  content: string
+  context: string
+  message: string
 }
+```
 
-/**
- * Handle file_write action - writes/creates/overwrites a file with content
- * Automatically creates parent directories if needed
- */
-async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
-  const { path, content } = action.parameters;
-  
-  try {
-    // Create parent directories if needed
-    const parentDir = dirname(path);
-    await mkdir(parentDir, { recursive: true });
-    
-    // Write file
-    await writeFile(path, content, 'utf8');
-    const bytesWritten = Buffer.byteLength(content, 'utf8');
-    
-    return {
-      success: true,
-      data: {
-        path,
-        bytesWritten
-      }
-    };
-    
-  } catch (error: any) {
-    return {
-      success: false,
-      error: formatNodeError(error, path, 'open')
-    };
-  }
+### Error Propagation Strategy
+- **Parser errors**: Skip blocks with parser errors, execute valid blocks only
+- **Validation errors**: Skip invalid actions, execute valid ones
+- **Execution errors**: Continue with remaining actions
+- **Result**: Complete execution log with successes and failures
+
+### Action Mapping
+- SHAM `action` property maps directly to tool names from unified-design.yaml
+- Use canonical names: `file_write`, `exec`, etc.
+
+### Context Management
+- **V1**: Simple `Set<string>` of file paths
+- **Storage**: In-memory only, no persistence across sessions
+- **V2 Future**: Sub-file references (lines, functions, sections)
+
+### Execution Model
+- **Synchronous**: All operations block until complete
+- **CWD Management**: Session-based working directory
+  - Default: Repository root
+  - Each exec can override with `cwd` parameter
+  - CWD persists within session, not across transactions
+- **Results Format**: Flat array with sequence numbers
+```typescript
+interface ActionResult {
+  seq: number          // Execution order
+  blockId: string      // SHAM block ID
+  action: string       // Action type
+  params: any          // Input parameters
+  success: boolean
+  error?: string       // Error message if failed
+  data?: any           // Action-specific output (stdout, content, etc.)
 }
+```
 
-/**
- * Handle file_read action - reads file content
- */
-async function handleFileRead(action: CladaAction): Promise<FileOpResult> {
-  const { path } = action.parameters;
-  
-  try {
-    const content = await readFile(path, 'utf8');
-    
-    return {
-      success: true,
-      data: {
-        path,
-        content
-      }
-    };
-    
-  } catch (error: any) {
-    return {
-      success: false,
-      error: formatNodeError(error, path, 'open')
-    };
-  }
-}
+### Security Model (V1)
+- **None**: Full filesystem access
+- **No validation**: Any path allowed
+- **No sandboxing**: Direct execution
+- **V2 Future**: Path allowlisting per unified-design.yaml. FOR THIS REASON all fs stuff should immediately be implemented using our fs wrapper functions so this whitelisting/blacklisting is easy to implment in the future.
 
-/**
- * Handle files_read action - reads multiple files and concatenates with delimiters
- * Parses multi-line paths parameter, one absolute path per line
- * Returns concatenated content with === /path/to/file === delimiters
- */
-async function handleFilesRead(action: CladaAction): Promise<FileOpResult> {
-  const { paths } = action.parameters;
-  
-  // Parse the multi-line paths string
-  const pathList = paths
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0);  // Remove empty lines
-  
-  if (pathList.length === 0) {
-    return {
-      success: false,
-      error: 'files_read: No paths provided'
-    };
-  }
-  
-  // Read all files, collecting content and errors
-  const results: Array<{ path: string; content?: string; error?: string }> = [];
-  
-  for (const filePath of pathList) {
-    try {
-      const content = await readFile(filePath, 'utf8');
-      results.push({ path: filePath, content });
-    } catch (error: any) {
-      // Collect error for this file
-      const errorMsg = formatNodeError(error, filePath, 'open');
-      results.push({ path: filePath, error: errorMsg });
-    }
-  }
-  
-  // Check if any files failed to read
-  const failedFiles = results.filter(r => r.error);
-  if (failedFiles.length > 0) {
-    // Return error listing all failed files
-    const errorDetails = failedFiles
-      .map(f => `  ${f.path}: ${f.error}`)
-      .join('\n');
-    return {
-      success: false,
-      error: `files_read: Failed to read ${failedFiles.length} file(s):\n${errorDetails}`
-    };
-  }
-  
-  // All files read successfully - concatenate with delimiters
-  const concatenated = results
-    .map(r => {
-      const header = `=== ${r.path} ===`;
-      return `${header}\n${r.content}`;
-    })
-    .join('\n\n');
-  
-  return {
-    success: true,
-    data: {
-      paths: pathList,
-      content: concatenated
-    }
-  };
-}
+## Component Structure
+```
+clada/
+├── proj/
+│   ├── comp/
+│   │   ├── sham-ast-converter/  # AST → Actions
+│   │   ├── fs-ops/              # File/directory operations
+│   │   ├── exec/                # Command execution
+│   │   ├── git-tx/              # Git transaction management
+│   │   └── context/             # Working set management
+│   └── doc/
+│       ├── API.md               # Main orchestrator API
+│       ├── ARCH.md              # This document
+│       └── ABSTRACT.md          # Project overview
+```
 
-/**
- * Handle file_replace_text action - replaces EXACTLY ONE occurrence
- * Fails if old_text appears 0 or 2+ times
- */
-async function handleFileReplaceText(action: CladaAction): Promise<FileOpResult> {
-  const { path, old_text, new_text } = action.parameters;
-  
-  // Validate old_text is not empty
-  if (!old_text || old_text.length === 0) {
-    return {
-      success: false,
-      error: 'file_replace_text: old_text cannot be empty'
-    };
-  }
-  
-  try {
-    // Read existing file content
-    const content = await readFile(path, 'utf8');
-    
-    // Count occurrences first
-    let count = 0;
-    let searchIndex = 0;
-    while (true) {
-      const index = content.indexOf(old_text, searchIndex);
-      if (index === -1) break;
-      count++;
-      searchIndex = index + 1;
-    }
-    
-    // Validate exactly one occurrence
-    if (count === 0) {
-      return {
-        success: false,
-        error: `file_replace_text: old_text not found in file`
-      };
-    }
-    if (count > 1) {
-      return {
-        success: false,
-        error: `file_replace_text: old_text appears ${count} times, must appear exactly once`
-      };
-    }
-    
-    // Replace the single occurrence
-    const { result, replacements } = replaceText(content, old_text, new_text, 1);
-    
-    // Write updated content back
-    await writeFile(path, result, 'utf8');
-    
-    return {
-      success: true,
-      data: {
-        path,
-        replacements
-      }
-    };
-    
-  } catch (error: any) {
-    // Special case for empty old_text validation error
-    if (error.message === 'old_text cannot be empty') {
-      return {
-        success: false,
-        error: 'file_replace_text: old_text cannot be empty'
-      };
-    }
-    
-    return {
-      success: false,
-      error: formatNodeError(error, path, 'open')
-    };
-  }
-}
+## Implementation Priorities
+1. `sham-ast-converter` - Cannot test without this
+2. `fs-ops` - Core functionality
+3. `exec` - Command execution
+4. `git-tx` - Transaction wrapper
+5. `context` - Working set (may be simple enough to inline)
 
-/**
- * Handle file_replace_all_text action - replaces all occurrences
- * If count provided, validates exact match
- */
-async function handleFileReplaceAllText(action: CladaAction): Promise<FileOpResult> {
-  const { path, old_text, new_text, count } = action.parameters;
-  
-  // Validate old_text is not empty
-  if (!old_text || old_text.length === 0) {
-    return {
-      success: false,
-      error: 'file_replace_all_text: old_text cannot be empty'
-    };
-  }
-  
-  try {
-    // Read existing file content
-    const content = await readFile(path, 'utf8');
-    
-    // If count specified, validate it matches actual occurrences
-    if (count !== undefined) {
-      // Count actual occurrences
-      let actualCount = 0;
-      let searchIndex = 0;
-      while (true) {
-        const index = content.indexOf(old_text, searchIndex);
-        if (index === -1) break;
-        actualCount++;
-        searchIndex = index + 1;
-      }
-      
-      if (actualCount !== count) {
-        return {
-          success: false,
-          error: `file_replace_all_text: expected ${count} occurrences but found ${actualCount}`
-        };
-      }
-    }
-    
-    // Replace all occurrences
-    const { result, replacements } = replaceText(content, old_text, new_text);
-    
-    // Write updated content back
-    await writeFile(path, result, 'utf8');
-    
-    return {
-      success: true,
-      data: {
-        path,
-        replacements
-      }
-    };
-    
-  } catch (error: any) {
-    // Special case for empty old_text validation error
-    if (error.message === 'old_text cannot be empty') {
-      return {
-        success: false,
-        error: 'file_replace_all_text: old_text cannot be empty'
-      };
-    }
-    
-    return {
-      success: false,
-      error: formatNodeError(error, path, 'open')
-    };
-  }
-}
+## Open Questions
 
-// Internal function stubs for each operation
+### Critical
+1. **SHAM parser package**: `nesl-js` from `github:nesl-lang/nesl-js`
+   - Import: `const { parseSHAM } = require('nesl-js')`
+2. **Transaction API**: Single `execute()` method processes SHAM block array
 
-async function createFile(path: string, content: string): Promise<void> {
-  throw new Error('Not implemented');
-}
+### Design
+1. **Parser error handling**: Execute blocks with parser errors or skip?
+2. **Git conflict handling**: How to handle conflicts during manual rollback?
+3. **Concurrent access**: Multiple clada instances on same repo?
+4. **Partial failure behavior**: Continue executing after first failure or abort?
 
- 
+### Future
+1. **Context references**: Syntax for line ranges and functions
+2. **Execution isolation**: Container/VM strategy for V2
+3. **Streaming results**: Return results as actions complete or batch at end?
 
-async function replaceTextInFile(path: string, oldText: string, newText: string, count?: number): Promise<number> {
-  throw new Error('Not implemented');
-}
+## Design Rationale
 
-async function deleteFile(path: string): Promise<void> {
-  throw new Error('Not implemented');
-}
+### Why No Automatic Rollback
+Traditional transaction systems rollback on failure to maintain consistency. Clada explicitly rejects this because:
+1. **LLM responses are expensive** - Regenerating costs time and money
+2. **Partial success is informative** - LLM learns from failures
+3. **Git preserves history** - Can always manually revert
+4. **Forward progress over perfection** - Incremental improvement model
 
-async function moveFile(oldPath: string, newPath: string): Promise<void> {
-  throw new Error('Not implemented');
-}
+### Why Synchronous Execution
+1. **Deterministic results** - LLM needs to know exact outcomes
+2. **Sequential dependencies** - Later actions may depend on earlier ones
+3. **Simpler implementation** - No async state management
+4. **Git compatibility** - Git operations are inherently synchronous
 
-async function readFileContent(path: string): Promise<string> {
-  throw new Error('Not implemented');
-}
+### Why In-Memory Context
+1. **Session isolation** - Each LLM conversation is independent
+2. **No persistence complexity** - No file format versioning
+3. **Git is the source of truth** - Files on disk matter, not context
+4. **Quick reset** - New session = clean slate
+=== END FILE: /Users/stuart/repos/clada/proj/doc/ARCH.md ===
 
-async function createDirectory(path: string): Promise<void> {
-  throw new Error('Not implemented');
-}
+=== START FILE: /Users/stuart/repos/clada/proj/doc/TODO.md ===
 
-async function deleteDirectory(path: string): Promise<void> {
-  throw new Error('Not implemented');
-}
+Issues revealed by execute.md test design:
 
-interface DirEntry {
-  name: string;
-  type: 'file' | 'directory';
-  size: number;
-  modified: Date;
-}
+Missing gitCommit field in expected results
+Context operations not tested - are they SHAM actions?
+Git state check not tested - what if dirty repo?
+Directory creation for file operations unclear
 
-async function listDirectory(path: string): Promise<DirEntry[]> {
-  throw new Error('Not implemented');
-}
 
-interface GrepResult {
-  file: string;
-  line_number: number;
-  line: string;
-}
+---
 
-async function searchFiles(pattern: string, path: string, include?: string): Promise<GrepResult[]> {
-  throw new Error('Not implemented');
-}
 
-async function globFiles(pattern: string, basePath: string): Promise<string[]> {
-  throw new Error('Not implemented');
-}
+https://claude.ai/chat/f2f318e7-0f4c-4a5a-b9ee-35c8c7a83a06
+Next step: Add executor: fs-ops to all file/dir operations in the YAML when convenient. The system will work without it due to the inference fallback.
 
-// Action handler mapping
-const actionHandlers: Record<string, (action: CladaAction) => Promise<FileOpResult>> = {
-  'file_write': handleFileWrite,
-  'file_replace_text': handleFileReplaceText,
-  'file_replace_all_text': handleFileReplaceAllText,
-  'file_delete': handleFileDelete,
-  'file_move': handleFileMove,
-  'file_read': handleFileRead,
-  'files_read': handleFilesRead,
-  'dir_create': async (action) => {
-    return { success: false, error: 'Not implemented' };
-  },
-  'dir_delete': async (action) => {
-    return { success: false, error: 'Not implemented' };
-  },
-  'ls': async (action) => {
-    return { success: false, error: 'Action not implemented: ls' };
-  },
-  'grep': async (action) => {
-    return { success: false, error: 'Not implemented' };
-  },
-  'glob': async (action) => {
-    return { success: false, error: 'Not implemented' };
-  }
-};
-=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts ===
+---
+
+add malformed sha id error to nesl-js  so it reeturns a good error for:
+
+
+```sh sham
+#!SHAM [@sham-id: 567]
+action = "file_replace_text"
+path = "/tmp/replace-test.txt"
+old_text = "Hello"
+new_text = "Hi"
+#!END_SHAM_567
+```
+
+(should be )
+
+
+```sh sham
+#!SHAM [@three-char-SHA-256: 567]
+action = "file_replace_text"
+path = "/tmp/replace-test.txt"
+old_text = "Hello"
+new_text = "Hi"
+#!END_SHAM_567
+```
+=== END FILE: /Users/stuart/repos/clada/proj/doc/TODO.md ===
 
 === START FILE: /Users/stuart/repos/clada/unified-design.yaml ===
 # AI Coder Tools Schema - Unified Design
@@ -1541,6 +949,10 @@ tools:
 
 
   #tentative!  under consideration.  dont implement yet
+  # actually.... for "in parents" stuff lets just use our exisitng tools, but allow "parent" stuff to be added to the path, like ina  syntax we created earlier but forgot about
+  # like:
+  # path/to/file.md@@## Section 2@@### part 3
+  # path/to/code.rs@@MyModuleOrClass@@myFunction
   files_replace_text_in_parents:
     type: write
     executor: fs-ops
@@ -1830,312 +1242,6 @@ TODO: |
     Gap between "git commit" and first operation
     Non-atomic filesystem ops vs git state
 === END FILE: /Users/stuart/repos/clada/unified-design.yaml ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/doc/API.md ===
-# Component: clada
-
-## Component Type
-standard
-
-## Dependencies
-
-```yaml
-dependencies:
-  proj/comp/sham-action-parser:  # [IMPLEMENTED]
-    functions: [parseShamResponse]
-    types: [ParseResult, CladaAction, ParseError, ValidationResult, TransformError]
-  
-  proj/comp/fs-ops:              # [PARTIALLY IMPLEMENTED]
-    functions: [executeFileOperation]
-    types: [FileOpResult]
-    classes:
-      FileOpError:
-        extends: Error
-  
-  proj/comp/exec:                # [PLANNED]
-    functions: [executeCommand]
-    types: [ExecResult]
-  
-  proj/comp/git-tx:              # [PLANNED - v1.2]
-    functions: [ensureCleanRepo, commitChanges]
-    types: [GitError]
-  
-  proj/comp/context:             # [PLANNED]
-    functions: [addPath, removePath, listPaths, clearContext]
-    types: [ContextError]
-  
-  external/nesl-js:
-    functions: [parseSham]
-    types: [Block, ParseResult, ParseError]
-```
-
-## Exports
-
-```yaml
-exports:
-  classes:
-    Clada:
-      constructor: [options?: CladaOptions]
-      methods: [execute]
-  types: 
-    - ExecutionResult
-    - ActionResult  
-    - CladaOptions
-  # Note: ParseError is re-exported from sham-action-parser
-```
-
-### Clada (class)
-- **Purpose**: Main orchestrator executing SHAM blocks from LLM output
-- **Constructor**: `new Clada(options?: CladaOptions)`
-- **State**: Maintains working directory and context set across execute() calls
-
-### execute
-- **Signature**: `async execute(llmOutput: string): Promise<ExecutionResult>`
-- **Purpose**: Parse and execute all SHAM blocks in LLM output, commit results
-- **Process**: 
-  1. Parse SHAM blocks
-  2. Convert to actions
-  3. Execute all valid actions
-  4. (v1.2: Git commit with summary)
-- **Throws**: Never - all errors captured in ExecutionResult
-- **Test-data**: `test-data/execute/basic-operations.md` [IMPLEMENTED]
-
-### ExecutionResult (type)
-```typescript
-interface ExecutionResult {
-  success: boolean              // False if any action failed
-  totalBlocks: number          // Count of SHAM blocks found
-  executedActions: number      // Count of actions attempted
-  results: ActionResult[]      // All execution results
-  parseErrors: ParseError[]    // SHAM parsing errors
-  fatalError?: string         // System failure (v1.2: will include git errors)
-}
-```
-
-### ActionResult (type)
-```typescript
-interface ActionResult {
-  seq: number                  // Execution order
-  blockId: string             // SHAM block ID
-  action: string              // Action type
-  params: Record<string, any> // Input parameters
-  success: boolean
-  error?: string              // Error message if failed
-  data?: any                  // Action-specific output
-}
-```
-
-### ParseError (type)
-```typescript
-interface ParseError {
-  blockId?: string            // If error is block-specific
-  error: ShamError            // From parser
-}
-```
-
-### CladaOptions (type)
-```typescript
-interface CladaOptions {
-  repoPath?: string           // Default: process.cwd()
-  gitCommit?: boolean         // v1.2 feature - Default: true
-}
-```
-
-## Internal Architecture
-
-### Execution Flow
-```
-execute(llmOutput)
-  → parseSHAM(llmOutput) → ShamParseResult
-  → for each valid block:
-    → convertToActions(block) → CladaAction[]
-    → for each action:
-      → route to appropriate executor
-      → capture result
-  → commitChanges(results)
-  → return ExecutionResult
-```
-
-### Action Routing
-- file_* → fs-ops
-- dir_* → fs-ops
-- exec → exec
-- context_* → context
-- ls, grep, glob → fs-ops (read operations)
-
-### Error Handling
-- Parser errors: Skip block, record error
-- Conversion errors: Skip action, record error
-- Execution errors: Continue execution, record error
-- Git errors: Fatal, abort with fatalError
-=== END FILE: /Users/stuart/repos/clada/proj/doc/API.md ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/doc/ARCH.md ===
-# Clada Architecture
-
-## Core Design Decisions
-
-### Transaction Model
-- **No automatic rollback** - All operations commit, including failures
-- **Failures are data** - LLM needs failure feedback for next steps
-- **Forward-only progress** - Cheaper than regenerating responses
-- **Manual rollback only** - Human-initiated via git commands
-- **Boundary**: One git commit per `execute()` call
-- **API**: Explicit transaction management (details TBD)
-
-### SHAM Processing Pipeline
-1. SHAM parser (external npm) → AST
-2. AST → Action objects (sham-ast-converter)
-3. Actions → Execution → Results
-
-### SHAM AST Structure
-```typescript
-interface ShamParseResult {
-  blocks: ShamBlock[]
-  errors: ShamError[]
-}
-
-interface ShamBlock {
-  id: string           // 3-char SHA-256
-  properties: {
-    action: string     // Maps to tool name (e.g., "file_write")
-    [key: string]: any // Tool-specific parameters
-  }
-  startLine: number
-  endLine: number
-}
-
-interface ShamError {
-  code: string         // e.g., "DUPLICATE_KEY"
-  line: number
-  column: number
-  length: number
-  blockId: string
-  content: string
-  context: string
-  message: string
-}
-```
-
-### Error Propagation Strategy
-- **Parser errors**: Skip blocks with parser errors, execute valid blocks only
-- **Validation errors**: Skip invalid actions, execute valid ones
-- **Execution errors**: Continue with remaining actions
-- **Result**: Complete execution log with successes and failures
-
-### Action Mapping
-- SHAM `action` property maps directly to tool names from unified-design.yaml
-- Use canonical names: `file_write`, `exec`, etc.
-
-### Context Management
-- **V1**: Simple `Set<string>` of file paths
-- **Storage**: In-memory only, no persistence across sessions
-- **V2 Future**: Sub-file references (lines, functions, sections)
-
-### Execution Model
-- **Synchronous**: All operations block until complete
-- **CWD Management**: Session-based working directory
-  - Default: Repository root
-  - Each exec can override with `cwd` parameter
-  - CWD persists within session, not across transactions
-- **Results Format**: Flat array with sequence numbers
-```typescript
-interface ActionResult {
-  seq: number          // Execution order
-  blockId: string      // SHAM block ID
-  action: string       // Action type
-  params: any          // Input parameters
-  success: boolean
-  error?: string       // Error message if failed
-  data?: any           // Action-specific output (stdout, content, etc.)
-}
-```
-
-### Security Model (V1)
-- **None**: Full filesystem access
-- **No validation**: Any path allowed
-- **No sandboxing**: Direct execution
-- **V2 Future**: Path allowlisting per unified-design.yaml. FOR THIS REASON all fs stuff should immediately be implemented using our fs wrapper functions so this whitelisting/blacklisting is easy to implment in the future.
-
-## Component Structure
-```
-clada/
-├── proj/
-│   ├── comp/
-│   │   ├── sham-ast-converter/  # AST → Actions
-│   │   ├── fs-ops/              # File/directory operations
-│   │   ├── exec/                # Command execution
-│   │   ├── git-tx/              # Git transaction management
-│   │   └── context/             # Working set management
-│   └── doc/
-│       ├── API.md               # Main orchestrator API
-│       ├── ARCH.md              # This document
-│       └── ABSTRACT.md          # Project overview
-```
-
-## Implementation Priorities
-1. `sham-ast-converter` - Cannot test without this
-2. `fs-ops` - Core functionality
-3. `exec` - Command execution
-4. `git-tx` - Transaction wrapper
-5. `context` - Working set (may be simple enough to inline)
-
-## Open Questions
-
-### Critical
-1. **SHAM parser package**: `nesl-js` from `github:nesl-lang/nesl-js`
-   - Import: `const { parseSHAM } = require('nesl-js')`
-2. **Transaction API**: Single `execute()` method processes SHAM block array
-
-### Design
-1. **Parser error handling**: Execute blocks with parser errors or skip?
-2. **Git conflict handling**: How to handle conflicts during manual rollback?
-3. **Concurrent access**: Multiple clada instances on same repo?
-4. **Partial failure behavior**: Continue executing after first failure or abort?
-
-### Future
-1. **Context references**: Syntax for line ranges and functions
-2. **Execution isolation**: Container/VM strategy for V2
-3. **Streaming results**: Return results as actions complete or batch at end?
-
-## Design Rationale
-
-### Why No Automatic Rollback
-Traditional transaction systems rollback on failure to maintain consistency. Clada explicitly rejects this because:
-1. **LLM responses are expensive** - Regenerating costs time and money
-2. **Partial success is informative** - LLM learns from failures
-3. **Git preserves history** - Can always manually revert
-4. **Forward progress over perfection** - Incremental improvement model
-
-### Why Synchronous Execution
-1. **Deterministic results** - LLM needs to know exact outcomes
-2. **Sequential dependencies** - Later actions may depend on earlier ones
-3. **Simpler implementation** - No async state management
-4. **Git compatibility** - Git operations are inherently synchronous
-
-### Why In-Memory Context
-1. **Session isolation** - Each LLM conversation is independent
-2. **No persistence complexity** - No file format versioning
-3. **Git is the source of truth** - Files on disk matter, not context
-4. **Quick reset** - New session = clean slate
-=== END FILE: /Users/stuart/repos/clada/proj/doc/ARCH.md ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/doc/TODO.md ===
-
-Issues revealed by execute.md test design:
-
-Missing gitCommit field in expected results
-Context operations not tested - are they SHAM actions?
-Git state check not tested - what if dirty repo?
-Directory creation for file operations unclear
-
-
----
-
-
-https://claude.ai/chat/f2f318e7-0f4c-4a5a-b9ee-35c8c7a83a06
-Next step: Add executor: fs-ops to all file/dir operations in the YAML when convenient. The system will work without it due to the inference fallback.
-=== END FILE: /Users/stuart/repos/clada/proj/doc/TODO.md ===
 
 === START FILE: /Users/stuart/repos/clada/replacer/replacer_llm_instructions.md ===
 coding style guide:  TDD.  self documenting code.  every api  function name should make it super obvious who is doing what and why

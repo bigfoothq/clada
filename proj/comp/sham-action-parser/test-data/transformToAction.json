@@ -123,7 +123,7 @@
           "type": "dynamic",
           "parameters": {
             "code": {"type": "string", "required": true},
-            "lang": {"type": "enum", "values": ["python", "javascript", "bash", "ruby"], "required": true}
+            "lang": {"type": "enum", "values": ["python", "javascript", "bash"], "required": true}
           }
         }
       ],

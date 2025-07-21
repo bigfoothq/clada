@@ -1,0 +1,176 @@
+# Execution Error Test Cases
+
+## Missing interpreter
+```sh sham
+#!SHAM [@three-char-SHA-256: e1r]
+action = "exec"
+lang = "python"
+code = "print('hello')"
+#!END_SHAM_e1r
+```
+
+```json
+{
+  "success": false,
+  "error": "exec: python3 not found in PATH (ENOENT)"
+}
+```
+
+## Invalid working directory
+```sh sham
+#!SHAM [@three-char-SHA-256: e2r]
+action = "exec"
+lang = "bash"
+code = "pwd"
+cwd = "/nonexistent/directory/path"
+#!END_SHAM_e2r
+```
+
+```json
+{
+  "success": false,
+  "error": "exec: Working directory does not exist '/nonexistent/directory/path' (ENOENT)"
+}
+```
+
+## Process timeout
+```sh sham
+#!SHAM [@three-char-SHA-256: e3r]
+action = "exec"
+lang = "bash"
+code = "sleep 40"
+#!END_SHAM_e3r
+```
+
+```json
+{
+  "success": false,
+  "stdout": "",
+  "stderr": "",
+  "error": "exec: Process timeout after 30s (TIMEOUT)"
+}
+```
+
+## Timeout with partial output
+```sh sham
+#!SHAM [@three-char-SHA-256: e4r]
+action = "exec"
+lang = "bash"
+code = "echo 'Started'; sleep 35; echo 'Never seen'"
+#!END_SHAM_e4r
+```
+
+```json
+{
+  "success": false,
+  "stdout": "Started\n",
+  "stderr": "",
+  "error": "exec: Process timeout after 30s (TIMEOUT)"
+}
+```
+
+## Large output truncation
+```sh sham
+#!SHAM [@three-char-SHA-256: e5r]
+action = "exec"
+lang = "bash"
+code = "for i in {1..100000}; do echo 'Line '$i': This is a very long line of output that will eventually exceed our size limit'; done"
+#!END_SHAM_e5r
+```
+
+```json
+{
+  "success": true,
+  "stdout": "Line 1: This is a very long...[truncated - 1MB limit]...Line 9999: This is a very long",
+  "stderr": "",
+  "exit_code": 0
+}
+```
+
+## Permission denied
+```sh sham
+#!SHAM [@three-char-SHA-256: e6r]
+action = "exec"
+lang = "bash"
+code = "cat /root/.ssh/id_rsa"
+#!END_SHAM_e6r
+```
+
+```json
+{
+  "success": false,
+  "stdout": "",
+  "stderr": "cat: /root/.ssh/id_rsa: Permission denied\n",
+  "exit_code": 1
+}
+```
+
+## Memory allocation failure
+```sh sham
+#!SHAM [@three-char-SHA-256: e7r]
+action = "exec"
+lang = "python"
+code = "a = [0] * (10**10)"
+#!END_SHAM_e7r
+```
+
+```json
+{
+  "success": false,
+  "stdout": "",
+  "stderr": "MemoryError\n",
+  "exit_code": 1
+}
+```
+
+## Interactive command (no stdin)
+```sh sham
+#!SHAM [@three-char-SHA-256: e8r]
+action = "exec"
+lang = "python"
+code = "name = input('Enter name: '); print(f'Hello {name}')"
+#!END_SHAM_e8r
+```
+
+```json
+{
+  "success": false,
+  "stdout": "",
+  "stderr": "EOFError: EOF when reading a line\n",
+  "error": "exec: Process timeout after 30s (TIMEOUT)"
+}
+```
+
+## Unsupported language
+```sh sham
+#!SHAM [@three-char-SHA-256: e9r]
+action = "exec"
+lang = "rust"
+code = "println!(\"Hello\");"
+#!END_SHAM_e9r
+```
+
+```json
+{
+  "success": false,
+  "error": "exec: Unsupported language 'rust' (LANG_UNSUPPORTED)"
+}
+```
+
+## Empty code
+```sh sham
+#!SHAM [@three-char-SHA-256: e10r]
+action = "exec"
+lang = "bash"
+code = ""
+#!END_SHAM_e10r
+```
+
+```json
+{
+  "success": true,
+  "stdout": "",
+  "stderr": "",
+  "exit_code": 0
+}
+```

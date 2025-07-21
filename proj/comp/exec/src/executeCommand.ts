@@ -86,7 +86,7 @@ async function runProcess(
     });
     
     // Handle process completion
-    child.on('exit', (code, signal) => {
+    child.on('close', (code, signal) => {
       if (timeoutId) {
         clearTimeout(timeoutId);
       }

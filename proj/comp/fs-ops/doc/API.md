@@ -3,6 +3,9 @@
 ## Component Type
 standard
 
+## Status
+[PARTIALLY IMPLEMENTED] - Only file operations implemented. Directory operations, search operations pending.
+
 ## Documentation Debt
 - [ ] Integration test format is preliminary [IMPLEMENTED]
 - [ ] Error handling strategy needs refinement
@@ -29,7 +32,10 @@ dependencies:
 ```yaml
 exports:
   functions: [executeFileOperation]
-  types: [FileOpResult, FileOpError]
+  types: [FileOpResult]
+  classes:
+    FileOpError:
+      extends: Error
 ```
 
 ### executeFileOperation

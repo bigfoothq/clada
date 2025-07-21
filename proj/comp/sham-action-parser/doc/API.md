@@ -33,7 +33,9 @@ dependencies:
 exports:
   functions: [parseShamResponse, validateShamBlock, transformToAction]
   types: [ParseResult, CladaAction, ParseError, ValidationResult, TransformError]
-  errors: [TransformError]
+  classes:
+    TransformError:
+      extends: Error
 ```
 
 ### parseShamResponse

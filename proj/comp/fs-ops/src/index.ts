@@ -44,7 +44,8 @@ export async function executeFileOperation(action: CladaAction): Promise<FileOpR
       };
     }
     
-    return await handler(action);
+    const result = await handler(action);
+    return result;
     
   } catch (error: any) {
     // This should never happen - handlers should catch their own errors
@@ -193,6 +194,14 @@ async function handleFileRead(action: CladaAction): Promise<FileOpResult> {
 async function handleFileReplaceText(action: CladaAction): Promise<FileOpResult> {
   const { path, old_text, new_text } = action.parameters;
   
+  // Validate old_text is not empty
+  if (!old_text || old_text.length === 0) {
+    return {
+      success: false,
+      error: 'file_replace_text: old_text cannot be empty'
+    };
+  }
+  
   try {
     // Read existing file content
     const content = await readFile(path, 'utf8');
@@ -257,6 +266,14 @@ async function handleFileReplaceText(action: CladaAction): Promise<FileOpResult>
  */
 async function handleFileReplaceAllText(action: CladaAction): Promise<FileOpResult> {
   const { path, old_text, new_text, count } = action.parameters;
+  
+  // Validate old_text is not empty
+  if (!old_text || old_text.length === 0) {
+    return {
+      success: false,
+      error: 'file_replace_all_text: old_text cannot be empty'
+    };
+  }
   
   try {
     // Read existing file content

@@ -5,13 +5,6 @@ import { marked, Token } from 'marked';
 import { parseShamResponse } from '../../../sham-action-parser/src/index.js';
 import { executeFileOperation } from '../../src/index.js';
 
-// Read test data
-const testPath = join(__dirname, '../../test-data/integration/file-operations.cases.md');
-const mdContent = readFileSync(testPath, 'utf8');
-
-// Parse markdown to extract test cases with hierarchy
-const tokens: Token[] = marked.lexer(mdContent);
-
 interface TestCase {
   name: string;
   shamBlock: string;
@@ -23,11 +16,20 @@ interface TestGroup {
   tests: TestCase[];
 }
 
+// Read test data
+const testPath = join(__dirname, '../../test-data/integration/file-operations.cases.md');
+const mdContent = readFileSync(testPath, 'utf8');
+
+
 // Extract test structure from markdown
 const testGroups: TestGroup[] = [];
 let currentGroup: TestGroup | null = null;
 let currentTest: Partial<TestCase> | null = null;
 let codeBlockIndex = 0;
+
+// Parse markdown to extract test cases with hierarchy
+const tokens: Token[] = marked.lexer(mdContent);
+
 
 tokens.forEach(token => {
   if (token.type === 'heading' && 'depth' in token) {
@@ -84,43 +86,41 @@ const testPaths = [
   '/tmp/not-there.txt',
   '/tmp/multiple-occurrences.txt',
   '/tmp/replace-all.txt',
-  '/tmp/count-mismatch.txt'
+  '/tmp/count-mismatch.txt',
+  '/tmp/special-chars.txt'
 ];
 
 describe('fs-ops integration tests', () => {
-  beforeEach(async () => {
-    console.log('[beforeEach] Starting cleanup');
+  beforeEach(() => {
     // Clean up any existing test files
-    testPaths.forEach(path => {
-      if (existsSync(path)) {
-        console.log('[beforeEach] Removing:', path);
-        rmSync(path, { recursive: true, force: true });
+    for (const path of testPaths) {
+      try {
+        if (existsSync(path)) {
+          rmSync(path, { recursive: true, force: true });
+        }
+      } catch (err) {
+        // Silently continue
       }
-    });
-    console.log('[beforeEach] Cleanup complete');
-    // Small delay to ensure filesystem operations complete
-    await new Promise(resolve => setTimeout(resolve, 50));
+    }
   });
 
-  afterEach(async () => {
-    console.log('[afterEach] Starting cleanup');
+  afterEach(() => {
     // Clean up after tests
-    testPaths.forEach(path => {
-      if (existsSync(path)) {
-        console.log('[afterEach] Removing:', path);
-        rmSync(path, { recursive: true, force: true });
+    for (const path of testPaths) {
+      try {
+        if (existsSync(path)) {
+          rmSync(path, { recursive: true, force: true });
+        }
+      } catch (err) {
+        // Silently continue
       }
-    });
-    console.log('[afterEach] Cleanup complete');
-    // Add small delay to ensure fs operations complete
-    await new Promise(resolve => setTimeout(resolve, 100));
+    }
   });
 
   testGroups.forEach(group => {
     describe(group.name, () => {
       group.tests.forEach(test => {
         it(test.name, async () => {
-          console.log(`Starting test: ${test.name}`);
           const expectedOutput = JSON.parse(test.expectedBlock);
           
           // Extract test name without number prefix
@@ -183,35 +183,20 @@ const x = oldName();`);
           try {
             parseResult = await parseShamResponse(test.shamBlock);
           } catch (error) {
-            console.error('Parse error:', error);
             throw error;
           }
-          
-          console.log('Parse complete, got', parseResult.actions.length, 'actions');
           
           // Should have exactly one action
           expect(parseResult.actions).toHaveLength(1);
           expect(parseResult.errors).toHaveLength(0);
           
-          console.log('About to execute action:', parseResult.actions[0]);
-          
           // Execute the action
           const result = await executeFileOperation(parseResult.actions[0]);
           
-          console.log('Execution complete, result:', result);
-          
           // Compare result
           expect(result).toEqual(expectedOutput);
-          console.log('Test assertion complete');
         }, 30000);
       });
     });
-  });
-  
-  // Debug test to verify Vitest is working
-  it('simple sync test', () => {
-    console.log('Simple test running');
-    expect(1).toBe(1);
-    console.log('Simple test complete');
   });
 });

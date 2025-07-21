@@ -1,61 +1,177 @@
-=== PROCESSED: 2025-07-20 23:09:16 ===
-SUCCESS Block 1: Updated /Users/stuart/repos/clada/proj/comp/fs-ops/test/integration/integration.test.ts
-SUCCESS Block 2: Updated /Users/stuart/repos/clada/proj/comp/fs-ops/test/integration/integration.test.ts
+=== PROCESSED: 2025-07-21 00:10:14 ===
+SUCCESS Block 1: Updated /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/API.md
+SUCCESS Block 2: Updated /Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
+SUCCESS Block 3: Updated /Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
+SUCCESS Block 4: Updated /Users/stuart/repos/clada/proj/doc/API.md
+SUCCESS Block 5: Updated /Users/stuart/repos/clada/proj/doc/API.md
+SUCCESS Block 6: Updated /Users/stuart/repos/clada/proj/doc/API.md
+SUCCESS Block 7: Updated /Users/stuart/repos/clada/proj/doc/API.md
 ===
 
-Good - the `.only` isolation worked. The test completes successfully when run alone, confirming the issue isn't with the test itself but with running multiple tests in sequence.
-
-The hanging was likely due to:
-1. **Resource contention** - Multiple tests trying to access the same files
-2. **Async timing issues** - Tests starting before previous cleanup completes
-3. **parseShamResponse caching** - The `actionSchemaCache` is shared across tests
-
-Let's remove the `.only` and fix the real issue:
-
 <<<EXPLANATION>>>
-Remove the .only isolation since we've confirmed the individual test works
+Update sham-action-parser API.md to reflect actual exports found in audit
+
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/fs-ops/test/integration/integration.test.ts
+/Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/API.md
+
 <<<SEARCH>>>
-      group.tests.forEach(test => {
-        // Temporarily isolate first test
-        const itFn = test.name === '001-simple-file-create' ? it.only : it;
-        itFn(test.name, async () => {
+## Exports
+```yaml
+exports:
+  functions: [parseShamResponse, validateShamBlock, transformToAction]
+  types: [ParseResult, CladaAction, ParseError, ValidationResult, TransformError]
+  errors: [TransformError]
+```
 <<<REPLACE>>>
-      group.tests.forEach(test => {
-        it(test.name, async () => {
+## Exports
+```yaml
+exports:
+  functions: [parseShamResponse, validateShamBlock, transformToAction]
+  types: [ParseResult, CladaAction, ParseError, ValidationResult, TransformError]
+  classes:
+    TransformError:
+      extends: Error
+```
 <<<END>>>
 
 <<<EXPLANATION>>>
-Make beforeEach async to ensure cleanup completes before test starts
+Update fs-ops API.md to reflect actual exports and mark as partially implemented
+
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/fs-ops/test/integration/integration.test.ts
+/Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
+
 <<<SEARCH>>>
-  beforeEach(() => {
-    console.log('[beforeEach] Starting cleanup');
-    // Clean up any existing test files
-    testPaths.forEach(path => {
-      if (existsSync(path)) {
-        console.log('[beforeEach] Removing:', path);
-        rmSync(path, { recursive: true, force: true });
-      }
-    });
-    console.log('[beforeEach] Cleanup complete');
-  });
+# Component: fs-ops
+
+## Component Type
+standard
+
+## Documentation Debt
+- [ ] Integration test format is preliminary [IMPLEMENTED]
+- [ ] Error handling strategy needs refinement
+- [ ] Consider batching operations for efficiency
 <<<REPLACE>>>
-  beforeEach(async () => {
-    console.log('[beforeEach] Starting cleanup');
-    // Clean up any existing test files
-    testPaths.forEach(path => {
-      if (existsSync(path)) {
-        console.log('[beforeEach] Removing:', path);
-        rmSync(path, { recursive: true, force: true });
-      }
-    });
-    console.log('[beforeEach] Cleanup complete');
-    // Small delay to ensure filesystem operations complete
-    await new Promise(resolve => setTimeout(resolve, 50));
-  });
+# Component: fs-ops
+
+## Component Type
+standard
+
+## Status
+[PARTIALLY IMPLEMENTED] - Only file operations implemented. Directory operations, search operations pending.
+
+## Documentation Debt
+- [ ] Integration test format is preliminary [IMPLEMENTED]
+- [ ] Error handling strategy needs refinement
+- [ ] Consider batching operations for efficiency
 <<<END>>>
 
-The key insight: The `actionSchemaCache` in `parseShamResponse` is loaded once and shared. This shouldn't cause hanging, but the file system operations might be overlapping if cleanup isn't fully synchronous.
+<<<EXPLANATION>>>
+Update fs-ops exports to match actual implementation
+
+<<<FILE>>>
+/Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
+
+<<<SEARCH>>>
+## Exports
+
+```yaml
+exports:
+  functions: [executeFileOperation]
+  types: [FileOpResult, FileOpError]
+```
+<<<REPLACE>>>
+## Exports
+
+```yaml
+exports:
+  functions: [executeFileOperation]
+  types: [FileOpResult]
+  classes:
+    FileOpError:
+      extends: Error
+```
+<<<END>>>
+
+<<<EXPLANATION>>>
+Update main project API.md dependencies to include all required types from sham-action-parser
+
+<<<FILE>>>
+/Users/stuart/repos/clada/proj/doc/API.md
+
+<<<SEARCH>>>
+  proj/comp/sham-action-parser:  # [IMPLEMENTED]
+    functions: [parseShamResponse]
+    types: [ParseResult, CladaAction, ParseError]
+<<<REPLACE>>>
+  proj/comp/sham-action-parser:  # [IMPLEMENTED]
+    functions: [parseShamResponse]
+    types: [ParseResult, CladaAction, ParseError, ValidationResult, TransformError]
+<<<END>>>
+
+<<<EXPLANATION>>>
+Update fs-ops dependency to show partial implementation status
+
+<<<FILE>>>
+/Users/stuart/repos/clada/proj/doc/API.md
+
+<<<SEARCH>>>
+  proj/comp/fs-ops:              # [PLANNED]
+    functions: [executeFileOperation]
+    types: [FileOpResult]
+<<<REPLACE>>>
+  proj/comp/fs-ops:              # [PARTIALLY IMPLEMENTED]
+    functions: [executeFileOperation]
+    types: [FileOpResult]
+    classes:
+      FileOpError:
+        extends: Error
+<<<END>>>
+
+<<<EXPLANATION>>>
+Update main project exports to match actual implementation
+
+<<<FILE>>>
+/Users/stuart/repos/clada/proj/doc/API.md
+
+<<<SEARCH>>>
+## Exports
+
+```yaml
+exports:
+  classes:
+    Clada:
+      methods: [execute]
+  types: 
+    - ExecutionResult
+    - ActionResult  
+    - ParseError
+    - CladaOptions
+```
+<<<REPLACE>>>
+## Exports
+
+```yaml
+exports:
+  classes:
+    Clada:
+      constructor: [options?: CladaOptions]
+      methods: [execute]
+  types: 
+    - ExecutionResult
+    - ActionResult  
+    - CladaOptions
+  # Note: ParseError is re-exported from sham-action-parser
+```
+<<<END>>>
+
+<<<EXPLANATION>>>
+Update test-data path from PLANNED to IMPLEMENTED
+
+<<<FILE>>>
+/Users/stuart/repos/clada/proj/doc/API.md
+
+<<<SEARCH>>>
+- **Test-data**: `test-data/execute/` [PLANNED]
+<<<REPLACE>>>
+- **Test-data**: `test-data/execute/basic-operations.md` [IMPLEMENTED]
+<<<END>>>

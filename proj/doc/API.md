@@ -9,17 +9,20 @@ standard
 dependencies:
   proj/comp/sham-action-parser:  # [IMPLEMENTED]
     functions: [parseShamResponse]
-    types: [ParseResult, CladaAction, ParseError]
+    types: [ParseResult, CladaAction, ParseError, ValidationResult, TransformError]
   
-  proj/comp/fs-ops:              # [PLANNED]
+  proj/comp/fs-ops:              # [PARTIALLY IMPLEMENTED]
     functions: [executeFileOperation]
     types: [FileOpResult]
+    classes:
+      FileOpError:
+        extends: Error
   
   proj/comp/exec:                # [PLANNED]
     functions: [executeCommand]
     types: [ExecResult]
   
-  proj/comp/git-tx:              # [PLANNED]
+  proj/comp/git-tx:              # [PLANNED - v1.2]
     functions: [ensureCleanRepo, commitChanges]
     types: [GitError]
   
@@ -38,12 +41,13 @@ dependencies:
 exports:
   classes:
     Clada:
+      constructor: [options?: CladaOptions]
       methods: [execute]
   types: 
     - ExecutionResult
     - ActionResult  
-    - ParseError
     - CladaOptions
+  # Note: ParseError is re-exported from sham-action-parser
 ```
 
 ### Clada (class)
@@ -55,13 +59,12 @@ exports:
 - **Signature**: `async execute(llmOutput: string): Promise<ExecutionResult>`
 - **Purpose**: Parse and execute all SHAM blocks in LLM output, commit results
 - **Process**: 
-  1. Ensure clean git state
-  2. Parse SHAM blocks
-  3. Convert to actions
-  4. Execute all valid actions
-  5. Commit changes with summary
+  1. Parse SHAM blocks
+  2. Convert to actions
+  3. Execute all valid actions
+  4. (v1.2: Git commit with summary)
 - **Throws**: Never - all errors captured in ExecutionResult
-- **Test-data**: `test-data/execute/` [PLANNED]
+- **Test-data**: `test-data/execute/basic-operations.md` [IMPLEMENTED]
 
 ### ExecutionResult (type)
 ```typescript
@@ -71,8 +74,7 @@ interface ExecutionResult {
   executedActions: number      // Count of actions attempted
   results: ActionResult[]      // All execution results
   parseErrors: ParseError[]    // SHAM parsing errors
-  gitCommit?: string          // Commit SHA if successful
-  fatalError?: string         // Git or system failure
+  fatalError?: string         // System failure (v1.2: will include git errors)
 }
 ```
 
@@ -101,7 +103,7 @@ interface ParseError {
 ```typescript
 interface CladaOptions {
   repoPath?: string           // Default: process.cwd()
-  gitCommit?: boolean         // Default: true
+  gitCommit?: boolean         // v1.2 feature - Default: true
 }
 ```
 

@@ -1,6 +1,4 @@
-# Files Read Integration Tests
-
-**Status**: [IMPLEMENTED] - Test cases for files_read action
+# files_read Integration Tests
 
 ## files_read
 

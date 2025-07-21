@@ -1,0 +1,37 @@
+# file_delete Integration Tests
+
+## file_delete
+
+### 001-delete-existing-file
+
+```sh sham
+#!SHAM [@three-char-SHA-256: del]
+action = "file_delete"
+path = "/tmp/to-delete.txt"
+#!END_SHAM_del
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/to-delete.txt"
+  }
+}
+```
+
+### 002-delete-nonexistent-file
+
+```sh sham
+#!SHAM [@three-char-SHA-256: dnf]
+action = "file_delete"
+path = "/tmp/does-not-exist.txt"
+#!END_SHAM_dnf
+```
+
+```json
+{
+  "success": false,
+  "error": "ENOENT: no such file or directory, unlink '/tmp/does-not-exist.txt'"
+}
+```

@@ -1,0 +1,7 @@
+
+/Users/stuart/repos/clada/proj/comp/fs-ops/test-data/integration/file_delete.cases.md
+/Users/stuart/repos/clada/proj/comp/fs-ops/test-data/integration/file_move.cases.md
+/Users/stuart/repos/clada/proj/comp/fs-ops/test-data/integration/file_read.cases.md
+/Users/stuart/repos/clada/proj/comp/fs-ops/test-data/integration/file_replace_text.cases.md
+/Users/stuart/repos/clada/proj/comp/fs-ops/test-data/integration/file_write.cases.md
+/Users/stuart/repos/clada/proj/comp/fs-ops/test-data/integration/files_read.cases.md

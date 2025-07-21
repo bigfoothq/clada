@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const TEST_DATA_DIR = './proj/comp/fs-ops/test-data/integration';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const TEST_DATA_DIR = path.join(__dirname, './proj/comp/fs-ops/test-data/integration');
 
 // Read and parse test case files
 function parseTestFile(filePath) {
@@ -58,7 +60,17 @@ function restructureTests() {
     'files-read.cases.md'
   ];
   
-  console.log('Starting test case restructuring...\n');
+  console.log('Starting test case restructuring...');
+  console.log('Test data directory:', TEST_DATA_DIR);
+  
+  if (!fs.existsSync(TEST_DATA_DIR)) {
+    console.error(`Error: Directory not found: ${TEST_DATA_DIR}`);
+    process.exit(1);
+  }
+  
+  console.log('\nFiles in directory:');
+  fs.readdirSync(TEST_DATA_DIR).forEach(f => console.log(`  ${f}`));
+  console.log('');
   
   for (const file of files) {
     const filePath = path.join(TEST_DATA_DIR, file);

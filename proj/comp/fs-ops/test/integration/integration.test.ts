@@ -203,8 +203,11 @@ const x = oldName();`);
           expect(parseResult.actions.length).toBeGreaterThan(0);
           expect(parseResult.errors).toHaveLength(0);
           
-          // Execute the last action (main action, after any setup actions)
-          const result = await executeFileOperation(parseResult.actions[parseResult.actions.length - 1]);
+          // Execute all actions in sequence, capturing the last result
+          let result;
+          for (const action of parseResult.actions) {
+            result = await executeFileOperation(action);
+          }
           
           // Compare result
           expect(result).toEqual(expectedOutput);

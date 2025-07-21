@@ -4,7 +4,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { marked, Token } from 'marked';
 import { Clada } from '../src/index.js';
-import { clearActionSchemaCache } from '../comp/sham-action-parser/src/index.js';
+import { clearActionSchemaCache } from '../../sham-action-parser/src/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -13,7 +13,7 @@ const testPath = join(__dirname, '../test-data/execute/basic-operations.md');
 const mdContent = readFileSync(testPath, 'utf8');
 
 const tokens = marked.lexer(mdContent);
-const codeBlocks = tokens.filter(t => t.type === 'code') as Array<Token & {type: 'code', text: string, lang?: string}>;
+const codeBlocks = tokens.filter(t => t.type === 'code') as Array<Token & { type: 'code', text: string, lang?: string }>;
 const testNames = tokens
   .filter(t => t.type === 'heading' && 'depth' in t && t.depth === 3)
   .map(t => (t as any).text as string);

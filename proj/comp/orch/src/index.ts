@@ -1,6 +1,6 @@
-import type { CladaAction, ParseResult, ParseError } from '../comp/sham-action-parser/src/index.js';
-import { parseShamResponse } from '../comp/sham-action-parser/src/index.js';
-import type { FileOpResult } from '../comp/fs-ops/src/index.js';
+import type { CladaAction, ParseResult, ParseError } from '../../sham-action-parser/src/index.js';
+import { parseShamResponse } from '../../sham-action-parser/src/index.js';
+import type { FileOpResult } from '../../fs-ops/src/index.js';
 import { load as loadYaml } from 'js-yaml';
 import { readFile } from 'fs/promises';
 import { fileURLToPath } from 'url';
@@ -49,7 +49,7 @@ export class Clada {
     try {
       // Parse SHAM blocks
       const parseResult = await parseShamResponse(llmOutput);
-      
+
       // Initialize executors if needed
       if (!this.executors) {
         try {
@@ -65,20 +65,20 @@ export class Clada {
           };
         }
       }
-      
+
       // Execute each valid action sequentially
       const results: ActionResult[] = [];
       let seq = 1;
-      
+
       for (const action of parseResult.actions) {
         const result = await this.executeAction(action, seq++);
         results.push(result);
       }
-      
+
       // Calculate overall success
       const allActionsSucceeded = results.every(r => r.success);
       const noParseErrors = parseResult.errors.length === 0;
-      
+
       return {
         success: allActionsSucceeded && noParseErrors,
         totalBlocks: parseResult.summary.totalBlocks,
@@ -86,7 +86,7 @@ export class Clada {
         results,
         parseErrors: parseResult.errors
       };
-      
+
     } catch (error) {
       // Only truly unexpected errors should reach here
       return {
@@ -106,33 +106,32 @@ export class Clada {
    */
   private async initializeExecutors(): Promise<void> {
     this.executors = new Map();
-    
+
     // Load unified-design.yaml
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
-    const yamlPath = join(__dirname, '../../unified-design.yaml');
-    
+    const yamlPath = join(__dirname, '../../../../unified-design.yaml');
     const yamlContent = await readFile(yamlPath, 'utf8');
     const design = loadYaml(yamlContent) as any;
-    
+
     // Map executor names to modules
     const executorModules: Record<string, () => Promise<any>> = {
-      'fs-ops': () => import('../comp/fs-ops/src/index.js'),
-      'exec': () => import('../comp/exec/src/index.js')
+      'fs-ops': () => import('../../fs-ops/src/index.js'),
+      'exec': () => import('../../exec/src/index.js')
     };
-    
+
     // Load executors on demand
     const loadedExecutors: Record<string, (action: CladaAction) => Promise<FileOpResult>> = {};
-    
+
     // Build routing table from YAML
     for (const [actionName, actionDef] of Object.entries(design.tools)) {
       const executor = (actionDef as any).executor || this.inferExecutor(actionName, actionDef);
-      
+
       if (!executor) {
         console.warn(`No executor defined for action: ${actionName}`);
         continue;
       }
-      
+
       // Load executor module if not already loaded
       if (!loadedExecutors[executor]) {
         if (executor === 'exec') {
@@ -152,37 +151,37 @@ export class Clada {
           continue;
         }
       }
-      
+
       this.executors.set(actionName, loadedExecutors[executor]);
     }
   }
-  
+
   /**
    * Infer executor from action name/type when not explicitly defined
    * Temporary fallback until all YAML entries have executor field
    */
   private inferExecutor(actionName: string, actionDef: any): string | null {
     // File/dir operations go to fs-ops
-    if (actionName.startsWith('file_') || actionName.startsWith('files_') || 
-        actionName.startsWith('dir_') || ['ls', 'grep', 'glob'].includes(actionName)) {
+    if (actionName.startsWith('file_') || actionName.startsWith('files_') ||
+      actionName.startsWith('dir_') || ['ls', 'grep', 'glob'].includes(actionName)) {
       return 'fs-ops';
     }
-    
+
     // Exec operations
     if (actionName === 'exec') {
       return 'exec';
     }
-    
+
     // Context operations (future)
     if (actionName.startsWith('context_')) {
       return 'context';
     }
-    
+
     // Git operations (future)
     if (actionName.startsWith('git_') || actionName === 'undo') {
       return 'git';
     }
-    
+
     return null;
   }
 
@@ -192,7 +191,7 @@ export class Clada {
    */
   private async executeAction(action: CladaAction, seq: number): Promise<ActionResult> {
     const executor = this.executors?.get(action.action);
-    
+
     if (!executor) {
       return {
         seq,
@@ -203,15 +202,15 @@ export class Clada {
         error: `Unknown action: ${action.action}`
       };
     }
-    
+
     try {
       // Add default cwd for exec actions if not specified
       const enhancedAction = action.action === 'exec' && !action.parameters.cwd
         ? { ...action, parameters: { ...action.parameters, cwd: this.options.repoPath } }
         : action;
-      
+
       const result = await executor(enhancedAction);
-      
+
       return {
         seq,
         blockId: action.metadata.blockId,
@@ -221,7 +220,7 @@ export class Clada {
         ...(result.error && { error: result.error }),
         ...(result.data && { data: result.data })
       };
-      
+
     } catch (error) {
       // Executors should never throw, but handle just in case
       return {

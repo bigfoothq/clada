@@ -12,6 +12,7 @@ find . -type f \
   -not -name "scratch.md" \
   -not -name "snapshot.txt" \
   -not -name "xx*" \
+  -not -name ".DS_*" \
   -not -path "*/.git/*" \
   -not -path "*/.*/*" \
   -not -path "*/dist/*" \
@@ -26,7 +27,7 @@ find . -type f \
   cat "$1";
   echo;
   echo "=== END FILE: $1 ==="
-' sh {} \; | tee snapshot.txt > /dev/null
+' sh {} \; | tee snapshot.txt | pbcopy
 
 
 

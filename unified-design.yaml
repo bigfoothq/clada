@@ -49,6 +49,27 @@ tools:
       count: {type: integer, required: false}
     returns: {success: boolean, replacements_made?: integer, error?: string}
     
+
+  #tentative!  under consideration
+  files_replace_all_text:
+    parameters:
+      paths: {type: string, format: multiline_absolute_paths}
+      old_text: {type: string}
+      new_text: {type: string}
+      count: {type: integer, required: false}
+    returns: {
+      success: boolean,
+      results: {
+        type: array,
+        items: {
+          path: string,
+          replacements_made: integer,
+          error?: string
+        }
+      },
+      error?: string  # for complete failure
+    }
+
   file_append:
     type: write
     description: Append to file
@@ -77,11 +98,25 @@ tools:
     
   file_read:
     type: read
-    description: Read file content (ephemeral)
+    description: Read and concatenate contents of multiple files into a single string, with clear file delimiters
     accessibility: [llm]
     parameters:
-      path: {type: string, required: true, format: absolute_path}
-    returns: {success: boolean, content?: string, error?: string}
+      paths: {
+        type: string, 
+        required: true, 
+        format: "multiline_absolute_paths",
+        description: "One absolute file path per line. Empty lines are ignored."
+      }
+    returns: {
+      success: boolean, 
+      content?: string,  # Files concatenated with headers like "=== /path/to/file.txt ==="
+      error?: string
+    }  
+    example: |
+      paths: |
+        /home/user/projects/src/main.py
+        /home/user/projects/src/utils.py
+        /home/user/projects/README.md
     
   # Directory Operations
   dir_create:

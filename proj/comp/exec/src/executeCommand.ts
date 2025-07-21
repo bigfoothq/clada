@@ -19,7 +19,7 @@ export async function executeCommand(action: any): Promise<ExecResult> {
         new Error('Invalid action: missing lang or code parameter'));
     }
     
-    const { lang, code, cwd } = action.parameters;
+    const { lang, code, cwd, timeout } = action.parameters;
     
     // Map language to command (may throw)
     const { command, args } = mapLanguageToCommand(lang, code);
@@ -28,7 +28,7 @@ export async function executeCommand(action: any): Promise<ExecResult> {
     const options = await buildSpawnOptions(cwd);
     
     // Execute command and capture results
-    return await runProcess(command, args, options);
+    return await runProcess(command, args, options, timeout);
     
   } catch (error) {
     // Convert exceptions to ExecResult format
@@ -50,7 +50,8 @@ export async function executeCommand(action: any): Promise<ExecResult> {
 async function runProcess(
   command: string, 
   args: string[], 
-  options: any
+  options: any,
+  timeout?: number
 ): Promise<ExecResult> {
   return new Promise((resolve) => {
     let stdout = '';
@@ -60,8 +61,8 @@ async function runProcess(
     
     const child = spawn(command, args, options);
     
-    // Set up timeout
-    const TIMEOUT_MS = 30000;
+    // Set up timeout (default 30s)
+    const TIMEOUT_MS = timeout || 30000;
     timeoutId = setTimeout(() => {
       timedOut = true;
       child.kill('SIGTERM');
@@ -92,7 +93,7 @@ async function runProcess(
       
       if (timedOut) {
         resolve(formatExecResult(null, stdout, stderr, 
-          new Error('exec: Process timeout after 30s (TIMEOUT)')));
+          new Error(`exec: Process timeout after ${TIMEOUT_MS/1000}s (TIMEOUT)`)));
       } else if (code !== null) {
         resolve(formatExecResult(code, stdout, stderr));
       } else if (signal) {

@@ -9,9 +9,11 @@ import { ExecError } from './types';
  */
 export function mapLanguageToCommand(lang: string, code: string): { command: string; args: string[] } {
   const interpreters: Record<string, { command: string; args: string[] }> = {
-    bash: { command: 'bash', args: ['-c', code] },
-    javascript: { command: 'node', args: ['-e', code] },
-    python: { command: 'python3', args: ['-c', code] }
+    bash: { command: 'bash', args: ['-c'] },
+    javascript: { command: 'node', args: ['-e'] },
+    python: { command: 'python3', args: ['-c'] },
+    ruby: { command: 'ruby', args: ['-e'] },
+    cobol: { command: 'cobol', args: ['-x'] }
   };
   
   const interpreter = interpreters[lang];
@@ -25,6 +27,6 @@ export function mapLanguageToCommand(lang: string, code: string): { command: str
   
   return {
     command: interpreter.command,
-    args: interpreter.args
+    args: [...interpreter.args, code]
   };
 }

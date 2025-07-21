@@ -114,7 +114,7 @@ code = "this_command_does_not_exist"
 {
   "success": false,
   "stdout": "",
-  "stderr": "bash: line 1: this_command_does_not_exist: command not found\n",
+  "stderr": "bash: this_command_does_not_exist: command not found\n",
   "exit_code": 127
 }
 ```

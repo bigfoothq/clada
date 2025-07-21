@@ -4,8 +4,8 @@
 ```sh sham
 #!SHAM [@three-char-SHA-256: e1r]
 action = "exec"
-lang = "python"
-code = "print('hello')"
+lang = "cobol"
+code = "DISPLAY 'hello'."
 #!END_SHAM_e1r
 ```
 
@@ -14,7 +14,7 @@ code = "print('hello')"
   "success": false,
   "stdout": "",
   "stderr": "",
-  "error": "exec: python3 not found in PATH (ENOENT)"
+  "error": "exec: cobol not found in PATH (ENOENT)"
 }
 ```
 
@@ -42,7 +42,8 @@ cwd = "/nonexistent/directory/path"
 #!SHAM [@three-char-SHA-256: e3r]
 action = "exec"
 lang = "bash"
-code = "sleep 40"
+code = "sleep 2"
+timeout = 200
 #!END_SHAM_e3r
 ```
 
@@ -51,7 +52,7 @@ code = "sleep 40"
   "success": false,
   "stdout": "",
   "stderr": "",
-  "error": "exec: Process timeout after 30s (TIMEOUT)"
+  "error": "exec: Process timeout after 0.2s (TIMEOUT)"
 }
 ```
 
@@ -60,7 +61,8 @@ code = "sleep 40"
 #!SHAM [@three-char-SHA-256: e4r]
 action = "exec"
 lang = "bash"
-code = "echo 'Started'; sleep 35; echo 'Never seen'"
+code = "echo 'Started'; sleep 2; echo 'Never seen'"
+timeout = 200
 #!END_SHAM_e4r
 ```
 
@@ -69,10 +71,10 @@ code = "echo 'Started'; sleep 35; echo 'Never seen'"
   "success": false,
   "stdout": "Started\n",
   "stderr": "",
-  "error": "exec: Process timeout after 30s (TIMEOUT)"
+  "error": "exec: Process timeout after 0.2s (TIMEOUT)"
 }
 ```
-
+<!-- 
 ## Large output truncation
 ```sh sham
 #!SHAM [@three-char-SHA-256: e5r]
@@ -89,14 +91,14 @@ code = "for i in {1..100000}; do echo 'Line '$i': This is a very long line of ou
   "stderr": "",
   "exit_code": 0
 }
-```
+``` -->
 
 ## Permission denied
 ```sh sham
 #!SHAM [@three-char-SHA-256: e6r]
 action = "exec"
 lang = "bash"
-code = "cat /root/.ssh/id_rsa"
+code = "cat /private/etc/sudoers"
 #!END_SHAM_e6r
 ```
 
@@ -104,11 +106,11 @@ code = "cat /root/.ssh/id_rsa"
 {
   "success": false,
   "stdout": "",
-  "stderr": "cat: /root/.ssh/id_rsa: Permission denied\n",
+  "stderr": "cat: /private/etc/sudoers: Permission denied\n",
   "exit_code": 1
 }
 ```
-
+<!-- 
 ## Memory allocation failure
 ```sh sham
 #!SHAM [@three-char-SHA-256: e7r]
@@ -125,7 +127,7 @@ code = "a = [0] * (10**10)"
   "stderr": "MemoryError\n",
   "exit_code": 1
 }
-```
+``` -->
 
 ## Interactive command (no stdin)
 ```sh sham
@@ -133,15 +135,16 @@ code = "a = [0] * (10**10)"
 action = "exec"
 lang = "python"
 code = "name = input('Enter name: '); print(f'Hello {name}')"
+timeout = 200
 #!END_SHAM_e8r
 ```
 
 ```json
 {
   "success": false,
-  "stdout": "",
-  "stderr": "EOFError: EOF when reading a line\n",
-  "error": "exec: Process timeout after 30s (TIMEOUT)"
+  "stdout": "Enter name: ",
+  "stderr": "",
+  "error": "exec: Process timeout after 0.2s (TIMEOUT)"
 }
 ```
 

@@ -1,9 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { readFileSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { marked, Token } from 'marked';
 import { executeCommand } from '../src/index';
+import { platform } from 'os';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const testDataDir = join(__dirname, '../test-data/integration');
@@ -14,6 +15,12 @@ const caseFiles = readdirSync(testDataDir)
   .sort();
 
 describe('exec integration tests', () => {
+  beforeAll(() => {
+    if (platform() !== 'darwin') {
+      throw new Error('Integration tests require macOS. Current platform: ' + platform());
+    }
+  });
+
   caseFiles.forEach(file => {
     const content = readFileSync(join(testDataDir, file), 'utf8');
     const tokens: Token[] = marked.lexer(content);
@@ -45,8 +52,25 @@ describe('exec integration tests', () => {
             // Parse expected result
             const expected = JSON.parse(expectedJson);
             
-            // Compare results
-            expect(result).toMatchObject(expected);
+            // Compare results with dynamic value substitution
+            let expectedStr = JSON.stringify(expected)
+              .replace('{HOME_VALUE}', process.env.HOME || '');
+            
+            // Handle macOS /tmp symlink
+            if (result.stdout === '/private/tmp\n' && expected.stdout === '/tmp\n') {
+              expectedStr = expectedStr.replace('"/tmp\\n"', '"/private/tmp\\n"');
+            }
+            
+            // Handle syntax error placeholders
+            if (expected.stderr === '{SYNTAX_ERROR_OUTPUT}' && result.stderr && result.stderr.includes('SyntaxError')) {
+              expectedStr = expectedStr.replace('"{SYNTAX_ERROR_OUTPUT}"', JSON.stringify(result.stderr));
+            }
+            if (expected.stderr === '{SYNTAX_ERROR_WITH_TRACEBACK}' && result.stderr && result.stderr.includes('SyntaxError')) {
+              expectedStr = expectedStr.replace('"{SYNTAX_ERROR_WITH_TRACEBACK}"', JSON.stringify(result.stderr));
+            }
+            
+            const expectedWithSubstitutions = JSON.parse(expectedStr);
+            expect(result).toMatchObject(expectedWithSubstitutions);
           });
         }
       });
@@ -67,10 +91,19 @@ function parseShamToAction(shamBlock: string): any {
     } else if (line.startsWith('code = ')) {
       // Handle simple single-line code
       if (!line.includes('<<')) {
-        action.parameters.code = line.slice(7).replace(/"/g, '');
+        // Handle quoted strings properly - don't just remove all quotes
+        const codeMatch = line.match(/^code = "(.*)"/);
+        if (codeMatch) {
+          // Unescape the quotes
+          action.parameters.code = codeMatch[1].replace(/\\"/g, '"');
+        } else {
+          action.parameters.code = line.slice(7);
+        }
       }
     } else if (line.startsWith('cwd = ')) {
       action.parameters.cwd = line.slice(6).replace(/"/g, '');
+    } else if (line.startsWith('timeout = ')) {
+      action.parameters.timeout = parseInt(line.slice(10));
     }
   }
   

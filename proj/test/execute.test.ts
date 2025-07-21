@@ -24,7 +24,20 @@ const testPaths = [
   '/tmp/bad.txt',
   '/tmp/duplicate.txt',
   '/tmp/good.txt',
-  '/tmp/does-not-exist.txt'
+  '/tmp/does-not-exist.txt',
+  '/tmp/read-test.txt',
+  '/tmp/source-file.txt',
+  '/tmp/destination-file.txt',
+  '/tmp/replace-single.txt',
+  '/tmp/replace-all.txt',
+  '/tmp/multiline.txt',
+  '/tmp/multiple-foo.txt',
+  '/tmp/count-test.txt',
+  '/tmp/move-source.txt',
+  '/tmp/move-dest.txt',
+  '/tmp/empty-replace.txt',
+  '/tmp/parent-test.txt',
+  '/tmp/new'
 ];
 
 describe('Clada.execute()', () => {

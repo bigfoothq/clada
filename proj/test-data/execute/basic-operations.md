@@ -475,7 +475,332 @@ EOT_SHAM_ml2
 }
 ```
 
-### 011-unimplemented-directory-operations
+### 011-file-replace-text-multiple-occurrences-failure
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rf1]
+action = "file_write"
+path = "/tmp/multiple-foo.txt"
+content = "foo bar foo baz"
+#!END_SHAM_rf1
+
+#!SHAM [@three-char-SHA-256: rf2]
+action = "file_replace_text"
+path = "/tmp/multiple-foo.txt"
+old_text = "foo"
+new_text = "qux"
+#!END_SHAM_rf2
+```
+
+```json
+{
+  "success": false,
+  "totalBlocks": 2,
+  "executedActions": 2,
+  "results": [{
+    "seq": 1,
+    "blockId": "rf1",
+    "action": "file_write",
+    "params": {
+      "path": "/tmp/multiple-foo.txt",
+      "content": "foo bar foo baz"
+    },
+    "success": true,
+    "data": {
+      "path": "/tmp/multiple-foo.txt",
+      "bytesWritten": 15
+    }
+  }, {
+    "seq": 2,
+    "blockId": "rf2",
+    "action": "file_replace_text",
+    "params": {
+      "path": "/tmp/multiple-foo.txt",
+      "old_text": "foo",
+      "new_text": "qux"
+    },
+    "success": false,
+    "error": "file_replace_text: old_text appears 2 times, must appear exactly once"
+  }],
+  "parseErrors": []
+}
+```
+
+### 012-file-replace-all-text-with-count
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rc1]
+action = "file_write"
+path = "/tmp/count-test.txt"
+content = "test test test"
+#!END_SHAM_rc1
+
+#!SHAM [@three-char-SHA-256: rc2]
+action = "file_replace_all_text"
+path = "/tmp/count-test.txt"
+old_text = "test"
+new_text = "check"
+count = "2"
+#!END_SHAM_rc2
+```
+
+```json
+{
+  "success": false,
+  "totalBlocks": 2,
+  "executedActions": 2,
+  "results": [{
+    "seq": 1,
+    "blockId": "rc1",
+    "action": "file_write",
+    "params": {
+      "path": "/tmp/count-test.txt",
+      "content": "test test test"
+    },
+    "success": true,
+    "data": {
+      "path": "/tmp/count-test.txt",
+      "bytesWritten": 14
+    }
+  }, {
+    "seq": 2,
+    "blockId": "rc2",
+    "action": "file_replace_all_text",
+    "params": {
+      "path": "/tmp/count-test.txt",
+      "old_text": "test",
+      "new_text": "check",
+      "count": 2
+    },
+    "success": false,
+    "error": "file_replace_all_text: expected 2 occurrences but found 3"
+  }],
+  "parseErrors": []
+}
+```
+
+### 013-file-move-overwrite-existing
+
+```sh sham
+#!SHAM [@three-char-SHA-256: ow1]
+action = "file_write"
+path = "/tmp/move-source.txt"
+content = "source content"
+#!END_SHAM_ow1
+
+#!SHAM [@three-char-SHA-256: ow2]
+action = "file_write"
+path = "/tmp/move-dest.txt"
+content = "will be overwritten"
+#!END_SHAM_ow2
+
+#!SHAM [@three-char-SHA-256: ow3]
+action = "file_move"
+old_path = "/tmp/move-source.txt"
+new_path = "/tmp/move-dest.txt"
+#!END_SHAM_ow3
+```
+
+```json
+{
+  "success": true,
+  "totalBlocks": 3,
+  "executedActions": 3,
+  "results": [{
+    "seq": 1,
+    "blockId": "ow1",
+    "action": "file_write",
+    "params": {
+      "path": "/tmp/move-source.txt",
+      "content": "source content"
+    },
+    "success": true,
+    "data": {
+      "path": "/tmp/move-source.txt",
+      "bytesWritten": 14
+    }
+  }, {
+    "seq": 2,
+    "blockId": "ow2",
+    "action": "file_write",
+    "params": {
+      "path": "/tmp/move-dest.txt",
+      "content": "will be overwritten"
+    },
+    "success": true,
+    "data": {
+      "path": "/tmp/move-dest.txt",
+      "bytesWritten": 19
+    }
+  }, {
+    "seq": 3,
+    "blockId": "ow3",
+    "action": "file_move",
+    "params": {
+      "old_path": "/tmp/move-source.txt",
+      "new_path": "/tmp/move-dest.txt"
+    },
+    "success": true,
+    "data": {
+      "old_path": "/tmp/move-source.txt",
+      "new_path": "/tmp/move-dest.txt",
+      "overwrote": true
+    }
+  }],
+  "parseErrors": []
+}
+```
+
+### 014-empty-old-text-validation
+
+```sh sham
+#!SHAM [@three-char-SHA-256: et1]
+action = "file_write"
+path = "/tmp/empty-replace.txt"
+content = "some content"
+#!END_SHAM_et1
+
+#!SHAM [@three-char-SHA-256: et2]
+action = "file_replace_text"
+path = "/tmp/empty-replace.txt"
+old_text = ""
+new_text = "replacement"
+#!END_SHAM_et2
+
+#!SHAM [@three-char-SHA-256: et3]
+action = "file_replace_all_text"
+path = "/tmp/empty-replace.txt"
+old_text = ""
+new_text = "replacement"
+#!END_SHAM_et3
+```
+
+```json
+{
+  "success": false,
+  "totalBlocks": 3,
+  "executedActions": 3,
+  "results": [{
+    "seq": 1,
+    "blockId": "et1",
+    "action": "file_write",
+    "params": {
+      "path": "/tmp/empty-replace.txt",
+      "content": "some content"
+    },
+    "success": true,
+    "data": {
+      "path": "/tmp/empty-replace.txt",
+      "bytesWritten": 12
+    }
+  }, {
+    "seq": 2,
+    "blockId": "et2",
+    "action": "file_replace_text",
+    "params": {
+      "path": "/tmp/empty-replace.txt",
+      "old_text": "",
+      "new_text": "replacement"
+    },
+    "success": false,
+    "error": "file_replace_text: old_text cannot be empty"
+  }, {
+    "seq": 3,
+    "blockId": "et3",
+    "action": "file_replace_all_text",
+    "params": {
+      "path": "/tmp/empty-replace.txt",
+      "old_text": "",
+      "new_text": "replacement"
+    },
+    "success": false,
+    "error": "file_replace_all_text: old_text cannot be empty"
+  }],
+  "parseErrors": []
+}
+```
+
+### 015-file-read-nonexistent
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rnx]
+action = "file_read"
+path = "/tmp/does-not-exist-read.txt"
+#!END_SHAM_rnx
+```
+
+```json
+{
+  "success": false,
+  "totalBlocks": 1,
+  "executedActions": 1,
+  "results": [{
+    "seq": 1,
+    "blockId": "rnx",
+    "action": "file_read",
+    "params": {
+      "path": "/tmp/does-not-exist-read.txt"
+    },
+    "success": false,
+    "error": "ENOENT: no such file or directory, open '/tmp/does-not-exist-read.txt'"
+  }],
+  "parseErrors": []
+}
+```
+
+### 016-file-move-creates-parent-dirs
+
+```sh sham
+#!SHAM [@three-char-SHA-256: pd1]
+action = "file_write"
+path = "/tmp/parent-test.txt"
+content = "moving to new dir"
+#!END_SHAM_pd1
+
+#!SHAM [@three-char-SHA-256: pd2]
+action = "file_move"
+old_path = "/tmp/parent-test.txt"
+new_path = "/tmp/new/deeply/nested/moved-file.txt"
+#!END_SHAM_pd2
+```
+
+```json
+{
+  "success": true,
+  "totalBlocks": 2,
+  "executedActions": 2,
+  "results": [{
+    "seq": 1,
+    "blockId": "pd1",
+    "action": "file_write",
+    "params": {
+      "path": "/tmp/parent-test.txt",
+      "content": "moving to new dir"
+    },
+    "success": true,
+    "data": {
+      "path": "/tmp/parent-test.txt",
+      "bytesWritten": 17
+    }
+  }, {
+    "seq": 2,
+    "blockId": "pd2",
+    "action": "file_move",
+    "params": {
+      "old_path": "/tmp/parent-test.txt",
+      "new_path": "/tmp/new/deeply/nested/moved-file.txt"
+    },
+    "success": true,
+    "data": {
+      "old_path": "/tmp/parent-test.txt",
+      "new_path": "/tmp/new/deeply/nested/moved-file.txt"
+    }
+  }],
+  "parseErrors": []
+}
+```
+
+### 017-unimplemented-directory-operations
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: dr1]
@@ -511,7 +836,7 @@ path = "/tmp"
       "path": "/tmp"
     },
     "success": false,
-    "error": "Not implemented"
+    "error": "Action not implemented: ls"
   }],
   "parseErrors": []
 }

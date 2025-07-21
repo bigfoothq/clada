@@ -45,11 +45,19 @@ describe('Clada.execute()', () => {
 
   beforeEach(() => {
     clada = new Clada();
-    testPaths.forEach(path => existsSync(path) && rmSync(path));
+    testPaths.forEach(path => {
+      if (existsSync(path)) {
+        rmSync(path, { recursive: true, force: true });
+      }
+    });
   });
 
   afterEach(() => {
-    testPaths.forEach(path => existsSync(path) && rmSync(path));
+    testPaths.forEach(path => {
+      if (existsSync(path)) {
+        rmSync(path, { recursive: true, force: true });
+      }
+    });
   });
 
   testNames.forEach((name, i) => {

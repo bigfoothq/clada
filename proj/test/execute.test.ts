@@ -40,8 +40,7 @@ const testFiles = [
 ];
 
 const testDirs = [
-  '/tmp/new',
-  '/tmp/deeply'
+  '/tmp/new'
 ];
 
 describe('Clada.execute()', () => {

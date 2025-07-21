@@ -7,7 +7,7 @@
 ```sh sham
 #!SHAM [@three-char-SHA-256: abc]
 action = "file_write"
-path = "/tmp/test.txt"
+path = "/tmp/001-simple-file-write/test.txt"
 content = "Hello, World!"
 #!END_SHAM_abc
 ```
@@ -22,12 +22,12 @@ content = "Hello, World!"
     "blockId": "abc",
     "action": "file_write",
     "params": {
-      "path": "/tmp/test.txt",
+      "path": "/tmp/001-simple-file-write/test.txt",
       "content": "Hello, World!"
     },
     "success": true,
     "data": {
-      "path": "/tmp/test.txt",
+      "path": "/tmp/001-simple-file-write/test.txt",
       "bytesWritten": 13
     }
   }],
@@ -42,7 +42,7 @@ content = "Hello, World!"
 ```sh sham
 #!SHAM [@three-char-SHA-256: fw1]
 action = "file_write"
-path = "/tmp/first.txt"
+path = "/tmp/002-mixed-implemented-unimplemented/first.txt"
 content = "First file"
 #!END_SHAM_fw1
 
@@ -54,7 +54,7 @@ lang = "bash"
 
 #!SHAM [@three-char-SHA-256: fw2]
 action = "file_write"
-path = "/tmp/second.txt"
+path = "/tmp/002-mixed-implemented-unimplemented/second.txt"
 content = "Second file"
 #!END_SHAM_fw2
 ```
@@ -69,12 +69,12 @@ content = "Second file"
     "blockId": "fw1",
     "action": "file_write",
     "params": {
-      "path": "/tmp/first.txt",
+      "path": "/tmp/002-mixed-implemented-unimplemented/first.txt",
       "content": "First file"
     },
     "success": true,
     "data": {
-      "path": "/tmp/first.txt",
+      "path": "/tmp/002-mixed-implemented-unimplemented/first.txt",
       "bytesWritten": 10
     }
   }, {
@@ -92,12 +92,12 @@ content = "Second file"
     "blockId": "fw2",
     "action": "file_write",
     "params": {
-      "path": "/tmp/second.txt",
+      "path": "/tmp/002-mixed-implemented-unimplemented/second.txt",
       "content": "Second file"
     },
     "success": true,
     "data": {
-      "path": "/tmp/second.txt",
+      "path": "/tmp/002-mixed-implemented-unimplemented/second.txt",
       "bytesWritten": 11
     }
   }],
@@ -112,13 +112,13 @@ content = "Second file"
 ```sh sham
 #!SHAM [@three-char-SHA-256: bad]
 action = "file_write"
-path = "/tmp/bad.txt"
-path = "/tmp/duplicate.txt"
+path = "/tmp/003-parse-error-with-valid-action/bad.txt"
+path = "/tmp/003-parse-error-with-valid-action/duplicate.txt"
 #!END_SHAM_bad
 
 #!SHAM [@three-char-SHA-256: gud]
 action = "file_write"
-path = "/tmp/good.txt"
+path = "/tmp/003-parse-error-with-valid-action/good.txt"
 content = "Valid content"
 #!END_SHAM_gud
 ```
@@ -133,12 +133,12 @@ content = "Valid content"
     "blockId": "gud",
     "action": "file_write",
     "params": {
-      "path": "/tmp/good.txt",
+      "path": "/tmp/003-parse-error-with-valid-action/good.txt",
       "content": "Valid content"
     },
     "success": true,
     "data": {
-      "path": "/tmp/good.txt",
+      "path": "/tmp/003-parse-error-with-valid-action/good.txt",
       "bytesWritten": 13
     }
   }],
@@ -148,7 +148,7 @@ content = "Valid content"
     "errorType": "syntax",
     "message": "Duplicate key 'path' in block 'bad'",
     "blockStartLine": 1,
-    "shamContent": "#!SHAM [@three-char-SHA-256: bad]\naction = \"file_write\"\npath = \"/tmp/bad.txt\"\npath = \"/tmp/duplicate.txt\"\n#!END_SHAM_bad"
+    "shamContent": "#!SHAM [@three-char-SHA-256: bad]\naction = \"file_write\"\npath = \"/tmp/003-parse-error-with-valid-action/bad.txt\"\npath = \"/tmp/003-parse-error-with-valid-action/duplicate.txt\"\n#!END_SHAM_bad"
   }]
 }
 ```
@@ -160,7 +160,7 @@ content = "Valid content"
 ```sh sham
 #!SHAM [@three-char-SHA-256: nop]
 action = "file_delete"
-path = "/tmp/does-not-exist.txt"
+path = "/tmp/004-file-operation-failure/does-not-exist.txt"
 #!END_SHAM_nop
 ```
 
@@ -174,10 +174,10 @@ path = "/tmp/does-not-exist.txt"
     "blockId": "nop",
     "action": "file_delete",
     "params": {
-      "path": "/tmp/does-not-exist.txt"
+      "path": "/tmp/004-file-operation-failure/does-not-exist.txt"
     },
     "success": false,
-    "error": "ENOENT: no such file or directory, unlink '/tmp/does-not-exist.txt'"
+    "error": "ENOENT: no such file or directory, unlink '/tmp/004-file-operation-failure/does-not-exist.txt'"
   }],
   "parseErrors": []
 }
@@ -208,13 +208,13 @@ This is just regular text without any SHAM blocks.
 ```sh sham
 #!SHAM [@three-char-SHA-256: rd1]
 action = "file_write"
-path = "/tmp/read-test.txt"
+path = "/tmp/006-file-read-success/read-test.txt"
 content = "Content to read later"
 #!END_SHAM_rd1
 
 #!SHAM [@three-char-SHA-256: rd2]
 action = "file_read"
-path = "/tmp/read-test.txt"
+path = "/tmp/006-file-read-success/read-test.txt"
 #!END_SHAM_rd2
 ```
 
@@ -228,12 +228,12 @@ path = "/tmp/read-test.txt"
     "blockId": "rd1",
     "action": "file_write",
     "params": {
-      "path": "/tmp/read-test.txt",
+      "path": "/tmp/006-file-read-success/read-test.txt",
       "content": "Content to read later"
     },
     "success": true,
     "data": {
-      "path": "/tmp/read-test.txt",
+      "path": "/tmp/006-file-read-success/read-test.txt",
       "bytesWritten": 21
     }
   }, {
@@ -241,11 +241,11 @@ path = "/tmp/read-test.txt"
     "blockId": "rd2",
     "action": "file_read",
     "params": {
-      "path": "/tmp/read-test.txt"
+      "path": "/tmp/006-file-read-success/read-test.txt"
     },
     "success": true,
     "data": {
-      "path": "/tmp/read-test.txt",
+      "path": "/tmp/006-file-read-success/read-test.txt",
       "content": "Content to read later"
     }
   }],
@@ -258,14 +258,14 @@ path = "/tmp/read-test.txt"
 ```sh sham
 #!SHAM [@three-char-SHA-256: mv1]
 action = "file_write"
-path = "/tmp/source-file.txt"
+path = "/tmp/007-file-move-success/source-file.txt"
 content = "File to be moved"
 #!END_SHAM_mv1
 
 #!SHAM [@three-char-SHA-256: mv2]
 action = "file_move"
-old_path = "/tmp/source-file.txt"
-new_path = "/tmp/destination-file.txt"
+old_path = "/tmp/007-file-move-success/source-file.txt"
+new_path = "/tmp/007-file-move-success/destination-file.txt"
 #!END_SHAM_mv2
 ```
 
@@ -279,12 +279,12 @@ new_path = "/tmp/destination-file.txt"
     "blockId": "mv1",
     "action": "file_write",
     "params": {
-      "path": "/tmp/source-file.txt",
+      "path": "/tmp/007-file-move-success/source-file.txt",
       "content": "File to be moved"
     },
     "success": true,
     "data": {
-      "path": "/tmp/source-file.txt",
+      "path": "/tmp/007-file-move-success/source-file.txt",
       "bytesWritten": 16
     }
   }, {
@@ -292,13 +292,13 @@ new_path = "/tmp/destination-file.txt"
     "blockId": "mv2",
     "action": "file_move",
     "params": {
-      "old_path": "/tmp/source-file.txt",
-      "new_path": "/tmp/destination-file.txt"
+      "old_path": "/tmp/007-file-move-success/source-file.txt",
+      "new_path": "/tmp/007-file-move-success/destination-file.txt"
     },
     "success": true,
     "data": {
-      "old_path": "/tmp/source-file.txt",
-      "new_path": "/tmp/destination-file.txt"
+      "old_path": "/tmp/007-file-move-success/source-file.txt",
+      "new_path": "/tmp/007-file-move-success/destination-file.txt"
     }
   }],
   "parseErrors": []
@@ -310,13 +310,13 @@ new_path = "/tmp/destination-file.txt"
 ```sh sham
 #!SHAM [@three-char-SHA-256: rp1]
 action = "file_write"
-path = "/tmp/replace-single.txt"
+path = "/tmp/008-file-replace-text-single/replace-single.txt"
 content = "Hello world! This is a test."
 #!END_SHAM_rp1
 
 #!SHAM [@three-char-SHA-256: rp2]
 action = "file_replace_text"
-path = "/tmp/replace-single.txt"
+path = "/tmp/008-file-replace-text-single/replace-single.txt"
 old_text = "world"
 new_text = "universe"
 #!END_SHAM_rp2
@@ -332,12 +332,12 @@ new_text = "universe"
     "blockId": "rp1",
     "action": "file_write",
     "params": {
-      "path": "/tmp/replace-single.txt",
+      "path": "/tmp/008-file-replace-text-single/replace-single.txt",
       "content": "Hello world! This is a test."
     },
     "success": true,
     "data": {
-      "path": "/tmp/replace-single.txt",
+      "path": "/tmp/008-file-replace-text-single/replace-single.txt",
       "bytesWritten": 28
     }
   }, {
@@ -345,13 +345,13 @@ new_text = "universe"
     "blockId": "rp2",
     "action": "file_replace_text",
     "params": {
-      "path": "/tmp/replace-single.txt",
+      "path": "/tmp/008-file-replace-text-single/replace-single.txt",
       "old_text": "world",
       "new_text": "universe"
     },
     "success": true,
     "data": {
-      "path": "/tmp/replace-single.txt",
+      "path": "/tmp/008-file-replace-text-single/replace-single.txt",
       "replacements": 1
     }
   }],
@@ -364,13 +364,13 @@ new_text = "universe"
 ```sh sham
 #!SHAM [@three-char-SHA-256: ra1]
 action = "file_write"
-path = "/tmp/replace-all.txt"
+path = "/tmp/009-file-replace-all-text/replace-all.txt"
 content = "foo bar foo baz foo"
 #!END_SHAM_ra1
 
 #!SHAM [@three-char-SHA-256: ra2]
 action = "file_replace_all_text"
-path = "/tmp/replace-all.txt"
+path = "/tmp/009-file-replace-all-text/replace-all.txt"
 old_text = "foo"
 new_text = "qux"
 #!END_SHAM_ra2
@@ -386,12 +386,12 @@ new_text = "qux"
     "blockId": "ra1",
     "action": "file_write",
     "params": {
-      "path": "/tmp/replace-all.txt",
+      "path": "/tmp/009-file-replace-all-text/replace-all.txt",
       "content": "foo bar foo baz foo"
     },
     "success": true,
     "data": {
-      "path": "/tmp/replace-all.txt",
+      "path": "/tmp/009-file-replace-all-text/replace-all.txt",
       "bytesWritten": 19
     }
   }, {
@@ -399,13 +399,13 @@ new_text = "qux"
     "blockId": "ra2",
     "action": "file_replace_all_text",
     "params": {
-      "path": "/tmp/replace-all.txt",
+      "path": "/tmp/009-file-replace-all-text/replace-all.txt",
       "old_text": "foo",
       "new_text": "qux"
     },
     "success": true,
     "data": {
-      "path": "/tmp/replace-all.txt",
+      "path": "/tmp/009-file-replace-all-text/replace-all.txt",
       "replacements": 3
     }
   }],
@@ -418,7 +418,7 @@ new_text = "qux"
 ```sh sham
 #!SHAM [@three-char-SHA-256: ml1]
 action = "file_write"
-path = "/tmp/multiline.txt"
+path = "/tmp/010-multiline-content-handling/multiline.txt"
 content = <<'EOT_SHAM_ml1'
 Line one
 Line two
@@ -428,7 +428,7 @@ EOT_SHAM_ml1
 
 #!SHAM [@three-char-SHA-256: ml2]
 action = "file_replace_text"
-path = "/tmp/multiline.txt"
+path = "/tmp/010-multiline-content-handling/multiline.txt"
 old_text = <<'EOT_SHAM_ml2'
 Line two
 EOT_SHAM_ml2
@@ -448,12 +448,12 @@ EOT_SHAM_ml2
     "blockId": "ml1",
     "action": "file_write",
     "params": {
-      "path": "/tmp/multiline.txt",
+      "path": "/tmp/010-multiline-content-handling/multiline.txt",
       "content": "Line one\nLine two\nLine three"
     },
     "success": true,
     "data": {
-      "path": "/tmp/multiline.txt",
+      "path": "/tmp/010-multiline-content-handling/multiline.txt",
       "bytesWritten": 28
     }
   }, {
@@ -461,13 +461,13 @@ EOT_SHAM_ml2
     "blockId": "ml2",
     "action": "file_replace_text",
     "params": {
-      "path": "/tmp/multiline.txt",
+      "path": "/tmp/010-multiline-content-handling/multiline.txt",
       "old_text": "Line two",
       "new_text": "Line TWO (modified)"
     },
     "success": true,
     "data": {
-      "path": "/tmp/multiline.txt",
+      "path": "/tmp/010-multiline-content-handling/multiline.txt",
       "replacements": 1
     }
   }],
@@ -480,13 +480,13 @@ EOT_SHAM_ml2
 ```sh sham
 #!SHAM [@three-char-SHA-256: rf1]
 action = "file_write"
-path = "/tmp/multiple-foo.txt"
+path = "/tmp/011-file-replace-text-multiple-occurrences-failure/multiple-foo.txt"
 content = "foo bar foo baz"
 #!END_SHAM_rf1
 
 #!SHAM [@three-char-SHA-256: rf2]
 action = "file_replace_text"
-path = "/tmp/multiple-foo.txt"
+path = "/tmp/011-file-replace-text-multiple-occurrences-failure/multiple-foo.txt"
 old_text = "foo"
 new_text = "qux"
 #!END_SHAM_rf2
@@ -502,12 +502,12 @@ new_text = "qux"
     "blockId": "rf1",
     "action": "file_write",
     "params": {
-      "path": "/tmp/multiple-foo.txt",
+      "path": "/tmp/011-file-replace-text-multiple-occurrences-failure/multiple-foo.txt",
       "content": "foo bar foo baz"
     },
     "success": true,
     "data": {
-      "path": "/tmp/multiple-foo.txt",
+      "path": "/tmp/011-file-replace-text-multiple-occurrences-failure/multiple-foo.txt",
       "bytesWritten": 15
     }
   }, {
@@ -515,7 +515,7 @@ new_text = "qux"
     "blockId": "rf2",
     "action": "file_replace_text",
     "params": {
-      "path": "/tmp/multiple-foo.txt",
+      "path": "/tmp/011-file-replace-text-multiple-occurrences-failure/multiple-foo.txt",
       "old_text": "foo",
       "new_text": "qux"
     },
@@ -531,13 +531,13 @@ new_text = "qux"
 ```sh sham
 #!SHAM [@three-char-SHA-256: rc1]
 action = "file_write"
-path = "/tmp/count-test.txt"
+path = "/tmp/012-file-replace-all-text-with-count/count-test.txt"
 content = "test test test"
 #!END_SHAM_rc1
 
 #!SHAM [@three-char-SHA-256: rc2]
 action = "file_replace_all_text"
-path = "/tmp/count-test.txt"
+path = "/tmp/012-file-replace-all-text-with-count/count-test.txt"
 old_text = "test"
 new_text = "check"
 count = "2"
@@ -554,12 +554,12 @@ count = "2"
     "blockId": "rc1",
     "action": "file_write",
     "params": {
-      "path": "/tmp/count-test.txt",
+      "path": "/tmp/012-file-replace-all-text-with-count/count-test.txt",
       "content": "test test test"
     },
     "success": true,
     "data": {
-      "path": "/tmp/count-test.txt",
+      "path": "/tmp/012-file-replace-all-text-with-count/count-test.txt",
       "bytesWritten": 14
     }
   }, {
@@ -567,7 +567,7 @@ count = "2"
     "blockId": "rc2",
     "action": "file_replace_all_text",
     "params": {
-      "path": "/tmp/count-test.txt",
+      "path": "/tmp/012-file-replace-all-text-with-count/count-test.txt",
       "old_text": "test",
       "new_text": "check",
       "count": 2
@@ -584,20 +584,20 @@ count = "2"
 ```sh sham
 #!SHAM [@three-char-SHA-256: ow1]
 action = "file_write"
-path = "/tmp/move-source.txt"
+path = "/tmp/013-file-move-overwrite-existing/move-source.txt"
 content = "source content"
 #!END_SHAM_ow1
 
 #!SHAM [@three-char-SHA-256: ow2]
 action = "file_write"
-path = "/tmp/move-dest.txt"
+path = "/tmp/013-file-move-overwrite-existing/move-dest.txt"
 content = "will be overwritten"
 #!END_SHAM_ow2
 
 #!SHAM [@three-char-SHA-256: ow3]
 action = "file_move"
-old_path = "/tmp/move-source.txt"
-new_path = "/tmp/move-dest.txt"
+old_path = "/tmp/013-file-move-overwrite-existing/move-source.txt"
+new_path = "/tmp/013-file-move-overwrite-existing/move-dest.txt"
 #!END_SHAM_ow3
 ```
 
@@ -611,12 +611,12 @@ new_path = "/tmp/move-dest.txt"
     "blockId": "ow1",
     "action": "file_write",
     "params": {
-      "path": "/tmp/move-source.txt",
+      "path": "/tmp/013-file-move-overwrite-existing/move-source.txt",
       "content": "source content"
     },
     "success": true,
     "data": {
-      "path": "/tmp/move-source.txt",
+      "path": "/tmp/013-file-move-overwrite-existing/move-source.txt",
       "bytesWritten": 14
     }
   }, {
@@ -624,12 +624,12 @@ new_path = "/tmp/move-dest.txt"
     "blockId": "ow2",
     "action": "file_write",
     "params": {
-      "path": "/tmp/move-dest.txt",
+      "path": "/tmp/013-file-move-overwrite-existing/move-dest.txt",
       "content": "will be overwritten"
     },
     "success": true,
     "data": {
-      "path": "/tmp/move-dest.txt",
+      "path": "/tmp/013-file-move-overwrite-existing/move-dest.txt",
       "bytesWritten": 19
     }
   }, {
@@ -637,13 +637,13 @@ new_path = "/tmp/move-dest.txt"
     "blockId": "ow3",
     "action": "file_move",
     "params": {
-      "old_path": "/tmp/move-source.txt",
-      "new_path": "/tmp/move-dest.txt"
+      "old_path": "/tmp/013-file-move-overwrite-existing/move-source.txt",
+      "new_path": "/tmp/013-file-move-overwrite-existing/move-dest.txt"
     },
     "success": true,
     "data": {
-      "old_path": "/tmp/move-source.txt",
-      "new_path": "/tmp/move-dest.txt",
+      "old_path": "/tmp/013-file-move-overwrite-existing/move-source.txt",
+      "new_path": "/tmp/013-file-move-overwrite-existing/move-dest.txt",
       "overwrote": true
     }
   }],
@@ -656,20 +656,20 @@ new_path = "/tmp/move-dest.txt"
 ```sh sham
 #!SHAM [@three-char-SHA-256: et1]
 action = "file_write"
-path = "/tmp/empty-replace.txt"
+path = "/tmp/014-empty-old-text-validation/empty-replace.txt"
 content = "some content"
 #!END_SHAM_et1
 
 #!SHAM [@three-char-SHA-256: et2]
 action = "file_replace_text"
-path = "/tmp/empty-replace.txt"
+path = "/tmp/014-empty-old-text-validation/empty-replace.txt"
 old_text = ""
 new_text = "replacement"
 #!END_SHAM_et2
 
 #!SHAM [@three-char-SHA-256: et3]
 action = "file_replace_all_text"
-path = "/tmp/empty-replace.txt"
+path = "/tmp/014-empty-old-text-validation/empty-replace.txt"
 old_text = ""
 new_text = "replacement"
 #!END_SHAM_et3
@@ -685,12 +685,12 @@ new_text = "replacement"
     "blockId": "et1",
     "action": "file_write",
     "params": {
-      "path": "/tmp/empty-replace.txt",
+      "path": "/tmp/014-empty-old-text-validation/empty-replace.txt",
       "content": "some content"
     },
     "success": true,
     "data": {
-      "path": "/tmp/empty-replace.txt",
+      "path": "/tmp/014-empty-old-text-validation/empty-replace.txt",
       "bytesWritten": 12
     }
   }, {
@@ -698,7 +698,7 @@ new_text = "replacement"
     "blockId": "et2",
     "action": "file_replace_text",
     "params": {
-      "path": "/tmp/empty-replace.txt",
+      "path": "/tmp/014-empty-old-text-validation/empty-replace.txt",
       "old_text": "",
       "new_text": "replacement"
     },
@@ -709,7 +709,7 @@ new_text = "replacement"
     "blockId": "et3",
     "action": "file_replace_all_text",
     "params": {
-      "path": "/tmp/empty-replace.txt",
+      "path": "/tmp/014-empty-old-text-validation/empty-replace.txt",
       "old_text": "",
       "new_text": "replacement"
     },
@@ -725,7 +725,7 @@ new_text = "replacement"
 ```sh sham
 #!SHAM [@three-char-SHA-256: rnx]
 action = "file_read"
-path = "/tmp/does-not-exist-read.txt"
+path = "/tmp/015-file-read-nonexistent/does-not-exist-read.txt"
 #!END_SHAM_rnx
 ```
 
@@ -739,10 +739,10 @@ path = "/tmp/does-not-exist-read.txt"
     "blockId": "rnx",
     "action": "file_read",
     "params": {
-      "path": "/tmp/does-not-exist-read.txt"
+      "path": "/tmp/015-file-read-nonexistent/does-not-exist-read.txt"
     },
     "success": false,
-    "error": "ENOENT: no such file or directory, open '/tmp/does-not-exist-read.txt'"
+    "error": "ENOENT: no such file or directory, open '/tmp/015-file-read-nonexistent/does-not-exist-read.txt'"
   }],
   "parseErrors": []
 }
@@ -753,14 +753,14 @@ path = "/tmp/does-not-exist-read.txt"
 ```sh sham
 #!SHAM [@three-char-SHA-256: pd1]
 action = "file_write"
-path = "/tmp/parent-test.txt"
+path = "/tmp/016-file-move-creates-parent-dirs/parent-test.txt"
 content = "moving to new dir"
 #!END_SHAM_pd1
 
 #!SHAM [@three-char-SHA-256: pd2]
 action = "file_move"
-old_path = "/tmp/parent-test.txt"
-new_path = "/tmp/new/deeply/nested/moved-file.txt"
+old_path = "/tmp/016-file-move-creates-parent-dirs/parent-test.txt"
+new_path = "/tmp/016-file-move-creates-parent-dirs/new/deeply/nested/moved-file.txt"
 #!END_SHAM_pd2
 ```
 
@@ -774,12 +774,12 @@ new_path = "/tmp/new/deeply/nested/moved-file.txt"
     "blockId": "pd1",
     "action": "file_write",
     "params": {
-      "path": "/tmp/parent-test.txt",
+      "path": "/tmp/016-file-move-creates-parent-dirs/parent-test.txt",
       "content": "moving to new dir"
     },
     "success": true,
     "data": {
-      "path": "/tmp/parent-test.txt",
+      "path": "/tmp/016-file-move-creates-parent-dirs/parent-test.txt",
       "bytesWritten": 17
     }
   }, {
@@ -787,56 +787,14 @@ new_path = "/tmp/new/deeply/nested/moved-file.txt"
     "blockId": "pd2",
     "action": "file_move",
     "params": {
-      "old_path": "/tmp/parent-test.txt",
-      "new_path": "/tmp/new/deeply/nested/moved-file.txt"
+      "old_path": "/tmp/016-file-move-creates-parent-dirs/parent-test.txt",
+      "new_path": "/tmp/016-file-move-creates-parent-dirs/new/deeply/nested/moved-file.txt"
     },
     "success": true,
     "data": {
-      "old_path": "/tmp/parent-test.txt",
-      "new_path": "/tmp/new/deeply/nested/moved-file.txt"
+      "old_path": "/tmp/016-file-move-creates-parent-dirs/parent-test.txt",
+      "new_path": "/tmp/016-file-move-creates-parent-dirs/new/deeply/nested/moved-file.txt"
     }
-  }],
-  "parseErrors": []
-}
-```
-
-### 017-unimplemented-directory-operations
-
-```sh sham
-#!SHAM [@three-char-SHA-256: dr1]
-action = "dir_create"
-path = "/tmp/new-directory"
-#!END_SHAM_dr1
-
-#!SHAM [@three-char-SHA-256: ls1]
-action = "ls"
-path = "/tmp"
-#!END_SHAM_ls1
-```
-
-```json
-{
-  "success": false,
-  "totalBlocks": 2,
-  "executedActions": 2,
-  "results": [{
-    "seq": 1,
-    "blockId": "dr1",
-    "action": "dir_create",
-    "params": {
-      "path": "/tmp/new-directory"
-    },
-    "success": false,
-    "error": "Not implemented"
-  }, {
-    "seq": 2,
-    "blockId": "ls1",
-    "action": "ls",
-    "params": {
-      "path": "/tmp"
-    },
-    "success": false,
-    "error": "Action not implemented: ls"
   }],
   "parseErrors": []
 }

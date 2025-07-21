@@ -401,7 +401,7 @@ const actionHandlers: Record<string, (action: CladaAction) => Promise<FileOpResu
     return { success: false, error: 'Not implemented' };
   },
   'ls': async (action) => {
-    return { success: false, error: 'Not implemented' };
+    return { success: false, error: 'Action not implemented: ls' };
   },
   'grep': async (action) => {
     return { success: false, error: 'Not implemented' };

@@ -122,12 +122,11 @@ function formatOutputsSection(execResults: ExecutionResult[], actionSchema: Map<
     const content = formatOutputContent(result);
     
     if (content) {
-      lines.push('', header, content);
+      lines.push(header, content);
     }
   }
   
-  // Always add blank line before === END ===
-  lines.push('', '=== END ===');
+  lines.push('=== END ===');
   return lines.join('\n');
 }
 
@@ -144,23 +143,24 @@ function formatOutputContent(result: ExecutionResult): string {
   
   // Handle different output types
   if (execResult.content !== undefined) {
-    return execResult.content;
+    // Trim trailing newline to avoid double spacing
+    return execResult.content.trimEnd();
   }
   
   if (execResult.stdout !== undefined || execResult.stderr !== undefined) {
     const parts = [];
     if (execResult.stdout) {
-      parts.push(`stdout:\n${execResult.stdout}`);
+      parts.push(`stdout:\n${execResult.stdout.trimEnd()}`);
     }
     if (execResult.stderr) {
-      parts.push(`stderr:\n${execResult.stderr}`);
+      parts.push(`stderr:\n${execResult.stderr.trimEnd()}`);
     }
-    // Join with single newline, not double
     return parts.join('\n');
   }
   
   if (execResult.data !== undefined) {
     // Pretty print JSON data with 2-space indentation
+    // JSON.stringify doesn't add trailing newline
     return JSON.stringify(execResult.data, null, 2);
   }
   

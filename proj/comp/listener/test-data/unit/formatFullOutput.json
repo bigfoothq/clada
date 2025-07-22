@@ -48,7 +48,7 @@
           "file_read": {"output_display": "always", "type": "read", "parameters": {}}
         }
       ],
-      "expected": "\n=== CLADA RESULTS ===\nrd1 ✅ file_read /tmp/test.txt\n=== END ===\n\n=== OUTPUTS ===\n\n[rd1] file_read /tmp/test.txt:\nHello, world!\nThis is a test file.\n\n=== END ==="
+      "expected": "\n=== CLADA RESULTS ===\nrd1 ✅ file_read /tmp/test.txt\n=== END ===\n\n=== OUTPUTS ===\n[rd1] file_read /tmp/test.txt:\nHello, world!\nThis is a test file.\n=== END ==="
     },
     {
       "name": "file_write with never display",
@@ -113,7 +113,7 @@
           "exec": {"output_display": "conditional", "type": "dynamic", "parameters": {}}
         }
       ],
-      "expected": "\n=== CLADA RESULTS ===\nex1 ✅ exec bash\n=== END ===\n\n=== OUTPUTS ===\n\n[ex1] exec bash:\nstdout:\nHello\n\nstderr:\nError\n\n=== END ==="
+      "expected": "\n=== CLADA RESULTS ===\nex1 ✅ exec bash\n=== END ===\n\n=== OUTPUTS ===\n[ex1] exec bash:\nstdout:\nHello\nstderr:\nError\n=== END ==="
     },
     {
       "name": "exec with conditional display - return_output false",
@@ -206,7 +206,7 @@
           "exec": {"output_display": "conditional", "type": "dynamic", "parameters": {}}
         }
       ],
-      "expected": "\n=== CLADA RESULTS ===\naaa ✅ file_read /tmp/a.txt\nbbb ✅ file_write /tmp/b.txt\nccc ✅ exec javascript\n=== END ===\n\n=== OUTPUTS ===\n\n[aaa] file_read /tmp/a.txt:\nContent A\n\n[ccc] exec javascript:\nstdout:\n42\n\n=== END ==="
+      "expected": "\n=== CLADA RESULTS ===\naaa ✅ file_read /tmp/a.txt\nbbb ✅ file_write /tmp/b.txt\nccc ✅ exec javascript\n=== END ===\n\n=== OUTPUTS ===\n[aaa] file_read /tmp/a.txt:\nContent A\n[ccc] exec javascript:\nstdout:\n42\n=== END ==="
     },
     {
       "name": "failed actions not shown in outputs",
@@ -249,7 +249,7 @@
           "file_read": {"output_display": "always", "type": "read", "parameters": {}}
         }
       ],
-      "expected": "\n=== CLADA RESULTS ===\nok1 ✅ file_read /tmp/exists.txt\nerr ❌ file_read /tmp/missing.txt - File not found\n=== END ===\n\n=== OUTPUTS ===\n\n[ok1] file_read /tmp/exists.txt:\nFound content\n\n=== END ==="
+      "expected": "\n=== CLADA RESULTS ===\nok1 ✅ file_read /tmp/exists.txt\nerr ❌ file_read /tmp/missing.txt - File not found\n=== END ===\n\n=== OUTPUTS ===\n[ok1] file_read /tmp/exists.txt:\nFound content\n=== END ==="
     },
     {
       "name": "ls with data field",
@@ -285,7 +285,7 @@
           "ls": {"output_display": "always", "type": "read", "parameters": {}}
         }
       ],
-      "expected": "\n=== CLADA RESULTS ===\nls1 ✅ ls /tmp\n=== END ===\n\n=== OUTPUTS ===\n\n[ls1] ls /tmp:\n[\n  {\n    \"name\": \"file1.txt\",\n    \"type\": \"file\",\n    \"size\": 1024,\n    \"modified\": \"2024-01-01T00:00:00Z\"\n  },\n  {\n    \"name\": \"dir1\",\n    \"type\": \"directory\",\n    \"size\": 4096,\n    \"modified\": \"2024-01-01T00:00:00Z\"\n  }\n]\n\n=== END ==="
+      "expected": "\n=== CLADA RESULTS ===\nls1 ✅ ls /tmp\n=== END ===\n\n=== OUTPUTS ===\n[ls1] ls /tmp:\n[\n  {\n    \"name\": \"file1.txt\",\n    \"type\": \"file\",\n    \"size\": 1024,\n    \"modified\": \"2024-01-01T00:00:00Z\"\n  },\n  {\n    \"name\": \"dir1\",\n    \"type\": \"directory\",\n    \"size\": 4096,\n    \"modified\": \"2024-01-01T00:00:00Z\"\n  }\n]\n=== END ==="
     }
   ]
 }

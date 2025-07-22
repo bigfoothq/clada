@@ -24,6 +24,8 @@ tools:
     executor: fs-ops
     description: Create new file while creating any necessary parent dirs. overwrites if already exists
     accessibility: [llm]
+    output_display: never
+    primary_param: path
     parameters:
       path: {type: string, required: true, format: absolute_path}
       content: {type: string, required: true}
@@ -34,6 +36,8 @@ tools:
     executor: fs-ops
     description: Replace first and only instance of substring in file. must exist only once
     accessibility: [llm]
+    output_display: never
+    primary_param: path
     parameters:
       path: {type: string, required: true, format: absolute_path}
       old_text: {type: string, required: true}
@@ -45,6 +49,8 @@ tools:
     executor: fs-ops
     description: Replace each matching substring in file.  Number of matches (count) should usually be known and declared ahead of time.
     accessibility: [llm]
+    output_display: never
+    primary_param: path
     parameters:
       path: {type: string, required: true, format: absolute_path}
       old_text: {type: string, required: true}
@@ -110,6 +116,8 @@ tools:
     executor: fs-ops
     description: Delete file
     accessibility: [llm]
+    output_display: never
+    primary_param: path
     parameters:
       path: {type: string, required: true, format: absolute_path}
     returns: {success: boolean, error?: string}
@@ -119,6 +127,8 @@ tools:
     executor: fs-ops
     description: Move/rename file
     accessibility: [llm]
+    output_display: never
+    primary_param: old_path
     parameters:
       old_path: {type: string, required: true, format: absolute_path}
       new_path: {type: string, required: true, format: absolute_path}
@@ -131,6 +141,8 @@ tools:
     executor: fs-ops
     description: Read single file content
     accessibility: [llm]
+    output_display: always
+    primary_param: path
     parameters:
       path: {type: string, required: true, format: absolute_path}
     returns: {success: boolean, content?: string, error?: string}
@@ -141,6 +153,8 @@ tools:
     executor: fs-ops
     description: Read and concatenate contents of multiple files into a single string, with clear file delimiters
     accessibility: [llm]
+    output_display: always
+    primary_param: paths
     parameters:
       paths: {
         type: string, 
@@ -165,6 +179,8 @@ tools:
     executor: fs-ops
     description: Create directory
     accessibility: [llm]
+    output_display: never
+    primary_param: path
     parameters:
       path: {type: string, required: true, format: absolute_path}
     returns: {success: boolean, error?: string}
@@ -174,6 +190,8 @@ tools:
     executor: fs-ops
     description: Delete directory
     accessibility: [llm]
+    output_display: never
+    primary_param: path
     parameters:
       path: {type: string, required: true, format: absolute_path}
     returns: {success: boolean, error?: string}
@@ -184,6 +202,8 @@ tools:
     executor: fs-ops
     description: List directory contents
     accessibility: [llm]
+    output_display: always
+    primary_param: path
     parameters:
       path: {type: string, required: true, format: absolute_path}
     returns: 
@@ -201,6 +221,8 @@ tools:
     type: read
     description: Search pattern in files
     accessibility: [llm]
+    output_display: always
+    primary_param: pattern
     parameters:
       pattern: {type: string, required: true}
       path: {type: string, required: true, format: absolute_path}
@@ -219,6 +241,8 @@ tools:
     type: read
     description: Find files matching pattern
     accessibility: [llm]
+    output_display: always
+    primary_param: pattern
     parameters:
       pattern: {type: string, required: true}
       base_path: {type: string, required: true, format: absolute_path}
@@ -234,11 +258,14 @@ tools:
     type: dynamic
     description: Execute code
     accessibility: [llm]
+    output_display: conditional  # Check return_output parameter
+    primary_param: lang
     parameters:
       code: {type: string, required: true}
       lang: {type: enum, values: [python, javascript, bash], required: true}
       version: {type: string, required: false}
       cwd: {type: string, required: false, format: absolute_path}
+      return_output: {type: boolean, required: false, default: true}
     returns: {success: boolean, stdout?: string, stderr?: string, exit_code?: integer, error?: string}
 
   # Context Operations -- for much later.  dont do this until clada has been integrated into bigfoot, the ai llm coder

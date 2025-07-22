@@ -1,0 +1,159 @@
+{
+  "cases": [
+    {
+      "name": "always display",
+      "input": [
+        {
+          "action": {
+            "action": "file_read",
+            "parameters": {"path": "/tmp/test.txt"},
+            "metadata": {"blockId": "abc", "startLine": 1, "endLine": 3}
+          },
+          "result": {"success": true, "content": "test content"}
+        },
+        {
+          "file_read": {
+            "output_display": "always",
+            "type": "read",
+            "parameters": {"path": {"type": "string", "required": true}}
+          }
+        }
+      ],
+      "expected": true
+    },
+    {
+      "name": "never display",
+      "input": [
+        {
+          "action": {
+            "action": "file_write",
+            "parameters": {"path": "/tmp/test.txt", "content": "data"},
+            "metadata": {"blockId": "def", "startLine": 1, "endLine": 5}
+          },
+          "result": {"success": true}
+        },
+        {
+          "file_write": {
+            "output_display": "never",
+            "type": "write",
+            "parameters": {
+              "path": {"type": "string", "required": true},
+              "content": {"type": "string", "required": true}
+            }
+          }
+        }
+      ],
+      "expected": false
+    },
+    {
+      "name": "conditional display with return_output true",
+      "input": [
+        {
+          "action": {
+            "action": "exec",
+            "parameters": {"lang": "bash", "code": "echo hello", "return_output": true},
+            "metadata": {"blockId": "ghi", "startLine": 1, "endLine": 3}
+          },
+          "result": {"success": true, "stdout": "hello\n", "stderr": "", "exit_code": 0}
+        },
+        {
+          "exec": {
+            "output_display": "conditional",
+            "type": "dynamic",
+            "parameters": {
+              "lang": {"type": "string", "required": true},
+              "code": {"type": "string", "required": true},
+              "return_output": {"type": "boolean", "required": false, "default": true}
+            }
+          }
+        }
+      ],
+      "expected": true
+    },
+    {
+      "name": "conditional display with return_output false",
+      "input": [
+        {
+          "action": {
+            "action": "exec",
+            "parameters": {"lang": "python", "code": "print('test')", "return_output": false},
+            "metadata": {"blockId": "jkl", "startLine": 1, "endLine": 3}
+          },
+          "result": {"success": true, "stdout": "test\n", "stderr": "", "exit_code": 0}
+        },
+        {
+          "exec": {
+            "output_display": "conditional",
+            "type": "dynamic",
+            "parameters": {
+              "lang": {"type": "string", "required": true},
+              "code": {"type": "string", "required": true},
+              "return_output": {"type": "boolean", "required": false, "default": true}
+            }
+          }
+        }
+      ],
+      "expected": false
+    },
+    {
+      "name": "conditional display with return_output undefined defaults to true",
+      "input": [
+        {
+          "action": {
+            "action": "exec",
+            "parameters": {"lang": "javascript", "code": "console.log('hi')"},
+            "metadata": {"blockId": "mno", "startLine": 1, "endLine": 3}
+          },
+          "result": {"success": true, "stdout": "hi\n", "stderr": "", "exit_code": 0}
+        },
+        {
+          "exec": {
+            "output_display": "conditional",
+            "type": "dynamic",
+            "parameters": {
+              "lang": {"type": "string", "required": true},
+              "code": {"type": "string", "required": true},
+              "return_output": {"type": "boolean", "required": false, "default": true}
+            }
+          }
+        }
+      ],
+      "expected": true
+    },
+    {
+      "name": "unknown action type returns false",
+      "input": [
+        {
+          "action": {
+            "action": "unknown_action",
+            "parameters": {},
+            "metadata": {"blockId": "unk", "startLine": 1, "endLine": 3}
+          },
+          "result": {"success": false, "error": "Unknown action"}
+        },
+        {}
+      ],
+      "expected": false
+    },
+    {
+      "name": "missing output_display field defaults to false",
+      "input": [
+        {
+          "action": {
+            "action": "custom_action",
+            "parameters": {"param": "value"},
+            "metadata": {"blockId": "cst", "startLine": 1, "endLine": 3}
+          },
+          "result": {"success": true, "data": "something"}
+        },
+        {
+          "custom_action": {
+            "type": "meta",
+            "parameters": {"param": {"type": "string", "required": true}}
+          }
+        }
+      ],
+      "expected": false
+    }
+  ]
+}

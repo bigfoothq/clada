@@ -12,7 +12,11 @@ Documentation maintains dependency graphs for deterministic context assembly. In
     │   ├── ABSTRACT.md   # 60-word purpose + 300-word overview
     │   └── ARCH.md       # Technical decisions, constraints
     ├── test-data/        # Test cases as JSON/MD files
+    │   ├── unit/         # Unit test data
+    │   └── integration/  # Integration test data
     ├── test/             # Minimal harnesses loading test-data
+    │   ├── unit/         # Unit test harnesses
+    │   └── integration/  # Integration test harnesses
     ├── test-intn/        # Integration tests for dependencies
     ├── src/              # Implementation
     └── comp/             # Sub-components (recursive) - do not need 'proj' dirs
@@ -35,7 +39,7 @@ External dependencies do not need status markers.
 dependencies:
   # Initial hypothesis based on design
   proj/comp/payment:                                       # [PLANNED]
-    functions: [validateCard, processRefund] # may change
+    functions: [validateCard, processRefund] # may change 
     types: [PaymentResult, CardType]
     errors: [PaymentError]
   
@@ -181,3 +185,27 @@ During implementation:
 - need to update this so that we save our pseudocde in some sort of documetnation, maybe temp documentation.  so if we implement the fucntiosn to unit test, we dont get confused later about how theyre supposed to be used.
 
 - ideally, each extracted function unit-testable function would be in its own file.  for parallelism with the unit test files
+
+- TESTING PATHS
+
+dont save files directly to `/tmp/`.  save them to a dir in the tmp dir taht is named with the name of the test preceedd by 't_', eg `/tmp/t_move-nonexistent-file`
+
+like: 
+
+
+### 003-move-nonexistent-file
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mnf]
+action = "file_move"
+old_path = "/tmp/t_move-nonexistent-file/ghost.txt"
+new_path = "/tmp/t_move-nonexistent-file/nowhere.txt"
+#!END_SHAM_mnf
+```
+
+```json
+{
+  "success": false,
+  "error": "file_move: Source file not found '/tmp/t_move-nonexistent-file/ghost.txt' (ENOENT)"
+}
+```

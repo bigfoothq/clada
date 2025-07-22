@@ -2,4 +2,5 @@ npx vitest run **/**  --hideSkippedTests -t="004-type-conversion-with-boolean-an
 
 
 
-npx vitest run **/**  --hideSkippedTests -t="does not re-execute unchanged SHAM blocks"
+npx vitest run **/**  --hideSkippedTests -t="listener workflow v2"
+npx vitest run **/**  --hideSkippedTests -t="simple-file-write"

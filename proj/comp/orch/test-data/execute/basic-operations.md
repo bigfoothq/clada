@@ -83,8 +83,7 @@ content = "Second file"
     "action": "exec",
     "params": {
       "code": "echo 'hello'",
-      "lang": "bash",
-      "return_output": true
+      "lang": "bash"
     },
     "success": true,
     "data": {

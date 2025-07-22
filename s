@@ -12,15 +12,9 @@ if [[ "$1" == "p" ]]; then  # p for paths
 fi
 
 file_list=$(cat <<'EOF'
+proj/comp/listener/test/integration/listener-workflow-v2.test.ts proj/comp/listener/src/index.ts proj/comp/listener/src/listener.ts proj/comp/listener/test-data/integration/listener-workflow-v2.cases.md proj/comp/listener/doc/ABSTRACT.md proj/comp/listener/doc/API.md proj/comp/listener/doc/ARCH.md package.json proj/comp/orch/doc/API.md proj/comp/orch/doc/ARCH.md replacer/replacer_llm_instructions.md
 
-  /Users/stuart/repos/clada/proj/comp/sham-action-parser/test/parseShamResponse.test.ts
-  /Users/stuart/repos/clada/proj/comp/sham-action-parser/test-data/parseShamResponse.md
 
-proj/comp/sham-action-parser/src/index.ts proj/comp/sham-action-parser/src/transformToAction.ts proj/comp/sham-action-parser/src/types.ts proj/comp/sham-action-parser/src/validateShamBlock.ts
-
-/Users/stuart/repos/clada/replacer/replacer_llm_instructions.md
-/Users/stuart/repos/clada/xd5_ref.md
-/Users/stuart/repos/clada/unified-design.yaml
 
 EOF
 )
@@ -51,6 +45,9 @@ else
 fi
 
 
+# /Users/stuart/repos/clada/replacer/replacer_llm_instructions.md
+# /Users/stuart/repos/clada/xd5_ref.md
+# /Users/stuart/repos/clada/unified-design.yaml
 # # # # # # # # proj/comp/listener/src/errors.ts proj/comp/listener/src/formatters.ts proj/comp/listener/src/index.ts proj/comp/listener/src/listener.ts proj/comp/listener/src/types.ts proj/comp/listener/src/utils.ts proj/comp/listener/doc/ABSTRACT.md proj/comp/listener/doc/API.md proj/comp/listener/doc/ARCH.md proj/comp/listener/test/integration/listener-workflow.test.ts proj/comp/listener/test-data/integration/listener-workflow.md proj/comp/listener/test-data/startListener.json replacer/replacer_llm_instructions.md xd5_ref.md
 
 

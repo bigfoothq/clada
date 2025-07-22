@@ -49,8 +49,6 @@ content = "Hello from SHAM!"
 
 #### output file
 ````sh
-📋 Copied to clipboard at 10:30:00
-
 === CLADA RESULTS ===
 sf1 ✅ file_write /tmp/t_listener_simple/output.txt
 === END ===
@@ -61,8 +59,6 @@ sf1 ✅ file_write /tmp/t_listener_simple/output.txt
 
 #### clipboard
 ````sh
-📋 Copied to clipboard at 10:30:00
-
 === CLADA RESULTS ===
 sf1 ✅ file_write /tmp/t_listener_simple/output.txt
 === END ===
@@ -144,8 +140,6 @@ code = "echo 'Hello from bash'"
 
 #### output file
 ````sh
-📋 Copied to clipboard at 10:30:00
-
 === CLADA RESULTS ===
 wr1 ✅ file_write /tmp/t_listener_multi/created.txt
 rd1 ❌ file_read /tmp/t_listener_multi/missing.txt - File not found
@@ -162,8 +156,6 @@ Hello from bash
 
 #### clipboard
 ````sh
-📋 Copied to clipboard at 10:30:00
-
 === CLADA RESULTS ===
 wr1 ✅ file_write /tmp/t_listener_multi/created.txt
 rd1 ❌ file_read /tmp/t_listener_multi/missing.txt - File not found
@@ -219,8 +211,6 @@ content = "missing closing quote
 
 #### Expected Output File
 ````sh
-📋 Copied to clipboard at 10:30:00
-
 === CLADA RESULTS ===
 bad ❌ file_write - Unclosed quoted string
 === END ===
@@ -231,8 +221,6 @@ bad ❌ file_write - Unclosed quoted string
 
 #### clipboard
 ````sh
-📋 Copied to clipboard at 10:30:00
-
 === CLADA RESULTS ===
 bad ❌ file_write - Unclosed quoted string
 === END ===
@@ -286,8 +274,6 @@ Adding a comment outside SHAM blocks.
 
 #### Expected Output File
 ````sh
-📋 Copied to clipboard at 10:30:00
-
 === CLADA RESULTS ===
 nc1 ✅ file_write /tmp/t_listener_nochange/counter.txt
 === END ===
@@ -298,8 +284,6 @@ nc1 ✅ file_write /tmp/t_listener_nochange/counter.txt
 
 #### clipboard
 ````sh
-📋 Copied to clipboard at 10:30:00
-
 === CLADA RESULTS ===
 nc1 ✅ file_write /tmp/t_listener_nochange/counter.txt
 === END ===

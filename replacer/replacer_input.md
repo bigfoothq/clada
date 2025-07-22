@@ -1,144 +1,70 @@
-=== PROCESSED: 2025-07-21 21:57:38 ===
-SUCCESS Block 1: Updated /Users/stuart/repos/clada/proj/comp/listener/src/formatters.ts
-SUCCESS Block 2: Updated /Users/stuart/repos/clada/proj/comp/listener/src/formatters.ts
+=== PROCESSED: 2025-07-21 22:08:24 ===
+SUCCESS Block 1: Updated /Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
+SUCCESS Block 2: Updated /Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
 ===
 
-The function `getPrimaryParam` already exists in the file. Let me fix the duplicate declaration:
+The diagnostic output reveals the critical issue:
+
+```
+Content length: 34
+Content preview: # My Document
+
+Some content here.
+
+Content includes SHAM? false
+Content includes backticks? false
+```
+
+The orchestrator is receiving only the initial content (34 characters), not the content with SHAM blocks. The second `Debounced process executing` log appears after "File change detected", but we don't see the diagnostics from that second execution.
+
+This indicates the second processFileChange call isn't completing or isn't running the orchestrator at all. The issue is likely the hash comparison - after the first execution, `lastExecutedHash` is set to the hash of the initial content, and when the file changes, it might still be seeing the same hash.
+
+Let's verify by checking what happens in the second execution:
 
 <<<EXPLANATION>>>
-Remove duplicate getPrimaryParam function and fix imports
+Add diagnostics to trace the second execution after file change to see why orchestrator isn't processing the SHAM content
+
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/listener/src/formatters.ts
+/Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
+
 <<<SEARCH>>>
-import type { OrchestratorResult } from '../../orch/src/types.js';
-
-export function formatSummary(orchResult: OrchestratorResult, timestamp: Date): string {
-  const lines = ['', '=== CLADA RESULTS ==='];
-  
-  // Add execution results
-  if (orchResult.results) {
-    for (const result of orchResult.results) {
-      const icon = result.success ? '✅' : '❌';
-      const primaryParam = getPrimaryParam(result);
-      
-      if (result.success) {
-        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam}`.trim());
-      } else {
-        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam} - ${result.error}`.trim());
-      }
+    // Skip if unchanged
+    if (currentHash === state.lastExecutedHash) {
+      console.log('Hash unchanged, skipping execution');
+      return;
     }
-  }
-  
-  // Add parse errors
-  if (orchResult.parseErrors) {
-    for (const error of orchResult.parseErrors) {
-      lines.push(`${error.blockId || 'unknown'} ❌ (parse error) - ${error.error.message || error.error}`);
-    }
-  }
-  
-  lines.push('=== END ===', '');
-  return lines.join('\n');
-}
-
-function getPrimaryParam(result: any): string {
-  if (!result.params) return '';
-  if (result.params.path) return result.params.path;
-  if (result.params.paths) {
-    const paths = result.params.paths.trim().split('\n').filter((p: string) => p.trim());
-    return `(${paths.length} files)`;
-  }
-  if (result.params.pattern) return result.params.pattern;
-  if (result.params.lang) return result.params.lang;
-  if (result.params.old_path) return result.params.old_path;
-  return '';
-}
 <<<REPLACE>>>
-import type { OrchestratorResult } from '../../orch/src/types.js';
-
-export function formatSummary(orchResult: OrchestratorResult, timestamp: Date): string {
-  const lines = ['', '=== CLADA RESULTS ==='];
-  
-  // Add execution results
-  if (orchResult.results) {
-    for (const result of orchResult.results) {
-      const icon = result.success ? '✅' : '❌';
-      const primaryParam = getPrimaryParamFromResult(result);
-      
-      if (result.success) {
-        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam}`.trim());
-      } else {
-        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam} - ${result.error}`.trim());
-      }
+    // Skip if unchanged
+    if (currentHash === state.lastExecutedHash) {
+      console.log('Hash unchanged, skipping execution');
+      console.log('This suggests stripSummarySection might be removing too much content');
+      return;
     }
-  }
-  
-  // Add parse errors
-  if (orchResult.parseErrors) {
-    for (const error of orchResult.parseErrors) {
-      lines.push(`${error.blockId || 'unknown'} ❌ (parse error) - ${error.error.message || error.error}`);
-    }
-  }
-  
-  lines.push('=== END ===', '');
-  return lines.join('\n');
-}
-
-function getPrimaryParamFromResult(result: any): string {
-  if (!result.params) return '';
-  if (result.params.path) return result.params.path;
-  if (result.params.paths) {
-    const paths = result.params.paths.trim().split('\n').filter((p: string) => p.trim());
-    return `(${paths.length} files)`;
-  }
-  if (result.params.pattern) return result.params.pattern;
-  if (result.params.lang) return result.params.lang;
-  if (result.params.old_path) return result.params.old_path;
-  return '';
-}
 <<<END>>>
+
+Actually, let's also check what stripSummarySection is doing to the content:
 
 <<<EXPLANATION>>>
-Also need to fix formatFullOutput to handle actual orchestrator response
+Add logging to see how stripSummarySection processes the content after the first execution prepends results
+
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/listener/src/formatters.ts
+/Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
+
 <<<SEARCH>>>
-export function formatFullOutput(orchResult: OrchestratorResult): string {
-  // Return the full formatted output from orchestrator
-  return orchResult.formattedOutput || '';
-}
+    // Strip summary section for hashing
+    const contentForHash = stripSummarySection(fullContent);
+    
+    // Compute hash of content (excluding summary)
+    const currentHash = computeContentHash(contentForHash);
 <<<REPLACE>>>
-export function formatFullOutput(orchResult: OrchestratorResult): string {
-  const summary = formatSummary(orchResult, new Date());
-  
-  const lines = [summary.trim(), '', '=== OUTPUTS ==='];
-  
-  // Add outputs for successful actions
-  if (orchResult.results) {
-    for (const result of orchResult.results) {
-      if (result.success && result.data) {
-        const header = `[${result.blockId}] ${result.action} ${getPrimaryParamFromResult(result)}:`.trim();
-        lines.push('', header);
-        
-        // Format output based on data type
-        if (typeof result.data === 'string') {
-          lines.push(result.data.trimEnd());
-        } else if (result.data.stdout || result.data.stderr) {
-          if (result.data.stdout) {
-            lines.push(`stdout:\n${result.data.stdout.trimEnd()}`);
-          }
-          if (result.data.stderr) {
-            lines.push(`stderr:\n${result.data.stderr.trimEnd()}`);
-          }
-        } else {
-          lines.push(JSON.stringify(result.data, null, 2));
-        }
-      }
-    }
-  }
-  
-  lines.push('=== END ===');
-  return lines.join('\n');
-}
+    // Strip summary section for hashing
+    const contentForHash = stripSummarySection(fullContent);
+    console.log('Full content length:', fullContent.length);
+    console.log('Content for hash length:', contentForHash.length);
+    console.log('First 100 chars of content for hash:', contentForHash.substring(0, 100));
+    
+    // Compute hash of content (excluding summary)
+    const currentHash = computeContentHash(contentForHash);
 <<<END>>>
 
-Now run the test again to see the file content being passed to orchestrator.
+The pattern suggests that after the first execution prepends a summary, stripSummarySection might be incorrectly stripping the SHAM content along with the summary, resulting in the same hash as before.

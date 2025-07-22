@@ -95,21 +95,38 @@ async function processFileChange(filePath: string, state: ListenerState): Promis
     
     // Strip summary section for hashing
     const contentForHash = stripSummarySection(fullContent);
+    console.log('Full content length:', fullContent.length);
+    console.log('Content for hash length:', contentForHash.length);
+    console.log('First 100 chars of content for hash:', contentForHash.substring(0, 100));
     
     // Compute hash of content (excluding summary)
     const currentHash = computeContentHash(contentForHash);
     
+    // DIAGNOSTIC: Log hash comparison
+    console.log('Content for hash:', contentForHash);
+    console.log('Current hash:', currentHash);
+    console.log('Last hash:', state.lastExecutedHash);
+    
     // Skip if unchanged
     if (currentHash === state.lastExecutedHash) {
+      console.log('Hash unchanged, skipping execution');
+      console.log('This suggests stripSummarySection might be removing too much content');
       return;
     }
     
     // Execute via orchestrator with full file content
+    console.log('\n=== ORCHESTRATOR CALL ===');
+    console.log('Content length:', fullContent.length);
+    console.log('Content preview:', fullContent.substring(0, 200));
+    console.log('Content includes SHAM?', fullContent.includes('#!SHAM'));
+    console.log('Content includes backticks?', fullContent.includes('```'));
+    
     const clada = new Clada({ gitCommit: false });
     const orchResult = await clada.execute(fullContent);
     
     // DIAGNOSTIC: Log orchestrator result
     console.log('Orchestrator returned:', JSON.stringify(orchResult, null, 2));
+    console.log('=== END ORCHESTRATOR CALL ===\n');
     
     // Format outputs
     const timestamp = new Date();
@@ -182,13 +199,17 @@ export async function startListener(config: ListenerConfig): Promise<ListenerHan
   
   // Set up debounced handler
   const debouncedProcess = debounce(
-    () => processFileChange(config.filePath, state),
+    () => {
+      console.log('Debounced process executing');
+      processFileChange(config.filePath, state);
+    },
     config.debounceMs || 500
   );
   
   // Start watching
   watchFile(config.filePath, { interval: 500 }, (curr: Stats, prev: Stats) => {
     if (curr.mtime !== prev.mtime) {
+      console.log('File change detected, triggering debounced process');
       debouncedProcess();
     }
   });

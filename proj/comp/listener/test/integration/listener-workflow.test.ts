@@ -42,7 +42,10 @@ describe('listener workflow integration', () => {
 
     // Start listener
     handle = await startListener({ filePath: testFile });
-    await waitForProcessing(600); // Let it initialize (must exceed 500ms debounce)
+    await waitForProcessing(700); // Let initial processing complete
+    
+    // Log to verify timing
+    console.log('Initial processing complete, now adding SHAM content');
 
     // Add SHAM block
     const withSham = initialContent + `
@@ -55,7 +58,8 @@ content = "Hello from listener!"
 \`\`\`
 `;
     await writeFile(testFile, withSham);
-    await waitForProcessing(); // Wait for debounce + processing
+    console.log('SHAM content written, waiting for processing');
+    await waitForProcessing(1500); // Wait longer for fs.watchFile interval (500ms) + debounce (500ms) + processing
 
     // Check output file was created
     const outputContent = await readFile(join(testDir, 'output.txt'), 'utf-8');

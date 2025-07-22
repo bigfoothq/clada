@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { readFile, writeFile, mkdir, rm } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -98,7 +98,7 @@ function getTestDir(testCaseName: string): string {
 async function pollForFileChange(
   filePath: string,
   initialContent: string,
-  timeoutMs: number = 5000
+  timeoutMs: number = 1000
 ): Promise<string> {
   const startTime = Date.now();
   let lastContent = initialContent;
@@ -116,62 +116,68 @@ async function pollForFileChange(
   throw new Error(`Timeout waiting for file change after ${timeoutMs}ms`);
 }
 
+// Load test cases at module level
+const testCasesPromise = parseTestCases();
+
+
 export async function listenerWorkflowTests() {
-  const testCases = await parseTestCases();
+  // Load test cases before defining tests
+  const testCases = await testCasesPromise;
   
-  for (const testCase of testCases) {
-    it(testCase.name, async () => {
-      let handle: ListenerHandle | null = null;
-      const testDir = getTestDir(testCase.name);
-      const testFile = join(testDir, 'test.txt');
-      const outputFile = join(testDir, '.clada-output-latest.txt');
+  // Use it.each to create separate test for each test case
+  it.each(testCases)('$name', async (testCase) => {
+    let handle: ListenerHandle | null = null;
+    const testDir = getTestDir(testCase.name);
+    const testFile = join(testDir, 'test.txt');
+    const outputFile = join(testDir, '.clada-output-latest.txt');
+    
+    try {
+      // Setup
+      await mkdir(testDir, { recursive: true });
+      await writeFile(testFile, testCase.initialContent);
       
-      try {
-        // Setup
-        await mkdir(testDir, { recursive: true });
-        await writeFile(testFile, testCase.initialContent);
-        
-        // Start listener
-        handle = await startListener({ 
-          filePath: testFile, 
-          debounceMs: 100 
-        });
-        
-        // Wait for initial processing
-        await pollForFileChange(testFile, testCase.initialContent);
-        
-        // Wait for debounce to settle
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // Write new content
-        await writeFile(testFile, testCase.newContent);
-        
-        // Wait for processing to complete
-        await pollForFileChange(testFile, testCase.newContent);
-        
-        // Wait a bit more for clipboard and output file writes
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // Read actual results
-        const actualPrepended = await readFile(testFile, 'utf-8');
-        const actualOutput = await readFile(outputFile, 'utf-8');
-        const actualClipboard = await clipboard.read();
-        
-        // Compare results (exact match)
-        expect(actualPrepended).toBe(testCase.expectedPrepended);
-        expect(actualOutput).toBe(testCase.expectedOutput);
-        expect(actualClipboard).toBe(testCase.expectedClipboard);
-        
-      } finally {
-        // Cleanup
-        if (handle) {
-          await handle.stop();
-        }
-        await rm(testDir, { recursive: true, force: true });
+      // Start listener
+      handle = await startListener({ 
+        filePath: testFile, 
+        debounceMs: 100 
+      });
+      
+      // Wait for initial processing
+      await pollForFileChange(testFile, testCase.initialContent);
+      
+      // Wait for debounce to settle
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Write new content
+      await writeFile(testFile, testCase.newContent);
+      
+      // Wait for processing to complete
+      await pollForFileChange(testFile, testCase.newContent);
+      
+      // Wait a bit more for clipboard and output file writes
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Read actual results
+      const actualPrepended = await readFile(testFile, 'utf-8');
+      const actualOutput = await readFile(outputFile, 'utf-8');
+      const actualClipboard = await clipboard.read();
+      
+      // Compare results (exact match)
+      expect(actualPrepended).toBe(testCase.expectedPrepended);
+      expect(actualOutput).toBe(testCase.expectedOutput);
+      expect(actualClipboard).toBe(testCase.expectedClipboard);
+      
+    } finally {
+      // Cleanup
+      if (handle) {
+        await handle.stop();
       }
-    });
-  }
+      await rm(testDir, { recursive: true, force: true });
+    }
+  });
 }
+
+
 
 // Only run directly if this file is executed, not imported
 if (import.meta.url === `file://${process.argv[1]}`) {

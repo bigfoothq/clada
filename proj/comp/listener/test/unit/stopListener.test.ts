@@ -65,9 +65,18 @@ export function stopListenerTests() {
     
     // Verify new listener works
     await writeFile(testFile, '```sh sham\n#!SHAM [@three-char-SHA-256: tst]\naction = "exec"\nlang = "bash"\ncode = "echo test"\n#!END_SHAM_tst\n```');
-    await new Promise(resolve => setTimeout(resolve, 600));
     
-    const content = await readFile(testFile, 'utf-8');
+    // Poll for the processed content (up to 2 seconds)
+    const startTime = Date.now();
+    let content = '';
+    while (Date.now() - startTime < 2000) {
+      content = await readFile(testFile, 'utf-8');
+      if (content.includes('=== CLADA RESULTS ===')) {
+        break;
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
     expect(content).toContain('=== CLADA RESULTS ===');
   });
 }

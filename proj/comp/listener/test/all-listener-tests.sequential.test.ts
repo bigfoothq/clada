@@ -10,7 +10,7 @@ describe('All Listener Tests (Sequential)', () => {
     stopListenerTests();
   });
   
-  describe('listener-workflow-v2', () => {
-    listenerWorkflowTests();
+  describe('listener-workflow-v2', async () => {
+    await listenerWorkflowTests();
   });
 });

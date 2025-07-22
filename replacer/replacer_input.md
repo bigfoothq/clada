@@ -1,41 +1,50 @@
-=== PROCESSED: 2025-07-22 18:49:51 ===
-SUCCESS Block 1: Overwrote /Users/stuart/repos/clada/vitest.config.ts
+=== PROCESSED: 2025-07-22 19:04:48 ===
+SUCCESS Block 1: Updated /Users/stuart/repos/clada/proj/comp/listener/test/unit/stopListener.test.ts
 ===
 
+Looking at this intermittent test failure, I can see the issue. The test "allows watching again after stop" is failing because the listener hasn't had enough time to process the file change before the assertion is made.
+
+Here's what's happening:
+
+1. The test writes new content with a SHAM block
+2. Waits 600ms 
+3. Immediately checks if the content contains "=== CLADA RESULTS ==="
+4. Sometimes the listener hasn't finished processing yet, so the assertion fails
+
+The fix is to increase the wait time or use a more robust polling mechanism. Here's the issue and fix:
+
 <<<EXPLANATION>>>
-
-Update the vitest config to exclude the original listener test files that are now wrapped in the sequential test file.
-
+The test is racing - 600ms isn't always enough time for the listener to process the file change and prepend the CLADA results. This causes intermittent failures.
 <<<FILE>>>
-
-/Users/stuart/repos/clada/vitest.config.ts
-
-<<<OVERWRITE>>>
-import { defineConfig } from 'vitest/config';
-import path from 'path';
-
-export default defineConfig({
-  test: {
-    globals: true,
-    environment: 'node',
-    include: ['proj/**/*.test.ts'],
-    exclude: [
-      'node_modules/**',
-      '**/listener/test/unit/stopListener.test.ts',
-      '**/listener/test/integration/listener-workflow-v2.test.ts'
-    ],
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      exclude: [
-        'node_modules/',
-        'proj/test/',
-        '**/*.test.ts'
-      ],
+/Users/stuart/repos/clada/proj/comp/listener/test/unit/stopListener.test.ts
+<<<SEARCH>>>
+    // Verify new listener works
+    await writeFile(testFile, '```sh sham\n#!SHAM [@three-char-SHA-256: tst]\naction = "exec"\nlang = "bash"\ncode = "echo test"\n#!END_SHAM_tst\n```');
+    await new Promise(resolve => setTimeout(resolve, 600));
+    
+    const content = await readFile(testFile, 'utf-8');
+    expect(content).toContain('=== CLADA RESULTS ===');
+<<<REPLACE>>>
+    // Verify new listener works
+    await writeFile(testFile, '```sh sham\n#!SHAM [@three-char-SHA-256: tst]\naction = "exec"\nlang = "bash"\ncode = "echo test"\n#!END_SHAM_tst\n```');
+    
+    // Poll for the processed content (up to 2 seconds)
+    const startTime = Date.now();
+    let content = '';
+    while (Date.now() - startTime < 2000) {
+      content = await readFile(testFile, 'utf-8');
+      if (content.includes('=== CLADA RESULTS ===')) {
+        break;
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
-  },
-  resolve: {
-    alias: {}
-  }
-});
+    
+    expect(content).toContain('=== CLADA RESULTS ===');
 <<<END>>>
+
+This change replaces the fixed 600ms wait with a polling mechanism that:
+- Checks every 100ms if the file has been processed
+- Times out after 2 seconds (which should be more than enough)
+- Exits early as soon as the expected content appears
+
+This approach is both faster (exits as soon as ready) and more reliable (waits longer if needed).

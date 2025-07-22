@@ -1,1000 +1,311 @@
-=== START FILE: /Users/stuart/repos/clada/replacer/replacer_llm_instructions.md ===
-coding style guide:  TDD.  self documenting code.  every api  function name should make it super obvious who is doing what and why
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/ABSTRACT.md ===
+# File System Operations
 
-WOL = "words or less, please"
+Executes file and directory operations from parsed SHAM actions, providing consistent error handling and operation results for LLM feedback.
 
-keep the docs as lean
+## Overview
 
-refactor code to make it smaller whenever possible.  DRY.
+The fs-ops component is the primary executor for file system operations in clada. It receives parsed CladaAction objects from the sham-action-parser and performs the requested file system operations, returning standardized results that include success status, operation-specific data, and detailed error information when operations fail.
 
-IMPORTANT:  do not generate edit instructions unless specifically asked to.  not necessary when just discussing and brainstorming
+The component handles all file-related SHAM actions including file creation, editing, deletion, and reading, as well as directory operations and search functionality. It automatically handles common scenarios like creating parent directories for new files and provides detailed error messages that help the LLM understand why operations failed.
 
-- all code functions and classes or large (10 lines of code or more?) need code comments to cocnisely and lcearly describe what they're doing and why and how
+Each operation is designed to be atomic and independent, with no shared state between operations. This ensures predictable behavior and makes it easy for the LLM to reason about the effects of each action.
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/ABSTRACT.md ===
 
-IMPORTANT: 
-
-whenever you generate new code, use the following format.  dont just generate a standalone artifact.  when generating one or multiple new files, use the OVERWRITE pattern shown below 
-
-For each specific edit that needs to happen, list a brief explanation for the change, list file name, and then explicitly make it clear what the target text is that need to be changed, and then the replacement text is that will replace it. Each of those blocks of text or code need to be explicit verbatim character by character Perfect matches for the intended text.  be sure to put the filenames and expalanations on their own lines for easy human reading even in output format.  like paragraph breaks before and after so thye're on their own lines even when not in code blocks.  use this format below exactly. note that the OVERWRITE style block can be used to create new files and its parent dirs.
-
-make the search find text or code blocks as small as possible to still be unique identifiers for what needs to be changed in the underlying files 
-
-for the file path, use as much of the path that you know of.  should be as specific as you can accurately be.  
-
-make sure that file paths include the current main project dir
-
-<<<EXPLANATION>>>
-
-this is why the change should happen
-
-<<<FILE>>>
-
-package/replacer_demo_src/main.py
-
-<<<SEARCH>>>
-def old_function():
-   x = 1
-   y = 2
-   return x + y
-<<<REPLACE>>>
-def new_function():
-   result = 3
-   return result
-<<<END>>>
-
-
-
-
-<<<EXPLANATION>>>
-
-this is why this change should happen
-
-<<<FILE>>>
-july/coding/bobstuff/react/config/settings.json
-<<<OVERWRITE>>>
-{
-   "debug": true,
-   "port": 8080
-}
-<<<END>>>
-
-NOTE: if you want to remove a section of code, your replace block must contain a blank line and a space:
-
-
-<<<EXPLANATION>>>
-
-remove the search code
-
-<<<FILE>>>
-
-package/replacer_demo_src/main.py
-
-<<<SEARCH>>>
-def old_function():
-   x = 1
-   y = 2
-   return x + y
-<<<REPLACE>>>
- 
-<<<END>>>
-
-see how the REPLACE block can never be totally empty. must contain blank line and whitespace (space(s)) too
-
-IMPORTANT:  each edit item must list its associated FILE.  each SEARCH/REPLACE or OVERWRITE etc block must be immediately preceeded by the respective file 
-
-$$$$$$$$$$$$$
-
-Prioritize substance, clarity, and depth. Challenge all my proposals, designs, and conclusions as hypotheses to be tested. Sharpen follow-up questions for precision, surfacing hidden assumptions, trade offs, and failure modes early. Default to terse, logically structured, information-dense responses unless detailed exploration is required. Skip unnecessary praise unless grounded in evidence. Explicitly acknowledge uncertainty when applicable. Always propose at least one alternative framing. Accept critical debate as normal and preferred. Treat all factual claims as provisional unless cited or clearly justified. Cite when appropriate. Acknowledge when claims rely on inference or incomplete information. Favor accuracy over sounding certain.
-
-check anything online when it feels relevant.  good to compare our thoughts/assumptions with what other people are actually doing and thinking
-
-when asked to share your thoughts (like if user says "wdyt"), then walk it out and talk it out gradually, incrementally, slowly, and thoughtfully.  challenge me so we can succeed overall
-
-dont fall into the trap of equating "implementation" with "low-level".  implementation decisions can be high-level when they affect the system's fundamental behavior
-
-IMPORTANT EDIT INSTRUCTIONS NOTE:
-
-- always use full absolute file paths for edit instructions
-
-- to delete a file, share bash commands with the user in your response.  do not use edit instructions to delete a file
-
-
-=== END FILE: /Users/stuart/repos/clada/replacer/replacer_llm_instructions.md ===
-
-=== START FILE: /Users/stuart/repos/clada/xd5_ref.md ===
-# XD5 LLM Quick Reference
-
-## Core Principle
-Documentation maintains dependency graphs for deterministic context assembly. Initial dependencies are hypotheses - implementation discovers reality. The STOP protocol ensures documentation evolves to match actual dependencies.
-
-## File Structure
-```
-<repo>/
-└── proj/
-    ├── doc/
-    │   ├── API.md        # ⚠️ CRITICAL: All dependencies + exports
-    │   ├── ABSTRACT.md   # 60-word purpose + 300-word overview
-    │   └── ARCH.md       # Technical decisions, constraints
-    ├── test-data/        # Test cases as JSON/MD files
-    │   ├── unit/         # Unit test data
-    │   └── integration/  # Integration test data
-    ├── test/             # Minimal harnesses loading test-data
-    │   ├── unit/         # Unit test harnesses
-    │   └── integration/  # Integration test harnesses
-    ├── test-intn/        # Integration tests for dependencies
-    ├── src/              # Implementation
-    └── comp/             # Sub-components (recursive) - do not need 'proj' dirs
-```
-
-## API.md Template
-```markdown
-# Component: {name}
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md ===
+# Component: fs-ops
 
 ## Component Type
-standard | types-only
+standard
+
+## Status
+[IMPLEMENTED] - All file operations (write, read, delete, move, replace_text, replace_all_text, files_read)
+[NOT IMPLEMENTED] - Directory operations (dir_create, dir_delete, ls), search operations (grep, glob)
+
+## Documentation Debt
+- [ ] Integration test format is preliminary [IMPLEMENTED]
+- [ ] Error handling strategy needs refinement
+- [ ] Consider batching operations for efficiency
 
 ## Dependencies
-[Provisional - updated via STOP protocol when implementation reveals actual needs]
 
-Mark internal component status: [PLANNED], [IN-PROGRESS], or [IMPLEMENTED]
-External dependencies do not need status markers.
+[Updated via STOP protocol - initial hypothesis proved mostly correct]
 
 ```yaml
 dependencies:
-  # Initial hypothesis based on design
-  proj/comp/payment:                                       # [PLANNED]
-    functions: [validateCard, processRefund] # may change 
-    types: [PaymentResult, CardType]
-    errors: [PaymentError]
-  
-  proj/comp/auth:                                          # [IMPLEMENTED]
-    functions: [checkPermission, validateToken]
-    types: [User, TokenPayload]
-  
-  proj/comp/logger:                                        # [IN-PROGRESS]
-    functions: [logTransaction]  # Audit requirement
-  
-  proj/comp/payment-types: "*"  # Wildcard for types-only  # [IMPLEMENTED] 
-  
-  external/lodash:
-    functions: [groupBy, mapValues]
-  
-  external/@stripe/stripe-js:
-    types: [Stripe, PaymentIntent]
-    functions: [loadStripe]
+  node:fs/promises:
+    functions: [writeFile, unlink, mkdir, rename, stat, readFile]
+    
+  node:path:
+    functions: [dirname]
+    # Note: removed unused - resolve, join (not yet needed)
+    
+  # Removed node:util - not used
+  # Removed node:child_process - grep not yet implemented
 ```
 
 ## Exports
-[Structured YAML for dependency graph tooling, then prose descriptions]
 
 ```yaml
 exports:
-  functions: [functionName1, functionName2]
-  types: [Type1, Type2, Type3]
+  functions: [executeFileOperation]
+  types: [FileOpResult]
   classes:
-    ClassName:
-      methods: [method1, method2]
-  errors: [CustomError1, CustomError2]
+    FileOpError:
+      extends: Error
 ```
 
-### {functionName}
-- **Signature**: `{functionName}(param: Type) -> ReturnType`
-- **Purpose**: Single sentence.
-- **Throws**: `{ErrorType}` when {condition}
-- **Test-data**: `test-data/{path}/{functionName}.json` [PLANNED|IMPLEMENTED]
+### executeFileOperation
+- **Signature**: `executeFileOperation(action: CladaAction) -> Promise<FileOpResult>`
+- **Purpose**: Execute file system operations from parsed SHAM actions
+- **Throws**: Never - all errors captured in FileOpResult
+- **Test-data**: `test-data/integration/*.cases.md` [IMPLEMENTED]
 
-
-
-## Workflow
-
-### Core Flow: Design → Test → Implement
-
-1. **Write docs**: ABSTRACT.md → ARCH.md → API.md (provisional)
-2. **Design tests**: E2E hypothesis → Decompose → Unit tests  
-3. **Implement**: Discover real dependencies → Update docs → Complete code
-
-### Test Authority & Evolution
-
-**Tests Are Source of Truth (But Not Infallible)**
-- Tests define what code SHOULD do
-- During debug: ALWAYS fix code to match tests first
-- Test errors discovered? Ask human: "I believe test X is incorrect because Y. Should I update it?"
-- NEVER auto-modify tests while debugging
-- Each test change needs explicit approval
-
-### Detailed Flow
-
-1. **E2E Test Hypothesis** - Write component test-data (expect evolution)
-2. **Pseudocode** - Rough implementation to discover structure
-3. **Extract Functions** - Identify & extract all pure functions
-4. **Unit Tests** - Write test-data for each function
-5. **Implement Functions** - Red/green/debug (fix code, not tests)
-6. **Revise E2E Tests** - Align with discovered behavior (ask human)
-7. **Wire Component** - Connect tested functions
-8. **Debug E2E** - Fix code until green
-
-**Debug Protocol**: Test fails? → Try fixing code → Still failing? → Consider test error → Request human approval for any test change
-
-**If docs are wrong**: STOP → Update docs → Update tests → Continue
-
-
-
-### Critical Implementation Rules
-
-**Initial Docs Are Hypotheses**: 
-- First API.md contains best guesses
-- Dependencies WILL be wrong
-- This is expected and healthy
-- Discovery through implementation is the goal
-
-**🛑 STOP Protocol**: When implementation reveals doc errors:
-1. STOP immediately
-2. Update API.md/ARCH.md
-3. Continue with correct docs
-
-**Test Immutability**: 
-- Test harnesses = frozen after creation
-- Test data = only change with human approval
-- Fix code, not tests (unless explicitly approved)
-
-**Dependency Updates**:
-- Add to API.md as discovered
-- Include transitive deps if needed for understanding
-- External deps must be explicit
-
-## Test Data Format
-```json
-{
-  "cases": [
-    {
-      "name": "descriptive name",
-      "input": [arg1, arg2],
-      "expected": {result},
-      "throws": "ErrorType"  // optional
-    }
-  ]
+### FileOpResult (type)
+```typescript
+interface FileOpResult {
+  success: boolean
+  data?: any           // Operation-specific return data
+  error?: string       // Error message if failed
 }
 ```
 
-## Quick Checks
-
-Before implementing:
-- [ ] API.md declares all exports?
-- [ ] Dependencies section updated?
-- [ ] Test data files created?
-
-During implementation:
-- [ ] Tests fail first (red phase)?
-- [ ] Docs match reality? (if not → STOP)
-- [ ] All imports declared in API.md?
-
-## Common Patterns
-
-**Extract pure functions during pseudocode**:
-```javascript
-// Pseudocode reveals:
-// extractedFn: validateInput(x) -> bool
-// extractedFn: processData(data) -> result
-```
-
-**Types-only components**: No test/ or src/, only doc/
-
-**Path conventions**: All relative to `<repo>/`
-- Component: `proj/comp/{name}`
-- Nested: `proj/comp/{parent}/comp/{child}`
-
-
-# update 
-
-- need to update this so that we save our pseudocde in some sort of documetnation, maybe temp documentation.  so if we implement the fucntiosn to unit test, we dont get confused later about how theyre supposed to be used.
-
-- ideally, each extracted function unit-testable function would be in its own file.  for parallelism with the unit test files
-
-- TESTING PATHS
-
-dont save files directly to `/tmp/`.  save them to a dir in the tmp dir taht is named with the name of the test preceedd by 't_', eg `/tmp/t_move-nonexistent-file`
-
-like: 
-
-
-### 003-move-nonexistent-file
-
-```sh sham
-#!SHAM [@three-char-SHA-256: mnf]
-action = "file_move"
-old_path = "/tmp/t_move-nonexistent-file/ghost.txt"
-new_path = "/tmp/t_move-nonexistent-file/nowhere.txt"
-#!END_SHAM_mnf
-```
-
-```json
-{
-  "success": false,
-  "error": "file_move: Source file not found '/tmp/t_move-nonexistent-file/ghost.txt' (ENOENT)"
+### FileOpError (type)
+```typescript
+interface FileOpError extends Error {
+  code: string         // e.g., 'ENOENT', 'EACCES'
+  path?: string        // File path involved
+  operation: string    // Which operation failed
 }
 ```
 
-=== END FILE: /Users/stuart/repos/clada/xd5_ref.md ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test-data/integration/file_read_numbered.cases.md ===
-# file_read_numbered Integration Tests
-
-## file_read_numbered
-
-### 001-read-single-line
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rs1]
-action = "file_write"
-path = "/tmp/t_read-single-line/numbered.txt"
-content = <<'EOT_SHAM_rs1'
-Line 1
-Line 2
-Line 3
-Line 4
-Line 5
-EOT_SHAM_rs1
-#!END_SHAM_rs1
-
-#!SHAM [@three-char-SHA-256: rs2]
-action = "file_read_numbered"
-path = "/tmp/t_read-single-line/numbered.txt"
-lines = "3"
-#!END_SHAM_rs2
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "path": "/tmp/t_read-single-line/numbered.txt",
-    "content": "     3: Line 3"
-  }
-}
-```
-
-### 002-read-line-range
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rr1]
-action = "file_write"
-path = "/tmp/t_read-line-range/numbered.txt"
-content = <<'EOT_SHAM_rr1'
-First line
-Second line
-Third line
-Fourth line
-Fifth line
-Sixth line
-Seventh line
-EOT_SHAM_rr1
-#!END_SHAM_rr1
-
-#!SHAM [@three-char-SHA-256: rr2]
-action = "file_read_numbered"
-path = "/tmp/t_read-line-range/numbered.txt"
-lines = "3-5"
-#!END_SHAM_rr2
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "path": "/tmp/t_read-line-range/numbered.txt",
-    "content": "     3: Third line\n     4: Fourth line\n     5: Fifth line"
-  }
-}
-```
-
-### 003-read-with-custom-delimiter
-
-```sh sham
-#!SHAM [@three-char-SHA-256: cd1]
-action = "file_write"
-path = "/tmp/t_read-with-custom-delimiter/numbered.txt"
-content = <<'EOT_SHAM_cd1'
-import os
-import sys
-
-def main():
-    print("Hello, World!")
-    
-if __name__ == "__main__":
-    main()
-EOT_SHAM_cd1
-#!END_SHAM_cd1
-
-#!SHAM [@three-char-SHA-256: cd2]
-action = "file_read_numbered"
-path = "/tmp/t_read-with-custom-delimiter/numbered.txt"
-lines = "4-7"
-delimiter = "    "
-#!END_SHAM_cd2
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "path": "/tmp/t_read-with-custom-delimiter/numbered.txt",
-    "content": "     4    def main():\n     5        print(\"Hello, World!\")\n     6        \n     7    if __name__ == \"__main__\":"
-  }
-}
-```
-
-### 004-read-with-empty-delimiter
-
-```sh sham
-#!SHAM [@three-char-SHA-256: ed1]
-action = "file_write"
-path = "/tmp/t_read-with-empty-delimiter/numbered.txt"
-content = <<'EOT_SHAM_ed1'
-apple
-banana
-cherry
-date
-EOT_SHAM_ed1
-#!END_SHAM_ed1
-
-#!SHAM [@three-char-SHA-256: ed2]
-action = "file_read_numbered"
-path = "/tmp/t_read-with-empty-delimiter/numbered.txt"
-lines = "2-3"
-delimiter = ""
-#!END_SHAM_ed2
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "path": "/tmp/t_read-with-empty-delimiter/numbered.txt",
-    "content": "     2banana\n     3cherry"
-  }
-}
-```
-
-### 005-read-out-of-range-lines
-
-```sh sham
-#!SHAM [@three-char-SHA-256: or1]
-action = "file_write"
-path = "/tmp/t_read-out-of-range-lines/numbered.txt"
-content = <<'EOT_SHAM_or1'
-Only
-Three
-Lines
-EOT_SHAM_or1
-#!END_SHAM_or1
-
-#!SHAM [@three-char-SHA-256: or2]
-action = "file_read_numbered"
-path = "/tmp/t_read-out-of-range-lines/numbered.txt"
-lines = "2-10"
-#!END_SHAM_or2
-```
-
-```json
-{
-  "success": false,
-  "error": "file_read_numbered: Requested lines 2-10 but file only has 3 lines",
-  "data": {
-    "path": "/tmp/t_read-out-of-range-lines/numbered.txt",
-    "content": "     2: Three\n     3: Lines"
-  }
-}
-```
-
-### 006-read-single-line-file
-
-```sh sham
-#!SHAM [@three-char-SHA-256: sl1]
-action = "file_write"
-path = "/tmp/t_read-single-line-file/numbered.txt"
-content = "Just one line"
-#!END_SHAM_sl1
-
-#!SHAM [@three-char-SHA-256: sl2]
-action = "file_read_numbered"
-path = "/tmp/t_read-single-line-file/numbered.txt"
-lines = "1"
-#!END_SHAM_sl2
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "path": "/tmp/t_read-single-line-file/numbered.txt",
-    "content": "     1: Just one line"
-  }
-}
-```
-
-### 007-read-empty-file
-
-```sh sham
-#!SHAM [@three-char-SHA-256: ef1]
-action = "file_write"
-path = "/tmp/t_read-empty-file/numbered.txt"
-content = ""
-#!END_SHAM_ef1
-
-#!SHAM [@three-char-SHA-256: ef2]
-action = "file_read_numbered"
-path = "/tmp/t_read-empty-file/numbered.txt"
-lines = "1"
-#!END_SHAM_ef2
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "path": "/tmp/t_read-empty-file/numbered.txt",
-    "content": ""
-  }
-}
-```
-
-### 008-invalid-line-format
-
-```sh sham
-#!SHAM [@three-char-SHA-256: if1]
-action = "file_write"
-path = "/tmp/t_invalid-line-format/numbered.txt"
-content = "Some content"
-#!END_SHAM_if1
-
-#!SHAM [@three-char-SHA-256: if2]
-action = "file_read_numbered"
-path = "/tmp/t_invalid-line-format/numbered.txt"
-lines = "abc"
-#!END_SHAM_if2
-```
-
-```json
-{
-  "success": false,
-  "error": "file_read_numbered: Invalid line specification 'abc'"
-}
-```
-
-### 009-invalid-line-range
-
-```sh sham
-#!SHAM [@three-char-SHA-256: ir1]
-action = "file_write"
-path = "/tmp/t_invalid-line-range/numbered.txt"
-content = "Some content"
-#!END_SHAM_ir1
-
-#!SHAM [@three-char-SHA-256: ir2]
-action = "file_read_numbered"
-path = "/tmp/t_invalid-line-range/numbered.txt"
-lines = "5-3"
-#!END_SHAM_ir2
-```
-
-```json
-{
-  "success": false,
-  "error": "file_read_numbered: Invalid line range '5-3' (start must be <= end)"
-}
-```
-
-### 010-read-nonexistent-file
-
-```sh sham
-#!SHAM [@three-char-SHA-256: nf1]
-action = "file_read_numbered"
-path = "/tmp/t_read-nonexistent-file/does-not-exist.txt"
-lines = "1-5"
-#!END_SHAM_nf1
-```
-
-```json
-{
-  "success": false,
-  "error": "ENOENT: no such file or directory, open '/tmp/t_read-nonexistent-file/does-not-exist.txt'"
-}
-```
-
-### 011-read-completely-out-of-range
-
-```sh sham
-#!SHAM [@three-char-SHA-256: co1]
-action = "file_write"
-path = "/tmp/t_read-completely-out-of-range/numbered.txt"
-content = <<'EOT_SHAM_co1'
-Line 1
-Line 2
-EOT_SHAM_co1
-#!END_SHAM_co1
-
-#!SHAM [@three-char-SHA-256: co2]
-action = "file_read_numbered"
-path = "/tmp/t_read-completely-out-of-range/numbered.txt"
-lines = "5-10"
-#!END_SHAM_co2
-```
-
-```json
-{
-  "success": false,
-  "error": "file_read_numbered: Requested lines 5-10 but file only has 2 lines",
-  "data": {
-    "path": "/tmp/t_read-completely-out-of-range/numbered.txt",
-    "content": ""
-  }
-}
-```
-
-### 012-read-all-lines-missing-parameter
-
-```sh sham
-#!SHAM [@three-char-SHA-256: al1]
-action = "file_write"
-path = "/tmp/t_read-all-lines-missing-parameter/numbered.txt"
-content = <<'EOT_SHAM_al1'
-First line
-Second line
-Third line
-Fourth line
-Fifth line
-EOT_SHAM_al1
-#!END_SHAM_al1
-
-#!SHAM [@three-char-SHA-256: al2]
-action = "file_read_numbered"
-path = "/tmp/t_read-all-lines-missing-parameter/numbered.txt"
-#!END_SHAM_al2
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "path": "/tmp/t_read-all-lines-missing-parameter/numbered.txt",
-    "content": "     1: First line\n     2: Second line\n     3: Third line\n     4: Fourth line\n     5: Fifth line"
-  }
-}
-```
-
-### 013-read-large-line-numbers
-
-```sh sham
-#!SHAM [@three-char-SHA-256: ll1]
-action = "file_write"
-path = "/tmp/t_read-large-line-numbers/numbered.txt"
-content = <<'EOT_SHAM_ll1'
-Line 1
-Line 2
-Line 3
-Line 4
-Line 5
-Line 6
-Line 7
-Line 8
-Line 9
-Line 10
-Line 11
-Line 12
-EOT_SHAM_ll1
-#!END_SHAM_ll1
-
-#!SHAM [@three-char-SHA-256: ll2]
-action = "file_read_numbered"
-path = "/tmp/t_read-large-line-numbers/numbered.txt"
-lines = "9-11"
-#!END_SHAM_ll2
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "path": "/tmp/t_read-large-line-numbers/numbered.txt",
-    "content": "     9: Line 9\n    10: Line 10\n    11: Line 11"
-  }
-}
-```
-=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test-data/integration/file_read_numbered.cases.md ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test/unit/extractNumberedLines.test.ts ===
-import { describe, it, expect } from 'vitest';
-import { extractNumberedLines } from '../../src/extractNumberedLines';
-import { cases } from '../../test-data/unit/extractNumberedLines.cases';
-
-describe('extractNumberedLines', () => {
-  cases.forEach(({ name, input, expected, throws }) => {
-    it(name, () => {
-      if (throws) {
-        expect(() => extractNumberedLines(...input)).toThrow(throws);
-      } else {
-        const result = extractNumberedLines(...input);
-        expect(result).toEqual(expected);
-      }
-    });
-  });
-});
-=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test/unit/extractNumberedLines.test.ts ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test/unit/formatNodeError.test.ts ===
-import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
-import { join } from 'path';
-import { formatNodeError } from '../../src/formatNodeError.js';
-
-const testData = JSON.parse(
-  readFileSync(join(__dirname, '../../test-data/unit/formatNodeError.cases.json'), 'utf8')
-);
-
-describe('formatNodeError', () => {
-  testData.cases.forEach(({ name, input, expected }) => {
-    it(name, () => {
-      const result = formatNodeError(input[0], input[1], input[2], input[3]);
-      expect(result).toEqual(expected);
-    });
-  });
-});
-=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test/unit/formatNodeError.test.ts ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test/unit/replaceText.test.ts ===
-import { describe, it, expect } from 'vitest';
-import { replaceText } from '../../src/replaceText';
-import { cases } from '../../test-data/unit/replaceText.cases';
-
-describe('replaceText', () => {
-  cases.forEach(({ name, input, expected, throws }) => {
-    it(name, () => {
-      if (throws) {
-        expect(() => replaceText(...input)).toThrow(throws);
-      } else {
-        const result = replaceText(...input);
-        expect(result).toEqual(expected);
-      }
-    });
-  });
-});
-
-=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test/unit/replaceText.test.ts ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test/integration/integration.test.ts ===
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { readFileSync, rmSync, existsSync, writeFileSync, mkdirSync, readdirSync } from 'fs';
-import { join } from 'path';
-import { marked, Token } from 'marked';
-import { parseShamResponse } from '../../../sham-action-parser/src/index.js';
-import { executeFileOperation } from '../../src/index.js';
-
-interface TestCase {
-  name: string;
-  shamBlock: string;
-  expectedBlock: string;
-}
-
-interface TestGroup {
-  name: string;
-  tests: TestCase[];
-}
-
-// Read all test case files
-const testDir = join(__dirname, '../../test-data/integration');
-const testFiles = readdirSync(testDir)
-  .filter(f => f.endsWith('.cases.md'))
-  .sort();
-
-// Extract test structure from all markdown files
-const testGroups: TestGroup[] = [];
-
-testFiles.forEach(filename => {
-  const testPath = join(testDir, filename);
-  const mdContent = readFileSync(testPath, 'utf8');
+## Internal Functions
+
+### createFile
+- **Signature**: `createFile(path: string, content: string) -> Promise<void>`
+- **Purpose**: Create new file with content, creating parent directories as needed
+
+### writeFile  
+- **Signature**: `writeFile(path: string, content: string) -> Promise<void>`
+- **Purpose**: Overwrite existing file content
+
+### replaceText
+- **Signature**: `replaceText(content: string, oldText: string, newText: string, count?: number) -> {result: string, replacements: number}`
+- **Purpose**: Pure function to replace text occurrences in string content
+- **Throws**: Error when oldText is empty string
+- **Behavior**: Replaces up to `count` occurrences (all if count undefined)
+
+### deleteFile
+- **Signature**: `deleteFile(path: string) -> Promise<void>`
+- **Purpose**: Remove file
+
+### moveFile
+- **Signature**: `moveFile(oldPath: string, newPath: string) -> Promise<void>`
+- **Purpose**: Move or rename file
+
+### readFileContent
+- **Signature**: `readFileContent(path: string) -> Promise<string>`
+- **Purpose**: Read file content as UTF-8 string
+
+### createDirectory
+- **Signature**: `createDirectory(path: string) -> Promise<void>`
+- **Purpose**: Create directory, including parent directories
+
+### deleteDirectory
+- **Signature**: `deleteDirectory(path: string) -> Promise<void>`
+- **Purpose**: Remove directory (must be empty)
+
+### listDirectory
+- **Signature**: `listDirectory(path: string) -> Promise<DirEntry[]>`
+- **Purpose**: List directory contents with metadata
+
+### searchFiles
+- **Signature**: `searchFiles(pattern: string, path: string, include?: string) -> Promise<GrepResult[]>`
+- **Purpose**: Search for pattern in files (grep-like)
+
+### globFiles
+- **Signature**: `globFiles(pattern: string, basePath: string) -> Promise<string[]>`
+- **Purpose**: Find files matching glob pattern
+
+### extractNumberedLines
+- **Signature**: `extractNumberedLines(content: string, lineSpec: string, delimiter: string) -> { result: string, lineCount: number }`
+- **Purpose**: Pure function to extract and number specific lines from content
+- **Parameters**:
+  - `content`: Full file content
+  - `lineSpec`: Line specification ("4" for single line, "23-43" for range)
+  - `delimiter`: Delimiter between line number and content
+- **Returns**: Object with numbered lines and total line count
+- **Throws**: Error for invalid line specifications
+
+### handleFileReadNumbered
+- **Signature**: `handleFileReadNumbered(action: CladaAction) -> Promise<FileOpResult>`
+- **Purpose**: Read file content with line numbers for specified line range
+- **Parameters**: 
+  - `path`: File path to read
+  - `lines`: Line range string ("23-43") or single line ("4")
+  - `delimiter`: Optional delimiter between line number and content (default: ": ")
+- **Returns**: FileOpResult with numbered content
+- **Test-data**: `test-data/integration/file_read_numbered.cases.md` [IMPLEMENTED]
+
+## Action Mapping
+
+```typescript
+const actionHandlers = {
+  // Implemented
+  'file_write': handleFileWrite,
+  'file_replace_text': handleFileReplaceText,
+  'file_replace_all_text': handleFileReplaceAllText,
+  'file_delete': handleFileDelete,
+  'file_move': handleFileMove,
+  'file_read': handleFileRead,
+  'files_read': handleFilesRead,
+  'file_read_numbered': handleFileReadNumbered,
   
-  let currentGroup: TestGroup | null = null;
-  let currentTest: Partial<TestCase> | null = null;
-  
-  // Parse markdown to extract test cases with hierarchy
-  const tokens: Token[] = marked.lexer(mdContent);
-  
-  tokens.forEach(token => {
-    if (token.type === 'heading' && 'depth' in token) {
-      if (token.depth === 2) {
-        // New test group (e.g., "file_write")
-        currentGroup = {
-          name: (token as any).text,
-          tests: []
-        };
-        testGroups.push(currentGroup);
-      } else if (token.depth === 3 && currentGroup) {
-        // New test case
-        currentTest = {
-          name: (token as any).text
-        };
-      }
-    } else if (token.type === 'code' && currentTest && currentGroup) {
-      const codeBlock = token as Token & {type: 'code', text: string};
-      if (!currentTest.shamBlock) {
-        currentTest.shamBlock = codeBlock.text;
-      } else if (!currentTest.expectedBlock) {
-        currentTest.expectedBlock = codeBlock.text;
-        // Test case complete
-        currentGroup.tests.push(currentTest as TestCase);
-        currentTest = null;
-      }
-    }
-  });
-});
-
-// Test cleanup paths
-const testPaths = [
-  '/tmp/test.txt',
-  '/tmp/deeply',
-  '/tmp/existing.txt',
-  '/tmp/multiline.txt',
-  '/tmp/to-delete.txt',
-  '/tmp/does-not-exist.txt',
-  '/tmp/source.txt',
-  '/tmp/destination.txt',
-  '/tmp/original.txt',
-  '/tmp/new-dir',
-  '/tmp/ghost.txt',
-  '/tmp/nowhere.txt',
-  '/tmp/source-exists.txt',
-  '/tmp/dest-exists.txt',
-  '/tmp/moveable.txt',
-  '/tmp/replace-test.txt',
-  '/tmp/multi-replace.txt',
-  '/tmp/no-match.txt',
-  '/tmp/does-not-exist-replace.txt',
-  '/tmp/multiline-replace.txt',
-  '/tmp/empty-search.txt',
-  '/tmp/readable.txt',
-  '/tmp/not-there.txt',
-  '/tmp/multiple-occurrences.txt',
-  '/tmp/replace-all.txt',
-  '/tmp/count-mismatch.txt',
-  '/tmp/special-chars.txt',
-  '/tmp/numbered.txt'
-];
-
-describe('fs-ops integration tests', () => {
-  let createdPaths: Set<string>;
-
-  beforeEach(() => {
-    createdPaths = new Set<string>(); // Fresh set per test
-
-    // Clean up any existing test files
-    for (const path of testPaths) {
-      try {
-        if (existsSync(path)) {
-          rmSync(path, { recursive: true, force: true });
-        }
-      } catch (err) {
-        // Silently continue
-      }
-    }
-  });
-
-  afterEach(() => {
-    for (const path of createdPaths) {
-      rmSync(path, { recursive: true, force: true });
-    }
-    // Clean up after tests
-    for (const path of testPaths) {
-      try {
-        if (existsSync(path)) {
-          rmSync(path, { recursive: true, force: true });
-        }
-      } catch (err) {
-        // Silently continue
-      }
-    }
-  });
-
-
-  // Helper function to create test files and track paths
-  const createTestFile = (testName: string, filename: string, content: string): void => {
-    const testDir = `/tmp/t_${testName}`;
-    mkdirSync(testDir, { recursive: true });
-    writeFileSync(join(testDir, filename), content);
-    createdPaths.add(testDir);
-  };
-
-
-  testGroups.forEach(group => {
-    describe(group.name, () => {
-      group.tests.forEach(test => {
-        it(test.name, async () => {
-          const expectedOutput = JSON.parse(test.expectedBlock);
-          
-          // Extract test name without number prefix
-          const tn = test.name.replace(/^\d{3}-/, '');
-          
-
-
-
-          // Set up test preconditions based on group and test name
-          if (group.name === 'file_delete' && tn === 'delete-existing-file') {
-            createTestFile('delete-existing-file', 'to-delete.txt', 'This file will be deleted');
-          } else if (group.name === 'file_move' && tn === 'move-file-simple') {
-            createTestFile('move-file-simple', 'source.txt', 'Content to move');
-          } else if (group.name === 'file_move' && tn === 'move-file-to-new-directory') {
-            createTestFile('move-file-to-new-directory', 'original.txt', 'Moving to new directory');
-          } else if (group.name === 'file_move' && tn === 'move-to-existing-file') {
-            createTestFile('move-to-existing-file', 'source-exists.txt', 'Source content');
-            createTestFile('move-to-existing-file', 'dest-exists.txt', 'Will be overwritten');
-          } else if (group.name === 'file_replace_text' && tn === 'simple-text-replacement') {
-            createTestFile('simple-text-replacement', 'replace-test.txt', 'Hello World');
-          } else if (group.name === 'file_replace_text' && tn === 'replace-with-count-limit') {
-            createTestFile('replace-with-count-limit', 'multi-replace.txt', 'foo bar foo baz foo qux foo');
-          } else if (group.name === 'file_replace_text' && tn === 'replace-text-not-found') {
-            createTestFile('replace-text-not-found', 'no-match.txt', 'This file has no matches');
-          } else if (group.name === 'file_replace_text' && tn === 'multiline-replacement') {
-            createTestFile('multiline-replacement', 'multiline-replace.txt', `export function oldName() {
-  console.log('oldName');
-  return oldName;
+  // Not implemented
+  'dir_create': async (action) => ({ success: false, error: 'Not implemented' }),
+  'dir_delete': async (action) => ({ success: false, error: 'Not implemented' }),
+  'ls': async (action) => ({ success: false, error: 'Action not implemented: ls' }),
+  'grep': async (action) => ({ success: false, error: 'Not implemented' }),
+  'glob': async (action) => ({ success: false, error: 'Not implemented' })
 }
+```
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md ===
 
-function oldName() {
-  return oldName;
-}
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/ARCH.md ===
+# fs-ops Architecture
 
-const x = oldName();`);
-          } else if (group.name === 'file_replace_text' && tn === 'empty-old-text-error') {
-            createTestFile('empty-old-text-error', 'empty-search.txt', 'Some content here');
-          } else if (group.name === 'file_replace_text' && tn === 'file-replace-text-multiple-occurrences') {
-            createTestFile('file-replace-text-multiple-occurrences', 'multiple-occurrences.txt', 'duplicate text with duplicate word and duplicate again');
-          } else if (group.name === 'file_replace_text' && tn === 'file-replace-all-text-no-count') {
-            createTestFile('file-replace-all-text-no-count', 'replace-all.txt', 'foo bar foo baz foo');
-          } else if (group.name === 'file_replace_text' && tn === 'file-replace-all-text-count-mismatch') {
-            createTestFile('file-replace-all-text-count-mismatch', 'count-mismatch.txt', 'test this test case');
-          } else if (group.name === 'file_read' && tn === 'read-existing-file') {
-            createTestFile('read-existing-file', 'readable.txt', 'This is readable content');
-          }
+## Design Philosophy
+
+**Defensive Operations with Clear Errors**: Every operation should handle common failure cases gracefully and return descriptive errors that help the LLM understand what went wrong.
+
+## Key Design Decisions
+
+### Parent Directory Creation
+- `file_write` automatically creates parent directories.  creates parent directory if it doesn't exist
+
+### Text Replacement Strategy  
+- Use exact string matching for both replace actions
+- `file_replace_text`: Must find EXACTLY ONE occurrence (fails if 0 or 2+)
+- `file_replace_all_text`: Replaces all occurrences, validates count if provided
+- Empty old_text validation: Both actions reject empty search strings
+- Return actual number of replacements made
+- No regex support (keep it simple, predictable)
+
+### Error Handling
+- Never throw - return errors in result object
+- Include original error codes (ENOENT, EACCES)
+- Add context about what operation was attempted
+- Preserve stack traces for debugging
+
+### Path Resolution
+- All paths must be absolute (validated by parser)
+- No path traversal validation (security is out of scope for v1)
+- Symlinks followed transparently
+
+### Directory Operations
+- `dir_delete` only removes empty directories
+- No recursive deletion option (safety)
+- `ls` returns flat listing with type info
+
+### Search Operations
+- `grep` uses simple substring matching
+- Include patterns use glob syntax
+- Results include line numbers
+- Large file handling: streaming for files >10MB
+
+## Performance Considerations
+
+- File operations are synchronous from caller perspective
+- No caching of file contents
+- No watch/monitor capabilities
+- Each operation is independent
+
+## Encoding
+
+- All text files assumed UTF-8
+- Binary files not supported in v1
+- Line endings preserved as-is
+
+## Limits
+
+- Max file size: 10MB (from unified-design.yaml)
+- No limit on number of operations
+- No timeout on individual operations
+
+## Test Conventions
+
+- Test files use `/tmp/t_{test-name}/` path pattern for isolation
+- Each test creates its own subdirectory to avoid conflicts
+- Integration tests track created paths for cleanup
+
+## Future Considerations
+
+- Batch operations for efficiency
+- Binary file support
+- File watching/monitoring
+- Atomic write operations (write to temp, rename)
+- Path validation against allowlist
 
 
+# fs-ops ARCH.md - Additional Sections
+
+## File Move Behavior
+
+### Overwrite Semantics
+- `file_move` overwrites existing destination files without warning
+- Matches Unix `mv` behavior and Node.js `rename()` semantics  
+- Rationale: LLM can check first if needed, but overwrite-by-default enables single-shot operations
+- Return data includes `overwrote: true` when destination existed
+
+### Directory Creation
+- `file_move` automatically creates parent directories for destination path
+- Diverges from standard `rename()` which fails with ENOENT
+- Rationale: Reduces LLM round-trips for common "move to new location" pattern
+
+## Error Message Enhancement
+
+### Problem: Ambiguous ENOENT
+Node.js returns ENOENT for multiple distinct failures:
+- Source file doesn't exist
+- Destination directory doesn't exist  
+- Parent directory permissions (sometimes)
+
+### Solution: Pre-flight Checks
+Operations perform checks before system calls to provide specific errors:
+- `file_move`: Check source exists → "Source file not found" vs generic ENOENT
+- `file_write`: Already creates parent dirs, avoiding ambiguity
+- `file_delete`: Pass through Node errors (unambiguous)
+
+### Error Format
+When enhancing errors for LLM clarity:
+```
+{operation}: {specific_issue} '{path}' ({error_code})
+```
+
+Example: `file_move: Source file not found '/tmp/ghost.txt' (ENOENT)`
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/ARCH.md ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/TODO.md ===
 
 
+new line based tools for faster LLM operations
 
 
+file_read_numbered
+    lines: "23-43" or single like "4"
+files_read_numbered
+file_replace_lines
+    lines: "23-43" or single like "4"
+    new_content: [the string to replace the target range with]
 
 
+file_comment_lines
+    lines: "23-43" or single like "4"
+file_uncomment_lines
+    lines: "23-43" or single like "4"
 
 
-          // Parse SHAM to get actions
-          let parseResult;
-          try {
-            parseResult = await parseShamResponse(test.shamBlock);
-            // Force a minimal action to test downstream code
-            if (parseResult.actions.length === 0 && test.shamBlock.includes('action =')) {
-              console.log('WARNING: Parser returned no actions, check parser implementation');
-            }
-          } catch (error) {
-            console.log('Parse error:', error);
-            throw error;
-          }
-          
-          // Should have at least one action
-          expect(parseResult.actions.length).toBeGreaterThan(0);
-          expect(parseResult.errors).toHaveLength(0);
-          
-          // Execute all actions in sequence, capturing the last result
-          let result;
-          for (const action of parseResult.actions) {
-            result = await executeFileOperation(action);
-          }
-          
-          // Compare result
-          expect(result).toEqual(expectedOutput);
-        }, 30000);
-      });
-    });
-  });
-});
-=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test/integration/integration.test.ts ===
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/TODO.md ===
 
 === START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/extractNumberedLines.ts ===
 /**
@@ -1015,8 +326,8 @@ export function extractNumberedLines(
     return { result: '', lineCount: 0 };
   }
 
-  // Split content into lines
-  const lines = content.split('\n');
+  // Split content into lines (handle different OS line endings)
+  const lines = content.split(/\r?\n|\r/);
   const totalLines = lines.length;
 
   // Parse line specification
@@ -1047,7 +358,7 @@ export function extractNumberedLines(
       }
 
       if (startLine < 1 || endLine < 1) {
-        throw new Error(`Invalid line specification '${lineSpec}' (line numbers must be positive)`);
+        throw new Error(`Invalid line specification '${lineSpec}'`);
       }
 
       if (startLine > endLine) {
@@ -1064,25 +375,20 @@ export function extractNumberedLines(
   }
 
   // Check if request is out of range
-  const originalStartLine = startLine;
-  const originalEndLine = endLine;
   const isOutOfRange = startLine > totalLines || endLine > totalLines;
 
   // If start line is beyond file, return empty
   if (startLine > totalLines) {
-    const result = {
+    return {
       result: '',
-      lineCount: totalLines
+      lineCount: totalLines,
+      ...(isOutOfRange && {
+        outOfRange: {
+          requested: requestedSpec,
+          actual: totalLines
+        }
+      })
     };
-    
-    if (isOutOfRange) {
-      result.outOfRange = {
-        requested: requestedSpec,
-        actual: totalLines
-      };
-    }
-    
-    return result;
   }
 
   // Clamp end line to available lines
@@ -1090,27 +396,28 @@ export function extractNumberedLines(
 
   // Extract lines and format with numbers
   const numberedLines: string[] = [];
-  const maxLineNum = Math.min(originalEndLine, totalLines);
+  
+  // Calculate the width needed for the largest line number in the range
+  const maxLineNum = endLine;
   const numWidth = maxLineNum.toString().length;
-
-  for (let i = startLine; i <= endLine && i <= totalLines; i++) {
-    const lineNum = i.toString().padStart(numWidth + 5, ' ');
-    numberedLines.push(`${lineNum}${delimiter}${lines[i - 1]}`);
+  
+  // Build the numbered lines
+  for (let i = startLine; i <= endLine; i++) {
+    // Right-justify the line number
+    const lineNumStr = i.toString().padStart(numWidth, ' ');
+    numberedLines.push(`${lineNumStr}${delimiter}${lines[i - 1]}`);
   }
 
-  const result = {
+  return {
     result: numberedLines.join('\n'),
-    lineCount: totalLines
+    lineCount: totalLines,
+    ...(isOutOfRange && {
+      outOfRange: {
+        requested: requestedSpec,
+        actual: totalLines
+      }
+    })
   };
-
-  if (isOutOfRange) {
-    result.outOfRange = {
-      requested: requestedSpec,
-      actual: totalLines
-    };
-  }
-
-  return result;
 }
 === END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/extractNumberedLines.ts ===
 
@@ -1507,7 +814,7 @@ async function handleFileReplaceText(action: CladaAction): Promise<FileOpResult>
       const index = content.indexOf(old_text, searchIndex);
       if (index === -1) break;
       count++;
-      searchIndex = index + 1;
+      searchIndex = index + old_text.length;
     }
     
     // Validate exactly one occurrence
@@ -1582,7 +889,7 @@ async function handleFileReplaceAllText(action: CladaAction): Promise<FileOpResu
         const index = content.indexOf(old_text, searchIndex);
         if (index === -1) break;
         actualCount++;
-        searchIndex = index + 1;
+        searchIndex = index + old_text.length;
       }
       
       if (actualCount !== count) {
@@ -1746,290 +1053,2627 @@ export function replaceText(
 }
 === END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/replaceText.ts ===
 
-=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/ABSTRACT.md ===
-# File System Operations
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test/integration/integration.test.ts ===
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { readFileSync, rmSync, existsSync, writeFileSync, mkdirSync, readdirSync } from 'fs';
+import { join } from 'path';
+import { marked, Token } from 'marked';
+import { parseShamResponse } from '../../../sham-action-parser/src/index.js';
+import { executeFileOperation } from '../../src/index.js';
 
-Executes file and directory operations from parsed SHAM actions, providing consistent error handling and operation results for LLM feedback.
+interface TestCase {
+  name: string;
+  shamBlock: string;
+  expectedBlock: string;
+}
 
-## Overview
+interface TestGroup {
+  name: string;
+  tests: TestCase[];
+}
 
-The fs-ops component is the primary executor for file system operations in clada. It receives parsed CladaAction objects from the sham-action-parser and performs the requested file system operations, returning standardized results that include success status, operation-specific data, and detailed error information when operations fail.
+// Read all test case files
+const testDir = join(__dirname, '../../test-data/integration');
+const testFiles = readdirSync(testDir)
+  .filter(f => f.endsWith('.cases.md'))
+  .sort();
 
-The component handles all file-related SHAM actions including file creation, editing, deletion, and reading, as well as directory operations and search functionality. It automatically handles common scenarios like creating parent directories for new files and provides detailed error messages that help the LLM understand why operations failed.
+// Extract test structure from all markdown files
+const testGroups: TestGroup[] = [];
 
-Each operation is designed to be atomic and independent, with no shared state between operations. This ensures predictable behavior and makes it easy for the LLM to reason about the effects of each action.
-=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/ABSTRACT.md ===
+testFiles.forEach(filename => {
+  const testPath = join(testDir, filename);
+  const mdContent = readFileSync(testPath, 'utf8');
+  
+  let currentGroup: TestGroup | null = null;
+  let currentTest: Partial<TestCase> | null = null;
+  
+  // Parse markdown to extract test cases with hierarchy
+  const tokens: Token[] = marked.lexer(mdContent);
+  
+  tokens.forEach(token => {
+    if (token.type === 'heading' && 'depth' in token) {
+      if (token.depth === 2) {
+        // New test group (e.g., "file_write")
+        currentGroup = {
+          name: (token as any).text,
+          tests: []
+        };
+        testGroups.push(currentGroup);
+      } else if (token.depth === 3 && currentGroup) {
+        // New test case
+        currentTest = {
+          name: (token as any).text
+        };
+      }
+    } else if (token.type === 'code' && currentTest && currentGroup) {
+      const codeBlock = token as Token & {type: 'code', text: string};
+      if (!currentTest.shamBlock) {
+        currentTest.shamBlock = codeBlock.text;
+      } else if (!currentTest.expectedBlock) {
+        currentTest.expectedBlock = codeBlock.text;
+        // Test case complete
+        currentGroup.tests.push(currentTest as TestCase);
+        currentTest = null;
+      }
+    }
+  });
+});
 
-=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md ===
-# Component: fs-ops
+// Test cleanup paths
+const testPaths = [
+  '/tmp/test.txt',
+  '/tmp/deeply',
+  '/tmp/existing.txt',
+  '/tmp/multiline.txt',
+  '/tmp/to-delete.txt',
+  '/tmp/does-not-exist.txt',
+  '/tmp/source.txt',
+  '/tmp/destination.txt',
+  '/tmp/original.txt',
+  '/tmp/new-dir',
+  '/tmp/ghost.txt',
+  '/tmp/nowhere.txt',
+  '/tmp/source-exists.txt',
+  '/tmp/dest-exists.txt',
+  '/tmp/moveable.txt',
+  '/tmp/replace-test.txt',
+  '/tmp/multi-replace.txt',
+  '/tmp/no-match.txt',
+  '/tmp/does-not-exist-replace.txt',
+  '/tmp/multiline-replace.txt',
+  '/tmp/empty-search.txt',
+  '/tmp/readable.txt',
+  '/tmp/not-there.txt',
+  '/tmp/multiple-occurrences.txt',
+  '/tmp/replace-all.txt',
+  '/tmp/count-mismatch.txt',
+  '/tmp/special-chars.txt',
+  '/tmp/numbered.txt',
+  '/tmp/listener.txt',
+  '/tmp/indented.txt',
+  '/tmp/partial.txt',
+  '/tmp/newlines.txt',
+  '/tmp/complex.txt',
+  '/tmp/trailing.txt'
+];
+
+describe('fs-ops integration tests', () => {
+  let createdPaths: Set<string>;
+
+  beforeEach(() => {
+    createdPaths = new Set<string>(); // Fresh set per test
+
+    // Clean up any existing test files
+    for (const path of testPaths) {
+      try {
+        if (existsSync(path)) {
+          rmSync(path, { recursive: true, force: true });
+        }
+      } catch (err) {
+        // Silently continue
+      }
+    }
+  });
+
+  afterEach(() => {
+    for (const path of createdPaths) {
+      rmSync(path, { recursive: true, force: true });
+    }
+    // Clean up after tests
+    for (const path of testPaths) {
+      try {
+        if (existsSync(path)) {
+          rmSync(path, { recursive: true, force: true });
+        }
+      } catch (err) {
+        // Silently continue
+      }
+    }
+  });
+
+
+  // Helper function to create test files and track paths
+  const createTestFile = (testName: string, filename: string, content: string): void => {
+    const testDir = `/tmp/t_${testName}`;
+    mkdirSync(testDir, { recursive: true });
+    writeFileSync(join(testDir, filename), content);
+    createdPaths.add(testDir);
+  };
+
+
+  testGroups.forEach(group => {
+    describe(group.name, () => {
+      group.tests.forEach(test => {
+        it(test.name, async () => {
+          const expectedOutput = JSON.parse(test.expectedBlock);
+          
+          // Extract test name without number prefix
+          const tn = test.name.replace(/^\d{3}-/, '');
+          
+
+
+
+          // Set up test preconditions based on group and test name
+          if (group.name === 'file_delete' && tn === 'delete-existing-file') {
+            createTestFile('delete-existing-file', 'to-delete.txt', 'This file will be deleted');
+          } else if (group.name === 'file_move' && tn === 'move-file-simple') {
+            createTestFile('move-file-simple', 'source.txt', 'Content to move');
+          } else if (group.name === 'file_move' && tn === 'move-file-to-new-directory') {
+            createTestFile('move-file-to-new-directory', 'original.txt', 'Moving to new directory');
+          } else if (group.name === 'file_move' && tn === 'move-to-existing-file') {
+            createTestFile('move-to-existing-file', 'source-exists.txt', 'Source content');
+            createTestFile('move-to-existing-file', 'dest-exists.txt', 'Will be overwritten');
+          } else if (group.name === 'file_replace_text' && tn === 'simple-text-replacement') {
+            createTestFile('simple-text-replacement', 'replace-test.txt', 'Hello World');
+          } else if (group.name === 'file_replace_text' && tn === 'replace-with-count-limit') {
+            createTestFile('replace-with-count-limit', 'multi-replace.txt', 'foo bar foo baz foo qux foo');
+          } else if (group.name === 'file_replace_text' && tn === 'replace-text-not-found') {
+            createTestFile('replace-text-not-found', 'no-match.txt', 'This file has no matches');
+          } else if (group.name === 'file_replace_text' && tn === 'multiline-replacement') {
+            createTestFile('multiline-replacement', 'multiline-replace.txt', `export function oldName() {
+  console.log('oldName');
+  return oldName;
+}
+
+function oldName() {
+  return oldName;
+}
+
+const x = oldName();`);
+          } else if (group.name === 'file_replace_text' && tn === 'empty-old-text-error') {
+            createTestFile('empty-old-text-error', 'empty-search.txt', 'Some content here');
+          } else if (group.name === 'file_replace_text' && tn === 'file-replace-text-multiple-occurrences') {
+            createTestFile('file-replace-text-multiple-occurrences', 'multiple-occurrences.txt', 'duplicate text with duplicate word and duplicate again');
+          } else if (group.name === 'file_replace_text' && tn === 'file-replace-all-text-no-count') {
+            createTestFile('file-replace-all-text-no-count', 'replace-all.txt', 'foo bar foo baz foo');
+          } else if (group.name === 'file_replace_text' && tn === 'file-replace-all-text-count-mismatch') {
+            createTestFile('file-replace-all-text-count-mismatch', 'count-mismatch.txt', 'test this test case');
+          } else if (group.name === 'file_read' && tn === 'read-existing-file') {
+            createTestFile('read-existing-file', 'readable.txt', 'This is readable content');
+          } else if (group.name === 'file_replace_text' && tn === 'complex-multiline-multiple-occurrences') {
+            createTestFile('complex-multiline-multiple-occurrences', 'listener.txt', `async function startListener(config) {
+  const watcher = createWatcher();
+  console.log('Starting listener');
+  return watcher;
+}
+
+async function stopListener(watcher) {
+  await watcher.close();
+  console.log('Stopped listener');
+}
+
+async function startListener(altConfig) {
+  // Different implementation
+  return createAltWatcher();
+}`);
+          } else if (group.name === 'file_replace_text' && tn === 'whitespace-sensitive-replacement') {
+            createTestFile('whitespace-sensitive-replacement', 'indented.txt', `class FileProcessor {
+  processFile(path) {
+    if (path) {
+      return readFile(path);
+    }
+  }
+  
+  processFiles(paths) {
+    return paths.map(p => this.processFile(p));
+  }
+}`);
+          } else if (group.name === 'file_replace_text' && tn === 'partial-match-should-not-replace') {
+            createTestFile('partial-match-should-not-replace', 'partial.txt', `export function validateInput(data) {
+  if (!data) throw new Error('Invalid input');
+  return true;
+}
+
+export function validateInputWithLogging(data) {
+  console.log('Validating:', data);
+  if (!data) throw new Error('Invalid input');
+  return true;
+}`);
+          } else if (group.name === 'file_replace_text' && tn === 'exact-newline-matching') {
+            createTestFile('exact-newline-matching', 'newlines.txt', `function one() {
+  return 1;
+}
+
+
+function two() {
+  return 2;
+}`);
+          } else if (group.name === 'file_replace_text' && tn === 'complex-code-block-replacement') {
+            createTestFile('complex-code-block-replacement', 'complex.txt', `const handler = {
+  async process(data) {
+    const result = await transform(data);
+    if (result.error) {
+      throw new Error(result.error);
+    }
+    return result.value;
+  },
+  
+  validate(data) {
+    return data != null;
+  }
+};`);
+          } else if (group.name === 'file_replace_text' && tn === 'trailing-whitespace-sensitivity') {
+            createTestFile('trailing-whitespace-sensitivity', 'trailing.txt', "function test() {  \n  return true;\n}\n");
+          }
+
+
+
+
+
+
+
+
+
+
+          // Parse SHAM to get actions
+          let parseResult;
+          try {
+            parseResult = await parseShamResponse(test.shamBlock);
+            // Force a minimal action to test downstream code
+            if (parseResult.actions.length === 0 && test.shamBlock.includes('action =')) {
+              console.log('WARNING: Parser returned no actions, check parser implementation');
+            }
+          } catch (error) {
+            console.log('Parse error:', error);
+            throw error;
+          }
+          
+          // Should have at least one action
+          expect(parseResult.actions.length).toBeGreaterThan(0);
+          expect(parseResult.errors).toHaveLength(0);
+          
+          // Execute all actions in sequence, capturing the last result
+          let result;
+          for (const action of parseResult.actions) {
+            result = await executeFileOperation(action);
+          }
+          
+          // Compare result
+          expect(result).toEqual(expectedOutput);
+        }, 30000);
+      });
+    });
+  });
+});
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test/integration/integration.test.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test/unit/replaceText.test.ts ===
+import { describe, it, expect } from 'vitest';
+import { replaceText } from '../../src/replaceText';
+import { cases } from '../../test-data/unit/replaceText.cases';
+
+describe('replaceText', () => {
+  cases.forEach(({ name, input, expected, throws }) => {
+    it(name, () => {
+      if (throws) {
+        expect(() => replaceText(...input)).toThrow(throws);
+      } else {
+        const result = replaceText(...input);
+        expect(result).toEqual(expected);
+      }
+    });
+  });
+});
+
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test/unit/replaceText.test.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test-data/integration/file_replace_text.cases.md ===
+# file_replace_text Integration Tests
+
+## file_replace_text
+
+### 001-simple-text-replacement
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rpl]
+action = "file_replace_text"
+path = "/tmp/t_simple-text-replacement/replace-test.txt"
+old_text = "Hello"
+new_text = "Goodbye"
+#!END_SHAM_rpl
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/t_simple-text-replacement/replace-test.txt",
+    "replacements": 1
+  }
+}
+```
+
+### 002-replace-with-count-limit
+
+```sh sham
+#!SHAM [@three-char-SHA-256: cnt]
+action = "file_replace_all_text"
+path = "/tmp/t_replace-with-count-limit/multi-replace.txt"
+old_text = "foo"
+new_text = "bar"
+count = "2"
+#!END_SHAM_cnt
+```
+
+```json
+{
+  "success": false,
+  "error": "file_replace_all_text: expected 2 occurrences but found 4"
+}
+```
+
+### 003-replace-text-not-found
+
+```sh sham
+#!SHAM [@three-char-SHA-256: nfr]
+action = "file_replace_text"
+path = "/tmp/t_replace-text-not-found/no-match.txt"
+old_text = "nonexistent"
+new_text = "replacement"
+#!END_SHAM_nfr
+```
+
+```json
+{
+  "success": false,
+  "error": "file_replace_text: old_text not found in file"
+}
+```
+
+### 004-replace-in-nonexistent-file
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rnf]
+action = "file_replace_text"
+path = "/tmp/t_replace-in-nonexistent-file/does-not-exist-replace.txt"
+old_text = "text"
+new_text = "other"
+#!END_SHAM_rnf
+```
+
+```json
+{
+  "success": false,
+  "error": "ENOENT: no such file or directory, open '/tmp/t_replace-in-nonexistent-file/does-not-exist-replace.txt'"
+}
+```
+
+### 005-multiline-replacement
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mlr]
+action = "file_replace_text"
+path = "/tmp/t_multiline-replacement/multiline-replace.txt"
+old_text = <<'EOT_SHAM_mlr'
+export function oldName() {
+  console.log('oldName');
+  return oldName;
+}
+EOT_SHAM_mlr
+new_text = <<'EOT_SHAM_mlr'
+export function newName() {
+  console.log('newName');
+  return newName;
+}
+EOT_SHAM_mlr
+#!END_SHAM_mlr
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/t_multiline-replacement/multiline-replace.txt",
+    "replacements": 1
+  }
+}
+```
+
+### 006-empty-old-text-error
+
+```sh sham
+#!SHAM [@three-char-SHA-256: emt]
+action = "file_replace_text"
+path = "/tmp/t_empty-old-text-error/empty-search.txt"
+old_text = ""
+new_text = "something"
+#!END_SHAM_emt
+```
+
+```json
+{
+  "success": false,
+  "error": "file_replace_text: old_text cannot be empty"
+}
+```
+
+### 007-file-replace-text-multiple-occurrences
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mul]
+action = "file_replace_text"
+path = "/tmp/t_file-replace-text-multiple-occurrences/multiple-occurrences.txt"
+old_text = "duplicate"
+new_text = "unique"
+#!END_SHAM_mul
+```
+
+```json
+{
+  "success": false,
+  "error": "file_replace_text: old_text appears 3 times, must appear exactly once"
+}
+```
+
+### 008-file-replace-all-text-no-count
+
+```sh sham
+#!SHAM [@three-char-SHA-256: all]
+action = "file_replace_all_text"
+path = "/tmp/t_file-replace-all-text-no-count/replace-all.txt"
+old_text = "foo"
+new_text = "bar"
+#!END_SHAM_all
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/t_file-replace-all-text-no-count/replace-all.txt",
+    "replacements": 3
+  }
+}
+```
+
+### 009-file-replace-all-text-count-mismatch
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mis]
+action = "file_replace_all_text"
+path = "/tmp/t_file-replace-all-text-count-mismatch/count-mismatch.txt"
+old_text = "test"
+new_text = "check"
+count = "5"
+#!END_SHAM_mis
+```
+
+```json
+{
+  "success": false,
+  "error": "file_replace_all_text: expected 5 occurrences but found 2"
+}
+```
+
+### 010-complex-multiline-multiple-occurrences
+
+```sh sham
+#!SHAM [@three-char-SHA-256: cm1]
+action = "file_write"
+path = "/tmp/t_complex-multiline-multiple-occurrences/listener.txt"
+content = <<'EOT_SHAM_cm1'
+async function startListener(config) {
+  const watcher = createWatcher();
+  console.log('Starting listener');
+  return watcher;
+}
+
+async function stopListener(watcher) {
+  await watcher.close();
+  console.log('Stopped listener');
+}
+
+async function startListener(altConfig) {
+  // Different implementation
+  return createAltWatcher();
+}
+EOT_SHAM_cm1
+#!END_SHAM_cm1
+
+#!SHAM [@three-char-SHA-256: cm2]
+action = "file_replace_text"
+path = "/tmp/t_complex-multiline-multiple-occurrences/listener.txt"
+old_text = <<'EOT_SHAM_cm2'
+async function startListener(config) {
+  const watcher = createWatcher();
+  console.log('Starting listener');
+  return watcher;
+}
+EOT_SHAM_cm2
+new_text = <<'EOT_SHAM_cm2'
+async function startListener(config) {
+  const watcher = createWatcher(config);
+  console.log('Starting listener with config');
+  return watcher;
+}
+EOT_SHAM_cm2
+#!END_SHAM_cm2
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/t_complex-multiline-multiple-occurrences/listener.txt",
+    "replacements": 1
+  }
+}
+```
+
+### 011-whitespace-sensitive-replacement
+
+```sh sham
+#!SHAM [@three-char-SHA-256: ws1]
+action = "file_write"
+path = "/tmp/t_whitespace-sensitive-replacement/indented.txt"
+content = <<'EOT_SHAM_ws1'
+class FileProcessor {
+  processFile(path) {
+    if (path) {
+      return readFile(path);
+    }
+  }
+  
+  processFiles(paths) {
+    return paths.map(p => this.processFile(p));
+  }
+}
+EOT_SHAM_ws1
+#!END_SHAM_ws1
+
+#!SHAM [@three-char-SHA-256: ws2]
+action = "file_replace_text"
+path = "/tmp/t_whitespace-sensitive-replacement/indented.txt"
+old_text = <<'EOT_SHAM_ws2'
+  processFile(path) {
+    if (path) {
+      return readFile(path);
+    }
+  }
+EOT_SHAM_ws2
+new_text = <<'EOT_SHAM_ws2'
+  async processFile(path) {
+    if (path) {
+      return await readFile(path);
+    }
+  }
+EOT_SHAM_ws2
+#!END_SHAM_ws2
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/t_whitespace-sensitive-replacement/indented.txt",
+    "replacements": 1
+  }
+}
+```
+
+### 012-partial-match-should-not-replace
+
+```sh sham
+#!SHAM [@three-char-SHA-256: pm1]
+action = "file_write"
+path = "/tmp/t_partial-match-should-not-replace/partial.txt"
+content = <<'EOT_SHAM_pm1'
+export function validateInput(data) {
+  if (!data) throw new Error('Invalid input');
+  return true;
+}
+
+export function validateInputWithLogging(data) {
+  console.log('Validating:', data);
+  if (!data) throw new Error('Invalid input');
+  return true;
+}
+EOT_SHAM_pm1
+#!END_SHAM_pm1
+
+#!SHAM [@three-char-SHA-256: pm2]
+action = "file_replace_text"
+path = "/tmp/t_partial-match-should-not-replace/partial.txt"
+old_text = <<'EOT_SHAM_pm2'
+export function validateInput(data) {
+  if (!data) throw new Error('Invalid input');
+  return true;
+}
+
+export function validateInputWithLogging(data) {
+EOT_SHAM_pm2
+new_text = "// This should not match"
+#!END_SHAM_pm2
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/t_partial-match-should-not-replace/partial.txt",
+    "replacements": 1
+  }
+}
+```
+
+### 013-exact-newline-matching
+
+```sh sham
+#!SHAM [@three-char-SHA-256: nl1]
+action = "file_write"
+path = "/tmp/t_exact-newline-matching/newlines.txt"
+content = <<'EOT_SHAM_nl1'
+function one() {
+  return 1;
+}
+
+
+function two() {
+  return 2;
+}
+EOT_SHAM_nl1
+#!END_SHAM_nl1
+
+#!SHAM [@three-char-SHA-256: nl2]
+action = "file_replace_text"
+path = "/tmp/t_exact-newline-matching/newlines.txt"
+old_text = <<'EOT_SHAM_nl2'
+}
+
+function two() {
+EOT_SHAM_nl2
+new_text = <<'EOT_SHAM_nl2'
+}
+
+// Added comment
+function two() {
+EOT_SHAM_nl2
+#!END_SHAM_nl2
+```
+
+```json
+{
+  "success": false,
+  "error": "file_replace_text: old_text not found in file"
+}
+```
+
+### 014-complex-code-block-replacement
+
+```sh sham
+#!SHAM [@three-char-SHA-256: cb1]
+action = "file_write"
+path = "/tmp/t_complex-code-block-replacement/complex.txt"
+content = <<'EOT_SHAM_cb1'
+const handler = {
+  async process(data) {
+    const result = await transform(data);
+    if (result.error) {
+      throw new Error(result.error);
+    }
+    return result.value;
+  },
+  
+  validate(data) {
+    return data != null;
+  }
+};
+EOT_SHAM_cb1
+#!END_SHAM_cb1
+
+#!SHAM [@three-char-SHA-256: cb2]
+action = "file_replace_all_text"
+path = "/tmp/t_complex-code-block-replacement/complex.txt"
+old_text = <<'EOT_SHAM_cb2'
+  async process(data) {
+    const result = await transform(data);
+    if (result.error) {
+      throw new Error(result.error);
+    }
+    return result.value;
+  }
+EOT_SHAM_cb2
+new_text = <<'EOT_SHAM_cb2'
+  async process(data) {
+    try {
+      const result = await transform(data);
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      return result.value;
+    } catch (e) {
+      console.error('Process failed:', e);
+      throw e;
+    }
+  }
+EOT_SHAM_cb2
+#!END_SHAM_cb2
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/t_complex-code-block-replacement/complex.txt",
+    "replacements": 1
+  }
+}
+```
+
+### 015-trailing-whitespace-sensitivity
+
+```sh sham
+#!SHAM [@three-char-SHA-256: tw1]
+action = "file_write"
+path = "/tmp/t_trailing-whitespace-sensitivity/trailing.txt"
+content = "function test() {  \n  return true;\n}\n"
+#!END_SHAM_tw1
+
+#!SHAM [@three-char-SHA-256: tw2]
+action = "file_replace_text"
+path = "/tmp/t_trailing-whitespace-sensitivity/trailing.txt"
+old_text = "function test() {\n  return true;\n}"
+new_text = "function test() {\n  return false;\n}"
+#!END_SHAM_tw2
+```
+
+```json
+{
+  "success": false,
+  "error": "file_replace_text: old_text not found in file"
+}
+```
+
+### 016-file-replace-text-multiple-identical-values
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mv1]
+action = "file_write"
+path = "/tmp/t_file-replace-text-multiple-identical-values/app.js"
+content = <<'EOT_SHAM_mv1'
+// Application code
+function process() {
+  const value = 100;
+  console.log(value);
+  
+  if (value > 50) {
+    console.log("High value");
+  }
+  
+  return value;
+}
+
+function validate() {
+  const value = 100;
+  return value > 0;
+}
+EOT_SHAM_mv1
+#!END_SHAM_mv1
+
+#!SHAM [@three-char-SHA-256: mv2]
+action = "file_replace_text"
+path = "/tmp/t_file-replace-text-multiple-identical-values/app.js"
+old_text = <<'EOT_SHAM_mv2'
+  const value = 100;
+EOT_SHAM_mv2
+new_text = <<'EOT_SHAM_mv2'
+  const value = 999;
+EOT_SHAM_mv2
+#!END_SHAM_mv2
+```
+
+```json
+{
+  "success": false,
+  "error": "file_replace_text: old_text appears 2 times, must appear exactly once"
+}
+```
+
+### 017-file-replace-text-section-not-found
+
+```sh sham
+#!SHAM [@three-char-SHA-256: sn1]
+action = "file_write"
+path = "/tmp/t_file-replace-text-section-not-found/readme.md"
+content = <<'EOT_SHAM_sn1'
+# Project README
+
+This is a sample project.
+
+## Installation
+
+Run the following command:
+- npm install
+
+## Usage
+
+Start the application with:
+- npm start
+EOT_SHAM_sn1
+#!END_SHAM_sn1
+
+#!SHAM [@three-char-SHA-256: sn2]
+action = "file_replace_text"
+path = "/tmp/t_file-replace-text-section-not-found/readme.md"
+old_text = <<'EOT_SHAM_sn2'
+## Configuration
+
+Configure the app by editing config.json
+EOT_SHAM_sn2
+new_text = <<'EOT_SHAM_sn2'
+## Configuration
+
+Configure the app by editing settings.yaml
+EOT_SHAM_sn2
+#!END_SHAM_sn2
+```
+
+```json
+{
+  "success": false,
+  "error": "file_replace_text: old_text not found in file"
+}
+```
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test-data/integration/file_replace_text.cases.md ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test-data/unit/extractNumberedLines.cases.ts ===
+export const cases = [
+  {
+    name: "extract single line",
+    input: ["Line 1\nLine 2\nLine 3", "2", ": "],
+    expected: {
+      result: "2: Line 2",
+      lineCount: 3
+    }
+  },
+  {
+    name: "extract line range",
+    input: ["First\nSecond\nThird\nFourth", "2-3", ": "],
+    expected: {
+      result: "2: Second\n3: Third",
+      lineCount: 4
+    }
+  },
+  {
+    name: "custom delimiter",
+    input: ["A\nB\nC", "1-2", "    "],
+    expected: {
+      result: "1    A\n2    B",
+      lineCount: 3
+    }
+  },
+  {
+    name: "empty delimiter",
+    input: ["One\nTwo\nThree", "2", ""],
+    expected: {
+      result: "2Two",
+      lineCount: 3
+    }
+  },
+  {
+    name: "out of range line",
+    input: ["Only\nTwo", "5", ": "],
+    expected: {
+      result: "",
+      lineCount: 2,
+      outOfRange: {
+        requested: "5",
+        actual: 2
+      }
+    }
+  },
+  {
+    name: "out of range end",
+    input: ["One\nTwo\nThree", "2-10", ": "],
+    expected: {
+      result: "2: Two\n3: Three",
+      lineCount: 3,
+      outOfRange: {
+        requested: "2-10",
+        actual: 3
+      }
+    }
+  },
+  {
+    name: "empty content",
+    input: ["", "1", ": "],
+    expected: {
+      result: "",
+      lineCount: 0
+    }
+  },
+  {
+    name: "single line content",
+    input: ["Just one line", "1", ": "],
+    expected: {
+      result: "1: Just one line",
+      lineCount: 1
+    }
+  },
+  {
+    name: "large line numbers",
+    input: [Array.from({length: 12}, (_, i) => `Line ${i + 1}`).join('\n'), "9-11", ": "],
+    expected: {
+      result: " 9: Line 9\n10: Line 10\n11: Line 11",
+      lineCount: 12
+    }
+  },
+  {
+    name: "padding across digit boundaries - tens",
+    input: [Array.from({length: 15}, (_, i) => `Line ${i + 1}`).join('\n'), "8-12", ": "],
+    expected: {
+      result: " 8: Line 8\n 9: Line 9\n10: Line 10\n11: Line 11\n12: Line 12",
+      lineCount: 15
+    }
+  },
+  {
+    name: "padding across digit boundaries - hundreds", 
+    input: [Array.from({length: 105}, (_, i) => `Line ${i + 1}`).join('\n'), "98-102", ": "],
+    expected: {
+      result: " 98: Line 98\n 99: Line 99\n100: Line 100\n101: Line 101\n102: Line 102",
+      lineCount: 105
+    }
+  },
+  {
+    name: "invalid line spec - not a number",
+    input: ["content", "abc", ": "],
+    throws: "Invalid line specification 'abc'"
+  },
+  {
+    name: "invalid line spec - negative",
+    input: ["content", "-5", ": "],
+    throws: "Invalid line specification '-5'"
+  },
+  {
+    name: "invalid range - reversed",
+    input: ["content", "5-3", ": "],
+    throws: "Invalid line range '5-3' (start must be <= end)"
+  },
+  {
+    name: "invalid range - negative start",
+    input: ["content", "-1-5", ": "],
+    throws: "Invalid line specification '-1-5'"
+  },
+  {
+    name: "invalid range - too many parts",
+    input: ["content", "1-2-3", ": "],
+    throws: "Invalid line specification '1-2-3'"
+  },
+  {
+    name: "undefined lineSpec - read all",
+    input: ["Line A\nLine B\nLine C", undefined, ": "],
+    expected: {
+      result: "1: Line A\n2: Line B\n3: Line C",
+      lineCount: 3
+    }
+  },
+  {
+    name: "undefined lineSpec - empty file",
+    input: ["", undefined, ": "],
+    expected: {
+      result: "",
+      lineCount: 0
+    }
+  }
+];
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test-data/unit/extractNumberedLines.cases.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test-data/unit/replaceText.cases.ts ===
+export const cases = [
+  {
+    name: "simple replacement",
+    input: ["hello world", "world", "universe"],
+    expected: {
+      result: "hello universe",
+      replacements: 1,
+    },
+  },
+  {
+    name: "multiple replacements",
+    input: ["foo bar foo baz", "foo", "qux"],
+    expected: {
+      result: "qux bar qux baz",
+      replacements: 2,
+    },
+  },
+  {
+    name: "limited replacements",
+    input: ["foo bar foo baz foo", "foo", "qux", 2],
+    expected: {
+      result: "qux bar qux baz foo",
+      replacements: 2,
+    },
+  },
+  {
+    name: "multiline content replacement",
+    input: [
+`function oldName() {
+  console.log('oldName');
+  return oldName;
+}`,
+      "oldName",
+      "newName",
+    ],
+    expected: {
+      result: 
+`function newName() {
+  console.log('newName');
+  return newName;
+}`,
+      replacements: 3,
+    },
+  },
+  {
+    name: "multiline search and replace",
+    input: [
+`const config = {
+  old: {
+    setting: true
+  },
+  other: false
+};`,
+`old: {
+    setting: true
+  }`,
+`new: {
+    setting: false,
+    extra: 'value'
+  }`,
+    ],
+    expected: {
+      result: 
+`const config = {
+  new: {
+    setting: false,
+    extra: 'value'
+  },
+  other: false
+};`,
+      replacements: 1,
+    },
+  },
+  {
+    name: "replace code block with limit",
+    input: [
+`// TODO: fix this
+function broken() {
+  // TODO: fix this
+  return null;
+}
+// TODO: fix this`,
+      "// TODO: fix this",
+      "// FIXED",
+      2,
+    ],
+    expected: {
+      result: 
+`// FIXED
+function broken() {
+  // FIXED
+  return null;
+}
+// TODO: fix this`,
+      replacements: 2,
+    },
+  },
+  {
+    name: "no matches in multiline",
+    input: [
+`Line 1
+Line 2
+Line 3`,
+      "Line 4",
+      "Line X",
+    ],
+    expected: {
+      result: 
+`Line 1
+Line 2
+Line 3`,
+      replacements: 0,
+    },
+  },
+  {
+    name: "empty old text",
+    input: ["hello world", "", "xyz"],
+    throws: "old_text cannot be empty",
+  },
+  {
+    name: "overlapping replacements",
+    input: ["aaaa", "aa", "b"],
+    expected: {
+      result: "bb",
+      replacements: 2,
+    },
+  },
+  {
+    name: "replace with empty string",
+    input: ["foo bar foo", "foo ", ""],
+    expected: {
+      result: "bar foo",
+      replacements: 1,
+    },
+  },
+  {
+    name: "windows line endings",
+    input: ["line1\r\nline2\r\nline3", "\r\n", "\n"],
+    expected: {
+      result: "line1\nline2\nline3",
+      replacements: 2,
+    },
+  },
+  {
+    name: "indent-sensitive replacement",
+    input: [
+`class OldClass:
+    def method(self):
+        pass`,
+      "OldClass",
+      "NewClass",
+    ],
+    expected: {
+      result: 
+`class NewClass:
+    def method(self):
+        pass`,
+      replacements: 1,
+    },
+  },
+];
+
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test-data/unit/replaceText.cases.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test/integration/minimal.test.ts ===
+import { describe, it, expect } from 'vitest';
+import { writeFileSync, readFileSync, unlinkSync, existsSync } from 'fs';
+
+describe('minimal fs test', () => {
+  it('can write and read files', () => {
+    const path = '/tmp/minimal-test.txt';
+    const content = 'test content';
+    
+    // Write
+    writeFileSync(path, content);
+    
+    // Read
+    const read = readFileSync(path, 'utf8');
+    expect(read).toBe(content);
+    
+    // Cleanup
+    unlinkSync(path);
+    expect(existsSync(path)).toBe(false);
+  });
+  
+  it('can run multiple times', () => {
+    for (let i = 0; i < 10; i++) {
+      const path = `/tmp/minimal-${i}.txt`;
+      writeFileSync(path, `content ${i}`);
+      unlinkSync(path);
+    }
+    expect(true).toBe(true);
+  });
+});
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test/integration/minimal.test.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/package.json ===
+{
+  "name": "clada",
+  "version": "0.1.0",
+  "description": "Common LLM Actions Desktop Actuator",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "dev": "tsx watch proj/src/index.ts",
+    "start": "tsx proj/src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "test:run": "vitest run",
+    "test:debug": "vitest run --reporter=verbose --no-coverage",
+    "test:handles": "node --expose-gc ./node_modules/.bin/vitest run --reporter=verbose --no-coverage",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint proj/**/*.ts",
+    "lint:fix": "eslint proj/**/*.ts --fix",
+    "listener": "tsx test-listener-live.ts"
+  },
+  "dependencies": {
+    "clipboardy": "^4.0.0",
+    "js-yaml": "^4.1.0",
+    "marked": "^12.0.0",
+    "nesl-js": "github:nesl-lang/nesl-js"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.19.9",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.56.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.7.0",
+    "typescript": "^5.8.3",
+    "vitest": "^1.2.0"
+  },
+  "keywords": [
+    "llm",
+    "actions",
+    "filesystem",
+    "sham"
+  ],
+  "author": "",
+  "license": "MIT"
+}
+
+=== END FILE: /Users/stuart/repos/clada/package.json ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/orch/doc/API.md ===
+# Component: clada
 
 ## Component Type
 standard
 
-## Status
-[IMPLEMENTED] - All file operations (write, read, delete, move, replace_text, replace_all_text, files_read)
-[NOT IMPLEMENTED] - Directory operations (dir_create, dir_delete, ls), search operations (grep, glob)
-
-## Documentation Debt
-- [ ] Integration test format is preliminary [IMPLEMENTED]
-- [ ] Error handling strategy needs refinement
-- [ ] Consider batching operations for efficiency
-
 ## Dependencies
-
-[Updated via STOP protocol - initial hypothesis proved mostly correct]
 
 ```yaml
 dependencies:
-  node:fs/promises:
-    functions: [writeFile, unlink, mkdir, rename, stat, readFile]
-    
-  node:path:
-    functions: [dirname]
-    # Note: removed unused - resolve, join (not yet needed)
-    
-  # Removed node:util - not used
-  # Removed node:child_process - grep not yet implemented
+  proj/comp/sham-action-parser:  # [IMPLEMENTED]
+    functions: [parseShamResponse]
+    types: [ParseResult, CladaAction, ParseError, ValidationResult, TransformError]
+  
+  proj/comp/fs-ops:              # [PARTIALLY IMPLEMENTED]
+    functions: [executeFileOperation]
+    types: [FileOpResult]
+    classes:
+      FileOpError:
+        extends: Error
+  
+  proj/comp/exec:                # [PLANNED]
+    functions: [executeCommand]
+    types: [ExecResult]
+  
+  proj/comp/git-tx:              # [PLANNED - v1.2]
+    functions: [ensureCleanRepo, commitChanges]
+    types: [GitError]
+  
+  proj/comp/context:             # [PLANNED]
+    functions: [addPath, removePath, listPaths, clearContext]
+    types: [ContextError]
+  
+  external/nesl-js:
+    functions: [parseSham]
+    types: [Block, ParseResult, ParseError]
 ```
 
 ## Exports
 
 ```yaml
 exports:
-  functions: [executeFileOperation]
-  types: [FileOpResult]
   classes:
-    FileOpError:
-      extends: Error
+    Clada:
+      constructor: [options?: CladaOptions]
+      methods: [execute]
+  types: 
+    - ExecutionResult
+    - ActionResult  
+    - CladaOptions
+  # Note: ParseError is re-exported from sham-action-parser
 ```
 
-### executeFileOperation
-- **Signature**: `executeFileOperation(action: CladaAction) -> Promise<FileOpResult>`
-- **Purpose**: Execute file system operations from parsed SHAM actions
-- **Throws**: Never - all errors captured in FileOpResult
-- **Test-data**: `test-data/integration/*.cases.md` [IMPLEMENTED]
+### Clada (class)
+- **Purpose**: Main orchestrator executing SHAM blocks from LLM output
+- **Constructor**: `new Clada(options?: CladaOptions)`
+- **State**: Maintains working directory and context set across execute() calls
 
-### FileOpResult (type)
+### execute
+- **Signature**: `async execute(llmOutput: string): Promise<ExecutionResult>`
+- **Purpose**: Parse and execute all SHAM blocks in LLM output, commit results
+- **Process**: 
+  1. Parse SHAM blocks
+  2. Convert to actions
+  3. Execute all valid actions
+  4. (v1.2: Git commit with summary)
+- **Throws**: Never - all errors captured in ExecutionResult
+- **Test-data**: `test-data/execute/basic-operations.md` [IMPLEMENTED]
+
+### ExecutionResult (type)
 ```typescript
-interface FileOpResult {
+interface ExecutionResult {
+  success: boolean              // False if any action failed
+  totalBlocks: number          // Count of SHAM blocks found
+  executedActions: number      // Count of actions attempted
+  results: ActionResult[]      // All execution results
+  parseErrors: ParseError[]    // SHAM parsing errors
+  fatalError?: string         // System failure (v1.2: will include git errors)
+}
+```
+
+### ActionResult (type)
+```typescript
+interface ActionResult {
+  seq: number                  // Execution order
+  blockId: string             // SHAM block ID
+  action: string              // Action type
+  params: Record<string, any> // Input parameters
   success: boolean
-  data?: any           // Operation-specific return data
-  error?: string       // Error message if failed
+  error?: string              // Error message if failed
+  data?: any                  // Action-specific output
 }
 ```
 
-### FileOpError (type)
+### ParseError (type)
 ```typescript
-interface FileOpError extends Error {
-  code: string         // e.g., 'ENOENT', 'EACCES'
-  path?: string        // File path involved
-  operation: string    // Which operation failed
+interface ParseError {
+  blockId?: string            // If error is block-specific
+  error: ShamError            // From parser
 }
 ```
+
+### CladaOptions (type)
+```typescript
+interface CladaOptions {
+  repoPath?: string           // Default: process.cwd()
+  gitCommit?: boolean         // v1.2 feature - Default: true
+}
+```
+
+## Internal Architecture
+
+### Execution Flow
+```
+execute(llmOutput)
+  → parseSHAM(llmOutput) → ShamParseResult
+  → for each valid block:
+    → convertToActions(block) → CladaAction[]
+    → for each action:
+      → route to appropriate executor
+      → capture result
+  → commitChanges(results)
+  → return ExecutionResult
+```
+
+### Action Routing
+- file_* → fs-ops
+- dir_* → fs-ops
+- exec → exec
+- context_* → context
+- ls, grep, glob → fs-ops (read operations)
+
+### Error Handling
+- Parser errors: Skip block, record error
+- Conversion errors: Skip action, record error
+- Execution errors: Continue execution, record error
+- Git errors: Fatal, abort with fatalError
+=== END FILE: /Users/stuart/repos/clada/proj/comp/orch/doc/API.md ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/orch/doc/ARCH.md ===
+# Clada Architecture
+
+
+IMPORTANT TOOL TESTING NOTES:
+
+- for test specific clada tools, each tool must get its own test case file, for easy visibility into which tools have been implemented and tested yet.
+- aka `proj/comp/fs-ops/test-data/integration/file_delete.cases.md`
+
+## Core Design Decisions
+
+### Transaction Model
+- **No automatic rollback** - All operations commit, including failures
+- **Failures are data** - LLM needs failure feedback for next steps
+- **Forward-only progress** - Cheaper than regenerating responses
+- **Manual rollback only** - Human-initiated via git commands
+- **Boundary**: One git commit per `execute()` call
+- **API**: Explicit transaction management (details TBD)
+
+### SHAM Processing Pipeline
+1. SHAM parser (external npm) → AST
+2. AST → Action objects (sham-ast-converter)
+3. Actions → Execution → Results
+
+### SHAM AST Structure
+```typescript
+interface ShamParseResult {
+  blocks: ShamBlock[]
+  errors: ShamError[]
+}
+
+interface ShamBlock {
+  id: string           // 3-char SHA-256
+  properties: {
+    action: string     // Maps to tool name (e.g., "file_write")
+    [key: string]: any // Tool-specific parameters
+  }
+  startLine: number
+  endLine: number
+}
+
+interface ShamError {
+  code: string         // e.g., "DUPLICATE_KEY"
+  line: number
+  column: number
+  length: number
+  blockId: string
+  content: string
+  context: string
+  message: string
+}
+```
+
+### Error Propagation Strategy
+- **Parser errors**: Skip blocks with parser errors, execute valid blocks only
+- **Validation errors**: Skip invalid actions, execute valid ones
+- **Execution errors**: Continue with remaining actions
+- **Result**: Complete execution log with successes and failures
+
+### Action Mapping
+- SHAM `action` property maps directly to tool names from unified-design.yaml
+- Use canonical names: `file_write`, `exec`, etc.
+
+### Context Management
+- **V1**: Simple `Set<string>` of file paths
+- **Storage**: In-memory only, no persistence across sessions
+- **V2 Future**: Sub-file references (lines, functions, sections)
+
+### Execution Model
+- **Synchronous**: All operations block until complete
+- **CWD Management**: Session-based working directory
+  - Default: Repository root
+  - Each exec can override with `cwd` parameter
+  - CWD persists within session, not across transactions
+- **Results Format**: Flat array with sequence numbers
+```typescript
+interface ActionResult {
+  seq: number          // Execution order
+  blockId: string      // SHAM block ID
+  action: string       // Action type
+  params: any          // Input parameters
+  success: boolean
+  error?: string       // Error message if failed
+  data?: any           // Action-specific output (stdout, content, etc.)
+}
+```
+
+### Security Model (V1)
+- **None**: Full filesystem access
+- **No validation**: Any path allowed
+- **No sandboxing**: Direct execution
+- **V2 Future**: Path allowlisting per unified-design.yaml. FOR THIS REASON all fs stuff should immediately be implemented using our fs wrapper functions so this whitelisting/blacklisting is easy to implment in the future.
+
+## Component Structure
+```
+clada/
+├── proj/
+│   ├── comp/
+│   │   ├── sham-ast-converter/  # AST → Actions
+│   │   ├── fs-ops/              # File/directory operations
+│   │   ├── exec/                # Command execution
+│   │   ├── git-tx/              # Git transaction management
+│   │   └── context/             # Working set management
+│   └── doc/
+│       ├── API.md               # Main orchestrator API
+│       ├── ARCH.md              # This document
+│       └── ABSTRACT.md          # Project overview
+```
+
+## Implementation Priorities
+1. `sham-ast-converter` - Cannot test without this
+2. `fs-ops` - Core functionality
+3. `exec` - Command execution
+4. `git-tx` - Transaction wrapper
+5. `context` - Working set (may be simple enough to inline)
+
+## Open Questions
+
+### Critical
+1. **SHAM parser package**: `nesl-js` from `github:nesl-lang/nesl-js`
+   - Import: `const { parseSHAM } = require('nesl-js')`
+2. **Transaction API**: Single `execute()` method processes SHAM block array
+
+### Design
+1. **Parser error handling**: Execute blocks with parser errors or skip?
+2. **Git conflict handling**: How to handle conflicts during manual rollback?
+3. **Concurrent access**: Multiple clada instances on same repo?
+4. **Partial failure behavior**: Continue executing after first failure or abort?
+
+### Future
+1. **Context references**: Syntax for line ranges and functions
+2. **Execution isolation**: Container/VM strategy for V2
+3. **Streaming results**: Return results as actions complete or batch at end?
+
+## Design Rationale
+
+### Why No Automatic Rollback
+Traditional transaction systems rollback on failure to maintain consistency. Clada explicitly rejects this because:
+1. **LLM responses are expensive** - Regenerating costs time and money
+2. **Partial success is informative** - LLM learns from failures
+3. **Git preserves history** - Can always manually revert
+4. **Forward progress over perfection** - Incremental improvement model
+
+### Why Synchronous Execution
+1. **Deterministic results** - LLM needs to know exact outcomes
+2. **Sequential dependencies** - Later actions may depend on earlier ones
+3. **Simpler implementation** - No async state management
+4. **Git compatibility** - Git operations are inherently synchronous
+
+### Why In-Memory Context
+1. **Session isolation** - Each LLM conversation is independent
+2. **No persistence complexity** - No file format versioning
+3. **Git is the source of truth** - Files on disk matter, not context
+4. **Quick reset** - New session = clean slate
+=== END FILE: /Users/stuart/repos/clada/proj/comp/orch/doc/ARCH.md ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/orch/doc/TODO.md ===
+
+Issues revealed by execute.md test design:
+
+Missing gitCommit field in expected results
+Context operations not tested - are they SHAM actions?
+Git state check not tested - what if dirty repo?
+Directory creation for file operations unclear
+
+
+---
+
+
+https://claude.ai/chat/f2f318e7-0f4c-4a5a-b9ee-35c8c7a83a06
+Next step: Add executor: fs-ops to all file/dir operations in the YAML when convenient. The system will work without it due to the inference fallback.
+
+---
+
+add malformed sha id error to nesl-js  so it reeturns a good error for:
+
+
+```sh sham
+#!SHAM [@sham-id: 567]
+action = "file_replace_text"
+path = "/tmp/replace-test.txt"
+old_text = "Hello"
+new_text = "Hi"
+#!END_SHAM_567
+```
+
+(should be )
+
+
+```sh sham
+#!SHAM [@three-char-SHA-256: 567]
+action = "file_replace_text"
+path = "/tmp/replace-test.txt"
+old_text = "Hello"
+new_text = "Hi"
+#!END_SHAM_567
+```
+=== END FILE: /Users/stuart/repos/clada/proj/comp/orch/doc/TODO.md ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/ABSTRACT.md ===
+# SHAM Action Parser
+
+Parses SHAM blocks from LLM responses into validated clada action objects, executing as many valid actions as possible while collecting errors for failed blocks.
+
+## Overview
+
+This component bridges between LLM-generated SHAM syntax and clada's action system. It processes text containing SHAM blocks, validates each block independently against clada's action schema, and transforms valid blocks into executable action objects. The parser is intentionally permissive - it processes all blocks and collects both successes and failures, allowing clada to execute valid actions while reporting specific errors back to the LLM for correction. This design minimizes expensive LLM regeneration by salvaging partial success from responses containing some malformed blocks.
+
+The parser handles:
+- SHAM syntax parsing via nesl-js
+- Action type validation against unified-design schema  
+- Parameter presence and type checking
+- String-to-type conversions (booleans, integers, paths)
+- Comprehensive error collection with block context
+- Preservation of SHAM metadata (IDs, line numbers)
+
+This approach enables efficient LLM-clada interaction by providing detailed feedback on exactly which actions failed and why, allowing targeted corrections rather than full regeneration.
+=== END FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/ABSTRACT.md ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/API.md ===
+# Component: sham-action-parser
+
+## Component Type
+standard
+
+## Documentation Debt
+[Must be empty before implementation]
+
+## Dependencies
+[Updated via STOP protocol - implementation complete]
+
+```yaml
+dependencies:
+  external/nesl-js:
+    functions: [parseSham]
+    types: [Block, ParseResult as NeslParseResult]
+  
+  external/js-yaml:
+    functions: [load as loadYaml]
+    types: []
+  
+  node:fs/promises:
+    functions: [readFile]
+    types: []
+  
+  node:path:
+    functions: [dirname, join]
+    types: []
+    
+  node:url:
+    functions: [fileURLToPath]
+    types: []
+```
+
+## Exports
+```yaml
+exports:
+  functions: [parseShamResponse, validateShamBlock, transformToAction, clearActionSchemaCache]
+  types: [ParseResult, CladaAction, ParseError, ValidationResult, TransformError]
+  errors: [TransformError]
+```
+
+### parseShamResponse
+- **Signature**: `parseShamResponse(shamText: string) -> Promise<ParseResult>`
+- **Purpose**: Parse SHAM blocks from text into validated clada actions.
+- **Test-data**: `test-data/parseShamResponse.json`
+
+### validateShamBlock
+- **Signature**: `validateShamBlock(block: ShamBlock, actionSchema: ActionDefinition) -> ValidationResult`
+- **Purpose**: Validate a single SHAM block against action schema.
+- **Test-data**: `test-data/validateShamBlock.json`
+
+### transformToAction
+- **Signature**: `transformToAction(block: ShamBlock, actionDef: ActionDefinition) -> CladaAction`
+- **Purpose**: Transform validated SHAM block into typed clada action.
+- **Throws**: `TransformError` when type conversion fails
+- **Test-data**: `test-data/transformToAction.json`
+
+### clearActionSchemaCache
+- **Signature**: `clearActionSchemaCache() -> void`
+- **Purpose**: Clear cached action schema to force reload on next parse.
+- **Test-data**: None (utility function for testing)
 
 ## Internal Functions
+[Discovered during implementation - not exported]
 
-### createFile
-- **Signature**: `createFile(path: string, content: string) -> Promise<void>`
-- **Purpose**: Create new file with content, creating parent directories as needed
+### loadActionSchema
+- **Signature**: `loadActionSchema() -> Promise<Map<string, ActionDefinition>>`
+- **Purpose**: Load and parse unified-design.yaml action definitions with 5s timeout.
 
-### writeFile  
-- **Signature**: `writeFile(path: string, content: string) -> Promise<void>`
-- **Purpose**: Overwrite existing file content
+### reconstructShamBlock
+- **Signature**: `reconstructShamBlock(block: Block) -> string`
+- **Purpose**: Recreate SHAM syntax from parsed block for error context.
 
-### replaceText
-- **Signature**: `replaceText(content: string, oldText: string, newText: string, count?: number) -> {result: string, replacements: number}`
-- **Purpose**: Pure function to replace text occurrences in string content
-- **Throws**: Error when oldText is empty string
-- **Behavior**: Replaces up to `count` occurrences (all if count undefined)
+### parseBoolean (in transformToAction.ts)
+- **Signature**: `parseBoolean(value: string) -> boolean`
+- **Purpose**: Convert string "true"/"false" to boolean.
 
-### deleteFile
-- **Signature**: `deleteFile(path: string) -> Promise<void>`
-- **Purpose**: Remove file
+### parseInteger (in transformToAction.ts)
+- **Signature**: `parseInteger(value: string) -> number`
+- **Purpose**: Convert numeric string to integer.
+- **Throws**: `TransformError` when not a valid integer
 
-### moveFile
-- **Signature**: `moveFile(oldPath: string, newPath: string) -> Promise<void>`
-- **Purpose**: Move or rename file
+### validateAbsolutePath (in transformToAction.ts)
+- **Signature**: `validateAbsolutePath(path: string) -> boolean`
+- **Purpose**: Check if string is valid absolute path.
 
-### readFileContent
-- **Signature**: `readFileContent(path: string) -> Promise<string>`
-- **Purpose**: Read file content as UTF-8 string
+## Types
 
-### createDirectory
-- **Signature**: `createDirectory(path: string) -> Promise<void>`
-- **Purpose**: Create directory, including parent directories
-
-### deleteDirectory
-- **Signature**: `deleteDirectory(path: string) -> Promise<void>`
-- **Purpose**: Remove directory (must be empty)
-
-### listDirectory
-- **Signature**: `listDirectory(path: string) -> Promise<DirEntry[]>`
-- **Purpose**: List directory contents with metadata
-
-### searchFiles
-- **Signature**: `searchFiles(pattern: string, path: string, include?: string) -> Promise<GrepResult[]>`
-- **Purpose**: Search for pattern in files (grep-like)
-
-### globFiles
-- **Signature**: `globFiles(pattern: string, basePath: string) -> Promise<string[]>`
-- **Purpose**: Find files matching glob pattern
-
-### extractNumberedLines
-- **Signature**: `extractNumberedLines(content: string, lineSpec: string, delimiter: string) -> { result: string, lineCount: number }`
-- **Purpose**: Pure function to extract and number specific lines from content
-- **Parameters**:
-  - `content`: Full file content
-  - `lineSpec`: Line specification ("4" for single line, "23-43" for range)
-  - `delimiter`: Delimiter between line number and content
-- **Returns**: Object with numbered lines and total line count
-- **Throws**: Error for invalid line specifications
-
-### handleFileReadNumbered
-- **Signature**: `handleFileReadNumbered(action: CladaAction) -> Promise<FileOpResult>`
-- **Purpose**: Read file content with line numbers for specified line range
-- **Parameters**: 
-  - `path`: File path to read
-  - `lines`: Line range string ("23-43") or single line ("4")
-  - `delimiter`: Optional delimiter between line number and content (default: ": ")
-- **Returns**: FileOpResult with numbered content
-- **Test-data**: `test-data/integration/file_read_numbered.cases.md` [IMPLEMENTED]
-
-## Action Mapping
-
+### ParseResult
 ```typescript
-const actionHandlers = {
-  // Implemented
-  'file_write': handleFileWrite,
-  'file_replace_text': handleFileReplaceText,
-  'file_replace_all_text': handleFileReplaceAllText,
-  'file_delete': handleFileDelete,
-  'file_move': handleFileMove,
-  'file_read': handleFileRead,
-  'files_read': handleFilesRead,
-  'file_read_numbered': handleFileReadNumbered,
-  
-  // Not implemented
-  'dir_create': async (action) => ({ success: false, error: 'Not implemented' }),
-  'dir_delete': async (action) => ({ success: false, error: 'Not implemented' }),
-  'ls': async (action) => ({ success: false, error: 'Action not implemented: ls' }),
-  'grep': async (action) => ({ success: false, error: 'Not implemented' }),
-  'glob': async (action) => ({ success: false, error: 'Not implemented' })
+{
+  actions: CladaAction[]      // Successfully parsed actions
+  errors: ParseError[]        // All errors encountered
+  summary: {
+    totalBlocks: number
+    successCount: number
+    errorCount: number
+  }
 }
 ```
-=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md ===
 
-=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/ARCH.md ===
-# fs-ops Architecture
+### CladaAction
+```typescript
+{
+  action: string              // Action name from unified-design
+  parameters: Record<string, any>  // Typed parameters
+  metadata: {
+    blockId: string          // SHAM block ID
+    startLine: number
+    endLine: number
+  }
+}
+```
+
+### ParseError
+```typescript
+{
+  blockId: string            // Which SHAM block failed
+  action?: string            // Action type if identified
+  errorType: 'syntax' | 'validation' | 'type'
+  message: string            // Specific error details
+  blockStartLine?: number    // Starting line of the SHAM block
+  shamContent?: string       // Original SHAM block for context
+}
+```
+
+### ValidationResult
+```typescript
+{
+  valid: boolean
+  actionType?: string        // Identified action if valid
+  errors?: string[]          // Validation errors if invalid
+}
+```
+
+### TransformError
+```typescript
+class TransformError extends Error {
+  parameterName: string
+  expectedType: string
+  actualValue: string
+}
+```
+
+### ActionDefinition
+```typescript
+{
+  type: 'read' | 'write' | 'meta' | 'git' | 'dynamic'
+  description: string
+  parameters: Record<string, ParameterDef>
+  returns: Record<string, any>
+}
+```
+
+### ParameterDef
+```typescript
+{
+  type: string              // 'string' | 'integer' | 'boolean' | 'enum'
+  required: boolean
+  format?: string           // e.g. 'absolute_path'
+  values?: string[]         // for enum type
+  default?: any
+}
+```
+=== END FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/API.md ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/ARCH.md ===
+# SHAM Action Parser - Architecture
 
 ## Design Philosophy
 
-**Defensive Operations with Clear Errors**: Every operation should handle common failure cases gracefully and return descriptive errors that help the LLM understand what went wrong.
+**Maximize Execution, Minimize Regeneration**: Parse and validate each SHAM block independently. Execute all valid actions while collecting detailed errors for invalid ones. This avoids expensive LLM token usage for full response regeneration.
 
-## Key Design Decisions
+## Processing Pipeline
 
-### Parent Directory Creation
-- `file_write` automatically creates parent directories.  creates parent directory if it doesn't exist
+1. **SHAM Parsing** (via nesl-js)
+   - Input: Raw text with SHAM blocks
+   - Output: Parsed blocks with string properties
+   - Preserves: Block IDs, line numbers, raw content
 
-### Text Replacement Strategy  
-- Use exact string matching for both replace actions
-- `file_replace_text`: Must find EXACTLY ONE occurrence (fails if 0 or 2+)
-- `file_replace_all_text`: Replaces all occurrences, validates count if provided
-- Empty old_text validation: Both actions reject empty search strings
-- Return actual number of replacements made
-- No regex support (keep it simple, predictable)
+2. **Action Validation** (per block)
+   - Validate `action` field exists and matches known clada actions
+   - Check required parameters for specific action type
+   - Continue processing even if some blocks fail
 
-### Error Handling
-- Never throw - return errors in result object
-- Include original error codes (ENOENT, EACCES)
-- Add context about what operation was attempted
-- Preserve stack traces for debugging
+3. **Type Transformation** (per valid block)
+   - Convert string values to appropriate types
+   - Validate constraints (path formats, enum values, etc.)
+   - Preserve original SHAM metadata
 
-### Path Resolution
-- All paths must be absolute (validated by parser)
-- No path traversal validation (security is out of scope for v1)
-- Symlinks followed transparently
+4. **Result Aggregation**
+   - Collect all successful action objects
+   - Collect all errors with context
+   - Return comprehensive ParseResult
 
-### Directory Operations
-- `dir_delete` only removes empty directories
-- No recursive deletion option (safety)
-- `ls` returns flat listing with type info
+## Error Handling Strategy
 
-### Search Operations
-- `grep` uses simple substring matching
-- Include patterns use glob syntax
-- Results include line numbers
-- Large file handling: streaming for files >10MB
+Each block processed independently with errors collected in structured format:
+- `blockId`: SHAM block identifier
+- `action`: Action type if identified before error
+- `blockStartLine`: Starting line number of the SHAM block in original text
+- `errorType`: Category (syntax, validation, type)
+- `message`: Specific error details
+- `shamContent`: Original SHAM block for LLM reference
 
-## Performance Considerations
+### Implementation Details
+- Tracks blocks with syntax errors to avoid double-processing
+- Handles null/undefined from parseSham gracefully
+- 5-second timeout on unified-design.yaml loading
+- Cache mechanism with clearing for tests
+- Block reconstruction uses JSON.stringify for proper quote escaping
 
-- File operations are synchronous from caller perspective
-- No caching of file contents
-- No watch/monitor capabilities
-- Each operation is independent
+## Type Conversions
 
-## Encoding
+All SHAM values are strings, requiring conversion:
+- **Booleans**: "true"/"false" → boolean
+- **Integers**: Numeric strings → number
+- **Paths**: Validate absolute path format
+- **Enums**: Validate against allowed values
+- **Arrays**: Not supported in SHAM (would need special syntax)
 
-- All text files assumed UTF-8
-- Binary files not supported in v1
-- Line endings preserved as-is
+## Action Mapping
 
-## Limits
+SHAM actions map directly to clada tool names from unified-design.yaml:
+- Must use exact tool names (e.g., `file_write`, not `write_file`)
+- No aliasing or fuzzy matching to avoid ambiguity
 
-- Max file size: 10MB (from unified-design.yaml)
-- No limit on number of operations
-- No timeout on individual operations
+## Constraints
 
-## Test Conventions
+- SHAM doesn't support complex types (objects, arrays)
+- All values are strings requiring parsing
+- No nested structures
+- Heredoc strings preserve internal formatting
+- Unified-design.yaml must be at ../../../../unified-design.yaml relative to src/
+- Schema loading uses ES module URL resolution (fileURLToPath)
 
-- Test files use `/tmp/t_{test-name}/` path pattern for isolation
-- Each test creates its own subdirectory to avoid conflicts
-- Integration tests track created paths for cleanup
+## Dependencies on Other Components
 
-## Future Considerations
+- Requires action schema definitions (types, required params)
+- Will need shared error types with response formatter
+- Path validation utilities
+=== END FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/ARCH.md ===
 
-- Batch operations for efficiency
-- Binary file support
-- File watching/monitoring
-- Atomic write operations (write to temp, rename)
-- Path validation against allowlist
+=== START FILE: /Users/stuart/repos/clada/replacer/replacer_llm_instructions.md ===
+coding style guide:  TDD.  self documenting code.  every api  function name should make it super obvious who is doing what and why
+
+WOL = "words or less, please"
+
+keep the docs as lean
+
+refactor code to make it smaller whenever possible.  DRY.
+
+IMPORTANT:  do not generate edit instructions unless specifically asked to.  not necessary when just discussing and brainstorming
+
+- all code functions and classes or large (10 lines of code or more?) need code comments to cocnisely and lcearly describe what they're doing and why and how
+
+IMPORTANT: 
+
+whenever you generate new code, use the following format.  dont just generate a standalone artifact.  when generating one or multiple new files, use the OVERWRITE pattern shown below 
+
+For each specific edit that needs to happen, list a brief explanation for the change, list file name, and then explicitly make it clear what the target text is that need to be changed, and then the replacement text is that will replace it. Each of those blocks of text or code need to be explicit verbatim character by character Perfect matches for the intended text.  be sure to put the filenames and expalanations on their own lines for easy human reading even in output format.  like paragraph breaks before and after so thye're on their own lines even when not in code blocks.  use this format below exactly. note that the OVERWRITE style block can be used to create new files and its parent dirs.
+
+make the search find text or code blocks as small as possible to still be unique identifiers for what needs to be changed in the underlying files 
+
+for the file path, use as much of the path that you know of.  should be as specific as you can accurately be.  
+
+make sure that file paths include the current main project dir
+
+<<<EXPLANATION>>>
+
+this is why the change should happen
+
+<<<FILE>>>
+
+package/replacer_demo_src/main.py
+
+<<<SEARCH>>>
+def old_function():
+   x = 1
+   y = 2
+   return x + y
+<<<REPLACE>>>
+def new_function():
+   result = 3
+   return result
+<<<END>>>
 
 
-# fs-ops ARCH.md - Additional Sections
 
-## File Move Behavior
 
-### Overwrite Semantics
-- `file_move` overwrites existing destination files without warning
-- Matches Unix `mv` behavior and Node.js `rename()` semantics  
-- Rationale: LLM can check first if needed, but overwrite-by-default enables single-shot operations
-- Return data includes `overwrote: true` when destination existed
+<<<EXPLANATION>>>
 
-### Directory Creation
-- `file_move` automatically creates parent directories for destination path
-- Diverges from standard `rename()` which fails with ENOENT
-- Rationale: Reduces LLM round-trips for common "move to new location" pattern
+this is why this change should happen
 
-## Error Message Enhancement
+<<<FILE>>>
+july/coding/bobstuff/react/config/settings.json
+<<<OVERWRITE>>>
+{
+   "debug": true,
+   "port": 8080
+}
+<<<END>>>
 
-### Problem: Ambiguous ENOENT
-Node.js returns ENOENT for multiple distinct failures:
-- Source file doesn't exist
-- Destination directory doesn't exist  
-- Parent directory permissions (sometimes)
+NOTE: if you want to remove a section of code, your replace block must contain a blank line and a space:
 
-### Solution: Pre-flight Checks
-Operations perform checks before system calls to provide specific errors:
-- `file_move`: Check source exists → "Source file not found" vs generic ENOENT
-- `file_write`: Already creates parent dirs, avoiding ambiguity
-- `file_delete`: Pass through Node errors (unambiguous)
 
-### Error Format
-When enhancing errors for LLM clarity:
+<<<EXPLANATION>>>
+
+remove the search code
+
+<<<FILE>>>
+
+package/replacer_demo_src/main.py
+
+<<<SEARCH>>>
+def old_function():
+   x = 1
+   y = 2
+   return x + y
+<<<REPLACE>>>
+ 
+<<<END>>>
+
+see how the REPLACE block can never be totally empty. must contain blank line and whitespace (space(s)) too
+
+IMPORTANT:  each edit item must list its associated FILE.  each SEARCH/REPLACE or OVERWRITE etc block must be immediately preceeded by the respective file 
+
+$$$$$$$$$$$$$
+
+Prioritize substance, clarity, and depth. Challenge all my proposals, designs, and conclusions as hypotheses to be tested. Sharpen follow-up questions for precision, surfacing hidden assumptions, trade offs, and failure modes early. Default to terse, logically structured, information-dense responses unless detailed exploration is required. Skip unnecessary praise unless grounded in evidence. Explicitly acknowledge uncertainty when applicable. Always propose at least one alternative framing. Accept critical debate as normal and preferred. Treat all factual claims as provisional unless cited or clearly justified. Cite when appropriate. Acknowledge when claims rely on inference or incomplete information. Favor accuracy over sounding certain.
+
+check anything online when it feels relevant.  good to compare our thoughts/assumptions with what other people are actually doing and thinking
+
+when asked to share your thoughts (like if user says "wdyt"), then walk it out and talk it out gradually, incrementally, slowly, and thoughtfully.  challenge me so we can succeed overall
+
+dont fall into the trap of equating "implementation" with "low-level".  implementation decisions can be high-level when they affect the system's fundamental behavior
+
+IMPORTANT EDIT INSTRUCTIONS NOTE:
+
+- always use full absolute file paths for edit instructions
+
+- to delete a file, share bash commands with the user in your response.  do not use edit instructions to delete a file
+
+
+=== END FILE: /Users/stuart/repos/clada/replacer/replacer_llm_instructions.md ===
+
+=== START FILE: /Users/stuart/repos/clada/xd5_ref.md ===
+# XD5 LLM Quick Reference
+
+## Core Principle
+Documentation maintains dependency graphs for deterministic context assembly. Initial dependencies are hypotheses - implementation discovers reality. The STOP protocol ensures documentation evolves to match actual dependencies.
+
+## File Structure
 ```
-{operation}: {specific_issue} '{path}' ({error_code})
+<repo>/
+└── proj/
+    ├── doc/
+    │   ├── API.md        # ⚠️ CRITICAL: All dependencies + exports
+    │   ├── ABSTRACT.md   # 60-word purpose + 300-word overview
+    │   └── ARCH.md       # Technical decisions, constraints
+    ├── test-data/        # Test cases as JSON/MD files
+    │   ├── unit/         # Unit test data
+    │   └── integration/  # Integration test data
+    ├── test/             # Minimal harnesses loading test-data
+    │   ├── unit/         # Unit test harnesses
+    │   └── integration/  # Integration test harnesses
+    ├── test-intn/        # Integration tests for dependencies
+    ├── src/              # Implementation
+    └── comp/             # Sub-components (recursive) - do not need 'proj' dirs
 ```
 
-Example: `file_move: Source file not found '/tmp/ghost.txt' (ENOENT)`
-=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/ARCH.md ===
+## API.md Template
+```markdown
+# Component: {name}
+
+## Component Type
+standard | types-only
+
+## Dependencies
+[Provisional - updated via STOP protocol when implementation reveals actual needs]
+
+Mark internal component status: [PLANNED], [IN-PROGRESS], or [IMPLEMENTED]
+External dependencies do not need status markers.
+
+```yaml
+dependencies:
+  # Initial hypothesis based on design
+  proj/comp/payment:                                       # [PLANNED]
+    functions: [validateCard, processRefund] # may change 
+    types: [PaymentResult, CardType]
+    errors: [PaymentError]
+  
+  proj/comp/auth:                                          # [IMPLEMENTED]
+    functions: [checkPermission, validateToken]
+    types: [User, TokenPayload]
+  
+  proj/comp/logger:                                        # [IN-PROGRESS]
+    functions: [logTransaction]  # Audit requirement
+  
+  proj/comp/payment-types: "*"  # Wildcard for types-only  # [IMPLEMENTED] 
+  
+  external/lodash:
+    functions: [groupBy, mapValues]
+  
+  external/@stripe/stripe-js:
+    types: [Stripe, PaymentIntent]
+    functions: [loadStripe]
+```
+
+## Exports
+[Structured YAML for dependency graph tooling, then prose descriptions]
+
+```yaml
+exports:
+  functions: [functionName1, functionName2]
+  types: [Type1, Type2, Type3]
+  classes:
+    ClassName:
+      methods: [method1, method2]
+  errors: [CustomError1, CustomError2]
+```
+
+### {functionName}
+- **Signature**: `{functionName}(param: Type) -> ReturnType`
+- **Purpose**: Single sentence.
+- **Throws**: `{ErrorType}` when {condition}
+- **Test-data**: `test-data/{path}/{functionName}.json` [PLANNED|IMPLEMENTED]
+
+
+
+## Workflow
+
+### Core Flow: Design → Test → Implement
+
+1. **Write docs**: ABSTRACT.md → ARCH.md → API.md (provisional)
+2. **Design tests**: E2E hypothesis → Decompose → Unit tests  
+3. **Implement**: Discover real dependencies → Update docs → Complete code
+
+### Test Authority & Evolution
+
+**Tests Are Source of Truth (But Not Infallible)**
+- Tests define what code SHOULD do
+- During debug: ALWAYS fix code to match tests first
+- Test errors discovered? Ask human: "I believe test X is incorrect because Y. Should I update it?"
+- NEVER auto-modify tests while debugging
+- Each test change needs explicit approval
+
+### Detailed Flow
+
+1. **E2E Test Hypothesis** - Write component test-data (expect evolution)
+2. **Pseudocode** - Rough implementation to discover structure
+3. **Extract Functions** - Identify & extract all pure functions
+4. **Unit Tests** - Write test-data for each function
+5. **Implement Functions** - Red/green/debug (fix code, not tests)
+6. **Revise E2E Tests** - Align with discovered behavior (ask human)
+7. **Wire Component** - Connect tested functions
+8. **Debug E2E** - Fix code until green
+
+**Debug Protocol**: Test fails? → Try fixing code → Still failing? → Consider test error → Request human approval for any test change
+
+**If docs are wrong**: STOP → Update docs → Update tests → Continue
+
+
+
+### Critical Implementation Rules
+
+**Initial Docs Are Hypotheses**: 
+- First API.md contains best guesses
+- Dependencies WILL be wrong
+- This is expected and healthy
+- Discovery through implementation is the goal
+
+**🛑 STOP Protocol**: When implementation reveals doc errors:
+1. STOP immediately
+2. Update API.md/ARCH.md
+3. Continue with correct docs
+
+**Test Immutability**: 
+- Test harnesses = frozen after creation
+- Test data = only change with human approval
+- Fix code, not tests (unless explicitly approved)
+
+**Dependency Updates**:
+- Add to API.md as discovered
+- Include transitive deps if needed for understanding
+- External deps must be explicit
+
+## Test Data Format
+```json
+{
+  "cases": [
+    {
+      "name": "descriptive name",
+      "input": [arg1, arg2],
+      "expected": {result},
+      "throws": "ErrorType"  // optional
+    }
+  ]
+}
+```
+
+## Quick Checks
+
+Before implementing:
+- [ ] API.md declares all exports?
+- [ ] Dependencies section updated?
+- [ ] Test data files created?
+
+During implementation:
+- [ ] Tests fail first (red phase)?
+- [ ] Docs match reality? (if not → STOP)
+- [ ] All imports declared in API.md?
+
+## Common Patterns
+
+**Extract pure functions during pseudocode**:
+```javascript
+// Pseudocode reveals:
+// extractedFn: validateInput(x) -> bool
+// extractedFn: processData(data) -> result
+```
+
+**Types-only components**: No test/ or src/, only doc/
+
+**Path conventions**: All relative to `<repo>/`
+- Component: `proj/comp/{name}`
+- Nested: `proj/comp/{parent}/comp/{child}`
+
+
+# update 
+
+- need to update this so that we save our pseudocde in some sort of documetnation, maybe temp documentation.  so if we implement the fucntiosn to unit test, we dont get confused later about how theyre supposed to be used.
+
+- ideally, each extracted function unit-testable function would be in its own file.  for parallelism with the unit test files
+
+- TESTING PATHS
+
+dont save files directly to `/tmp/`.  save them to a dir in the tmp dir taht is named with the name of the test preceedd by 't_', eg `/tmp/t_move-nonexistent-file`
+
+like: 
+
+
+### 003-move-nonexistent-file
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mnf]
+action = "file_move"
+old_path = "/tmp/t_move-nonexistent-file/ghost.txt"
+new_path = "/tmp/t_move-nonexistent-file/nowhere.txt"
+#!END_SHAM_mnf
+```
+
+```json
+{
+  "success": false,
+  "error": "file_move: Source file not found '/tmp/t_move-nonexistent-file/ghost.txt' (ENOENT)"
+}
+```
+
+=== END FILE: /Users/stuart/repos/clada/xd5_ref.md ===
+
+=== START FILE: /Users/stuart/repos/clada/unified-design.yaml ===
+# AI Coder Tools Schema - Unified Design
+
+# Clada executes filesystem and runtime commands embedded in LLM output using SHAM syntax. It provides deterministic filesystem access and shell command execution for LLM coding agents.
+
+# SHAM syntax example:
+
+SHAM_synatx_example: |
+  ```sh sham
+  #!SHAM [@three-char-SHA-256: k7m]
+  action = "file_write"
+  path = "/tmp/\"hello\".txt"
+  content = <<'EOT_SHAM_k7m'
+  Hello world!
+  how are you?
+  EOT_SHAM_k7m
+  #!END_SHAM_k7m
+  ```
+
+
+tools:
+  # File Operations
+  file_write:
+    type: write
+    executor: fs-ops
+    description: Create new file while creating any necessary parent dirs. overwrites if already exists
+    accessibility: [llm]
+    output_display: never
+    primary_param: path
+    parameters:
+      path: {type: string, required: true, format: absolute_path}
+      content: {type: string, required: true}
+    returns: {success: boolean, error?: string}
+    
+  file_replace_text:
+    type: write
+    executor: fs-ops
+    description: Replace first and only instance of substring in file. must exist only once
+    accessibility: [llm]
+    output_display: never
+    primary_param: path
+    parameters:
+      path: {type: string, required: true, format: absolute_path}
+      old_text: {type: string, required: true}
+      new_text: {type: string, required: true}
+    returns: {success: boolean, replacements_made?: integer, error?: string}
+    
+  file_replace_all_text:
+    type: write
+    executor: fs-ops
+    description: Replace each matching substring in file.  Number of matches (count) should usually be known and declared ahead of time.
+    accessibility: [llm]
+    output_display: never
+    primary_param: path
+    parameters:
+      path: {type: string, required: true, format: absolute_path}
+      old_text: {type: string, required: true}
+      new_text: {type: string, required: true}
+      count: {type: integer, required: false}
+    returns: {success: boolean, replacements_made?: integer, error?: string}
+    
+
+  #tentative!  under consideration
+  files_replace_all_text:
+    type: write
+    executor: fs-ops
+    description: Replace all occurrences of substring in multiple files. Processes each file independently
+    accessibility: [llm]
+    parameters:
+      paths: {type: string, format: multiline_absolute_paths}
+      old_text: {type: string, required: true}
+      new_text: {type: string, required: true}
+    returns: {
+      success: boolean,
+      results: {
+        type: array,
+        items: {
+          path: string,
+          replacements_made: integer,
+          error?: string
+        }
+      },
+      error?: string  # for complete failure
+    }
+
+
+
+  #tentative!  under consideration.  dont implement yet
+  # actually.... for "in parents" stuff lets just use our exisitng tools, but allow "parent" stuff to be added to the path, like ina  syntax we created earlier but forgot about
+  # like:
+  # path/to/file.md@@## Section 2@@### part 3
+  # path/to/code.rs@@MyModuleOrClass@@myFunction
+  files_replace_text_in_parents:
+    type: write
+    executor: fs-ops
+    description: Replace all occurrences of substring in a given node of a parsed file that supports grouping, like markdown, code (ast), etc 
+    accessibility: [llm]
+    parameters:
+      path: {type: string, required: true}
+      parents: {type: string, required: true, format: multiline_absolute_paths} # need to better define how parents are defined
+      old_text: {type: string, required: true}
+      new_text: {type: string, required: true}
+
+
+  file_append:
+    type: write
+    executor: fs-ops
+    description: Append to file
+    accessibility: [llm]
+    parameters:
+      path: {type: string, required: true, format: absolute_path}
+      content: {type: string, required: true}
+    returns: {success: boolean, error?: string}
+    
+  file_delete:
+    type: write
+    executor: fs-ops
+    description: Delete file
+    accessibility: [llm]
+    output_display: never
+    primary_param: path
+    parameters:
+      path: {type: string, required: true, format: absolute_path}
+    returns: {success: boolean, error?: string}
+    
+  file_move:
+    type: write
+    executor: fs-ops
+    description: Move/rename file
+    accessibility: [llm]
+    output_display: never
+    primary_param: old_path
+    parameters:
+      old_path: {type: string, required: true, format: absolute_path}
+      new_path: {type: string, required: true, format: absolute_path}
+    returns: {success: boolean, error?: string}
+    
+
+
+  file_read:
+    type: read
+    executor: fs-ops
+    description: Read single file content
+    accessibility: [llm]
+    output_display: always
+    primary_param: path
+    parameters:
+      path: {type: string, required: true, format: absolute_path}
+    returns: {success: boolean, content?: string, error?: string}
+
+  file_read_numbered:
+    type: read
+    executor: fs-ops
+    description: Read file content with line numbers for specified line range
+    accessibility: [llm]
+    output_display: always
+    primary_param: path
+    parameters:
+      path: {type: string, required: true, format: absolute_path}
+      lines: {type: string, required: false, description: "Line range: single '4' or range '23-43'. If omitted, reads all lines."}
+      delimiter: {type: string, required: false, default: ": ", description: "Delimiter between line number and content"}
+    returns: {success: boolean, content?: string, error?: string}
+
+
+  files_read:
+    type: read
+    executor: fs-ops
+    description: Read and concatenate contents of multiple files into a single string, with clear file delimiters
+    accessibility: [llm]
+    output_display: always
+    primary_param: paths
+    parameters:
+      paths: {
+        type: string, 
+        required: true, 
+        format: "multiline_absolute_paths",
+        description: "One absolute file path per line. Empty lines are ignored."
+      }
+    returns: {
+      success: boolean, 
+      content?: string,  # Files concatenated with headers like "=== /path/to/file.txt ==="
+      error?: string
+    }  
+    example: |
+      paths: |
+        /home/user/projects/src/main.py
+        /home/user/projects/src/utils.py
+        /home/user/projects/README.md
+    
+  # Directory Operations
+  dir_create:
+    type: write
+    executor: fs-ops
+    description: Create directory
+    accessibility: [llm]
+    output_display: never
+    primary_param: path
+    parameters:
+      path: {type: string, required: true, format: absolute_path}
+    returns: {success: boolean, error?: string}
+    
+  dir_delete:
+    type: write
+    executor: fs-ops
+    description: Delete directory
+    accessibility: [llm]
+    output_display: never
+    primary_param: path
+    parameters:
+      path: {type: string, required: true, format: absolute_path}
+    returns: {success: boolean, error?: string}
+    
+  # Read Operations
+  ls:
+    type: read
+    executor: fs-ops
+    description: List directory contents
+    accessibility: [llm]
+    output_display: always
+    primary_param: path
+    parameters:
+      path: {type: string, required: true, format: absolute_path}
+    returns: 
+      success: boolean
+      data:
+        type: array
+        items:
+          name: string
+          type: string  # file|directory
+          size: integer
+          modified: timestamp
+      error: string
+    
+  grep:
+    type: read
+    description: Search pattern in files
+    accessibility: [llm]
+    output_display: always
+    primary_param: pattern
+    parameters:
+      pattern: {type: string, required: true}
+      path: {type: string, required: true, format: absolute_path}
+      include: {type: string, required: false}
+    returns: 
+      success: boolean
+      data:
+        type: array
+        items:
+          file: string
+          line_number: integer
+          line: string
+      error: string
+    
+  glob:
+    type: read
+    description: Find files matching pattern
+    accessibility: [llm]
+    output_display: always
+    primary_param: pattern
+    parameters:
+      pattern: {type: string, required: true}
+      base_path: {type: string, required: true, format: absolute_path}
+    returns: 
+      success: boolean
+      data:
+        type: array
+        items: string
+      error: string
+    
+  # Execution
+  exec:
+    type: dynamic
+    description: Execute code
+    accessibility: [llm]
+    output_display: conditional  # Check return_output parameter
+    primary_param: lang
+    parameters:
+      code: {type: string, required: true}
+      lang: {type: enum, values: [python, javascript, bash], required: true}
+      version: {type: string, required: false}
+      cwd: {type: string, required: false, format: absolute_path}
+      return_output: {type: boolean, required: false, default: true}
+    returns: {success: boolean, stdout?: string, stderr?: string, exit_code?: integer, error?: string}
+
+  # Context Operations -- for much later.  dont do this until clada has been integrated into bigfoot, the ai llm coder
+  context_add:
+    type: meta
+    description: Add item to working context (persistent)
+    accessibility: [llm, user]
+    parameters:
+      path: {type: string, required: true, format: absolute_path}
+    returns: {success: boolean, error?: string}
+      
+  context_remove:
+    type: meta
+    description: Remove item from working context
+    accessibility: [llm, user]
+    parameters:
+      path: {type: string, required: true, format: absolute_path}
+    returns: {success: boolean, error?: string}
+      
+  context_list:
+    type: meta
+    description: List items in working context
+    accessibility: [llm, user]
+    parameters: {}
+    returns: 
+      success: boolean
+      data:
+        type: array
+        items:
+          path: string
+          size: integer
+      error: string
+    
+  context_prune:
+    type: meta
+    description: Remove unused items from working context
+    accessibility: [llm, user]
+    parameters: {}
+    returns: {success: boolean, removed?: array of strings, error?: string}
+    
+  context_clear:
+    type: meta
+    description: Clear all working context items
+    accessibility: [llm, user]
+    parameters: {}
+    returns: {success: boolean, error?: string}
+    
+  # Git Operations
+  git_squash:
+    type: git
+    description: Squash commits
+    slash_command: true
+    parameters:
+      mode: {type: enum, values: [auto_ai, ai_messages, hours, days, contiguous_only=true, msg_contains], required: true}
+      message: {type: string, required: false}
+      hours: {type: integer, required: false, when: "mode=hours"}
+      days: {type: integer, required: false, when: "mode=days"}
+      msg_target: {type: string, required: false, when: "mode=msg_contains"}
+    returns: {success: boolean, error?: string}
+      
+  undo:
+    type: git
+    description: Undo last AI changes
+    accessibility: [user]
+    constraints: ["No changes since last AI operation"]
+    parameters: {}
+    returns: {success: boolean, error?: string}
+    
+  git_step_back:
+    type: git
+    description: Move to previous commit
+    accessibility: [user]
+    behavior: Stashes untracked changes
+    parameters: {}
+    returns: {success: boolean, stashed_files?: array of strings, error?: string}
+    
+  git_step_forward:
+    type: git
+    description: Move to next commit
+    accessibility: [user]
+    behavior: Attempts to pop stashed changes
+    parameters: {}
+    returns: {success: boolean, conflicts?: array of strings, error?: string}
+
+# Transaction Management
+transaction_model:
+  strategy: operation_group
+  conflict_detection:
+    methods:
+      - mtime comparison (fast but unreliable)
+      - checksum comparison (slower but accurate)
+      - git status check (catches git-tracked changes)
+    timing:
+      - Check immediately before operation group
+      - Check after each write operation
+      - Final check before commit
+  implementation:
+    - Begin: git commit current state
+    - Execute: track all operations
+    - Validate: check for external modifications
+    - Success: git commit with summary
+    - Failure: git reset --hard to start
+  atomicity: none  # Git operations are NOT atomic at filesystem level
+  
+# Security Model
+security:
+  path_validation:
+    type: allowlist
+    allowed_roots:
+      - /home/user/projects
+      - /tmp/ai-coder
+    blacklist_patterns:
+      - .*\.ssh.*
+      - .*\.git/config
+      - /etc/.*
+      - /sys/.*
+      - /proc/.*
+  canonicalization: required  # Resolve ../ and symlinks before checking
+  
+# System Configuration
+config:
+  encoding: utf-8
+  line_endings: preserve  # Don't normalize
+  max_file_size: 10485760  # 10MB
+  git_auto_push: false  # Require explicit push
+  commit_message_format: "AI: {operation_summary}"
+
+TODO: |   
+  Transaction Safety: The git-based transaction model has race conditions:
+
+    Gap between "git commit" and first operation
+    Non-atomic filesystem ops vs git state
+
+
+# more TODO 
+
+
+  #tentative!  under consideration.  dont implement yet
+  # actually.... for "in parents" stuff lets just use our exisitng tools, but allow "parent" stuff to be added to the path, like ina  syntax we created earlier but forgot about
+  # like:
+  # path/to/file.md@@## Section 2@@### part 3
+  # path/to/code.rs@@MyModuleOrClass@@myFunction
+
+  # and add a wayt o get file numbers per read.  like an attribute to add to file_read to get the text with line numbers. and then a file_lines_replace that takes in a line range and replacement_text params. or maybe even each as an array.  maybe we should just change nesl-js so its not an error to have repeated values.  cos right now its like impossible to make a lot of small changes to a big code file.  but if we new the line number per each... that would make it easy for LLM... 
+=== END FILE: /Users/stuart/repos/clada/unified-design.yaml ===
 

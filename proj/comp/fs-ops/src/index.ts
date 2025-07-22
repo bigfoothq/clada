@@ -332,7 +332,7 @@ async function handleFileReplaceText(action: CladaAction): Promise<FileOpResult>
       const index = content.indexOf(old_text, searchIndex);
       if (index === -1) break;
       count++;
-      searchIndex = index + 1;
+      searchIndex = index + old_text.length;
     }
     
     // Validate exactly one occurrence
@@ -407,7 +407,7 @@ async function handleFileReplaceAllText(action: CladaAction): Promise<FileOpResu
         const index = content.indexOf(old_text, searchIndex);
         if (index === -1) break;
         actualCount++;
-        searchIndex = index + 1;
+        searchIndex = index + old_text.length;
       }
       
       if (actualCount !== count) {

@@ -12,8 +12,32 @@ if [[ "$1" == "p" ]]; then  # p for paths
 fi
 
 file_list=$(cat <<'EOF'
-replacer/replacer_llm_instructions.md xd5_ref.md proj/comp/fs-ops/test-data/integration/file_read_numbered.cases.md proj/comp/fs-ops/test/unit/extractNumberedLines.test.ts proj/comp/fs-ops/test/unit/formatNodeError.test.ts proj/comp/fs-ops/test/unit/replaceText.test.ts proj/comp/fs-ops/test/integration/integration.test.ts proj/comp/fs-ops/src/extractNumberedLines.ts proj/comp/fs-ops/src/fileSystemUtils.ts proj/comp/fs-ops/src/formatNodeError.ts proj/comp/fs-ops/src/index.ts proj/comp/fs-ops/src/replaceText.ts proj/comp/fs-ops/doc/ABSTRACT.md proj/comp/fs-ops/doc/API.md proj/comp/fs-ops/doc/ARCH.md
 
+/Users/stuart/repos/clada/proj/comp/fs-ops/doc/ABSTRACT.md
+/Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
+/Users/stuart/repos/clada/proj/comp/fs-ops/doc/ARCH.md
+/Users/stuart/repos/clada/proj/comp/fs-ops/doc/TODO.md
+/Users/stuart/repos/clada/proj/comp/fs-ops/src/extractNumberedLines.ts
+/Users/stuart/repos/clada/proj/comp/fs-ops/src/fileSystemUtils.ts
+/Users/stuart/repos/clada/proj/comp/fs-ops/src/formatNodeError.ts
+/Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts
+/Users/stuart/repos/clada/proj/comp/fs-ops/src/replaceText.ts
+/Users/stuart/repos/clada/proj/comp/fs-ops/test/integration/integration.test.ts
+/Users/stuart/repos/clada/proj/comp/fs-ops/test/unit/replaceText.test.ts
+/Users/stuart/repos/clada/proj/comp/fs-ops/test-data/integration/file_replace_text.cases.md
+/Users/stuart/repos/clada/proj/comp/fs-ops/test-data/unit/extractNumberedLines.cases.ts
+/Users/stuart/repos/clada/proj/comp/fs-ops/test-data/unit/replaceText.cases.ts
+/Users/stuart/repos/clada/proj/comp/fs-ops/test/integration/minimal.test.ts
+/Users/stuart/repos/clada/package.json
+/Users/stuart/repos/clada/proj/comp/orch/doc/API.md
+/Users/stuart/repos/clada/proj/comp/orch/doc/ARCH.md
+/Users/stuart/repos/clada/proj/comp/orch/doc/TODO.md
+/Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/ABSTRACT.md
+/Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/API.md
+/Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/ARCH.md
+/Users/stuart/repos/clada/replacer/replacer_llm_instructions.md
+/Users/stuart/repos/clada/xd5_ref.md
+/Users/stuart/repos/clada/unified-design.yaml
 
 EOF
 )

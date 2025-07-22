@@ -29,7 +29,7 @@ lines = "3"
   "success": true,
   "data": {
     "path": "/tmp/t_read-single-line/numbered.txt",
-    "content": "     3: Line 3"
+    "content": "3: Line 3"
   }
 }
 ```
@@ -63,7 +63,7 @@ lines = "3-5"
   "success": true,
   "data": {
     "path": "/tmp/t_read-line-range/numbered.txt",
-    "content": "     3: Third line\n     4: Fourth line\n     5: Fifth line"
+    "content": "3: Third line\n4: Fourth line\n5: Fifth line"
   }
 }
 ```
@@ -99,7 +99,7 @@ delimiter = "    "
   "success": true,
   "data": {
     "path": "/tmp/t_read-with-custom-delimiter/numbered.txt",
-    "content": "     4    def main():\n     5        print(\"Hello, World!\")\n     6        \n     7    if __name__ == \"__main__\":"
+    "content": "4    def main():\n5        print(\"Hello, World!\")\n6        \n7    if __name__ == \"__main__\":"
   }
 }
 ```
@@ -131,7 +131,7 @@ delimiter = ""
   "success": true,
   "data": {
     "path": "/tmp/t_read-with-empty-delimiter/numbered.txt",
-    "content": "     2banana\n     3cherry"
+    "content": "2banana\n3cherry"
   }
 }
 ```
@@ -162,7 +162,7 @@ lines = "2-10"
   "error": "file_read_numbered: Requested lines 2-10 but file only has 3 lines",
   "data": {
     "path": "/tmp/t_read-out-of-range-lines/numbered.txt",
-    "content": "     2: Three\n     3: Lines"
+    "content": "2: Three\n3: Lines"
   }
 }
 ```
@@ -188,7 +188,7 @@ lines = "1"
   "success": true,
   "data": {
     "path": "/tmp/t_read-single-line-file/numbered.txt",
-    "content": "     1: Just one line"
+    "content": "1: Just one line"
   }
 }
 ```
@@ -338,7 +338,7 @@ path = "/tmp/t_read-all-lines-missing-parameter/numbered.txt"
   "success": true,
   "data": {
     "path": "/tmp/t_read-all-lines-missing-parameter/numbered.txt",
-    "content": "     1: First line\n     2: Second line\n     3: Third line\n     4: Fourth line\n     5: Fifth line"
+    "content": "1: First line\n2: Second line\n3: Third line\n4: Fourth line\n5: Fifth line"
   }
 }
 ```
@@ -377,7 +377,7 @@ lines = "9-11"
   "success": true,
   "data": {
     "path": "/tmp/t_read-large-line-numbers/numbered.txt",
-    "content": "     9: Line 9\n    10: Line 10\n    11: Line 11"
+    "content": " 9: Line 9\n10: Line 10\n11: Line 11"
   }
 }
 ```

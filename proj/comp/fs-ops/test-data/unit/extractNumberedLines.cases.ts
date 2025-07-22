@@ -3,7 +3,7 @@ export const cases = [
     name: "extract single line",
     input: ["Line 1\nLine 2\nLine 3", "2", ": "],
     expected: {
-      result: "     2: Line 2",
+      result: "2: Line 2",
       lineCount: 3
     }
   },
@@ -11,7 +11,7 @@ export const cases = [
     name: "extract line range",
     input: ["First\nSecond\nThird\nFourth", "2-3", ": "],
     expected: {
-      result: "     2: Second\n     3: Third",
+      result: "2: Second\n3: Third",
       lineCount: 4
     }
   },
@@ -19,7 +19,7 @@ export const cases = [
     name: "custom delimiter",
     input: ["A\nB\nC", "1-2", "    "],
     expected: {
-      result: "     1    A\n     2    B",
+      result: "1    A\n2    B",
       lineCount: 3
     }
   },
@@ -27,7 +27,7 @@ export const cases = [
     name: "empty delimiter",
     input: ["One\nTwo\nThree", "2", ""],
     expected: {
-      result: "     2Two",
+      result: "2Two",
       lineCount: 3
     }
   },
@@ -47,7 +47,7 @@ export const cases = [
     name: "out of range end",
     input: ["One\nTwo\nThree", "2-10", ": "],
     expected: {
-      result: "     2: Two\n     3: Three",
+      result: "2: Two\n3: Three",
       lineCount: 3,
       outOfRange: {
         requested: "2-10",
@@ -67,7 +67,7 @@ export const cases = [
     name: "single line content",
     input: ["Just one line", "1", ": "],
     expected: {
-      result: "     1: Just one line",
+      result: "1: Just one line",
       lineCount: 1
     }
   },
@@ -75,8 +75,24 @@ export const cases = [
     name: "large line numbers",
     input: [Array.from({length: 12}, (_, i) => `Line ${i + 1}`).join('\n'), "9-11", ": "],
     expected: {
-      result: "      9: Line 9\n     10: Line 10\n     11: Line 11",
+      result: " 9: Line 9\n10: Line 10\n11: Line 11",
       lineCount: 12
+    }
+  },
+  {
+    name: "padding across digit boundaries - tens",
+    input: [Array.from({length: 15}, (_, i) => `Line ${i + 1}`).join('\n'), "8-12", ": "],
+    expected: {
+      result: " 8: Line 8\n 9: Line 9\n10: Line 10\n11: Line 11\n12: Line 12",
+      lineCount: 15
+    }
+  },
+  {
+    name: "padding across digit boundaries - hundreds", 
+    input: [Array.from({length: 105}, (_, i) => `Line ${i + 1}`).join('\n'), "98-102", ": "],
+    expected: {
+      result: " 98: Line 98\n 99: Line 99\n100: Line 100\n101: Line 101\n102: Line 102",
+      lineCount: 105
     }
   },
   {
@@ -108,7 +124,7 @@ export const cases = [
     name: "undefined lineSpec - read all",
     input: ["Line A\nLine B\nLine C", undefined, ": "],
     expected: {
-      result: "     1: Line A\n     2: Line B\n     3: Line C",
+      result: "1: Line A\n2: Line B\n3: Line C",
       lineCount: 3
     }
   },

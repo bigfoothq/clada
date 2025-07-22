@@ -160,6 +160,19 @@ tools:
       delimiter: {type: string, required: false, default: ": ", description: "Delimiter between line number and content"}
     returns: {success: boolean, content?: string, error?: string}
 
+  file_replace_lines:
+    type: write
+    executor: fs-ops
+    description: Replace specified line range in file with new content
+    accessibility: [llm]
+    output_display: never
+    primary_param: path
+    parameters:
+      path: {type: string, required: true, format: absolute_path}
+      lines: {type: string, required: true, description: "Line range: single '4' or range '23-43'"}
+      new_content: {type: string, required: true, description: "Content to replace the line range with"}
+    returns: {success: boolean, lines_replaced?: integer, error?: string}
+
 
   files_read:
     type: read

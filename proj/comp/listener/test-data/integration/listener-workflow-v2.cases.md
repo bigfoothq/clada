@@ -441,7 +441,7 @@ function process() {
 }
 
 function validate() {
-  const value = 200;
+  const value = 100;
   return value > 0;
 }
 EOT_SHAM_fm1
@@ -468,7 +468,7 @@ EOT_SHAM_fm2
 
 === CLADA RESULTS ===
 fm1 ✅ file_write /tmp/t_listener_multi_match/app.js
-fm2 ❌ file_replace_text /tmp/t_listener_multi_match/app.js - Search string found 2 times (expected exactly 1)
+fm2 ❌ file_replace_text /tmp/t_listener_multi_match/app.js - old_text appears 2 times, must appear exactly once
 === END ===
 
 Testing multiple match failure.
@@ -491,7 +491,7 @@ function process() {
 }
 
 function validate() {
-  const value = 200;
+  const value = 100;
   return value > 0;
 }
 EOT_SHAM_fm1
@@ -516,7 +516,7 @@ EOT_SHAM_fm2
 ````sh
 === CLADA RESULTS ===
 fm1 ✅ file_write /tmp/t_listener_multi_match/app.js
-fm2 ❌ file_replace_text /tmp/t_listener_multi_match/app.js - Search string found 2 times (expected exactly 1)
+fm2 ❌ file_replace_text /tmp/t_listener_multi_match/app.js - old_text appears 2 times, must appear exactly once
 === END ===
 
 === OUTPUTS ===
@@ -527,7 +527,7 @@ fm2 ❌ file_replace_text /tmp/t_listener_multi_match/app.js - Search string fou
 ````sh
 === CLADA RESULTS ===
 fm1 ✅ file_write /tmp/t_listener_multi_match/app.js
-fm2 ❌ file_replace_text /tmp/t_listener_multi_match/app.js - Search string found 2 times (expected exactly 1)
+fm2 ❌ file_replace_text /tmp/t_listener_multi_match/app.js - old_text appears 2 times, must appear exactly once
 === END ===
 
 === OUTPUTS ===
@@ -591,7 +591,7 @@ EOT_SHAM_fn2
 
 === CLADA RESULTS ===
 fn1 ✅ file_write /tmp/t_listener_no_match/readme.md
-fn2 ❌ file_replace_text /tmp/t_listener_no_match/readme.md - Search string not found
+fn2 ❌ file_replace_text /tmp/t_listener_no_match/readme.md - old_text not found in file
 === END ===
 
 Testing no match failure.
@@ -640,7 +640,7 @@ EOT_SHAM_fn2
 ````sh
 === CLADA RESULTS ===
 fn1 ✅ file_write /tmp/t_listener_no_match/readme.md
-fn2 ❌ file_replace_text /tmp/t_listener_no_match/readme.md - Search string not found
+fn2 ❌ file_replace_text /tmp/t_listener_no_match/readme.md - old_text not found in file
 === END ===
 
 === OUTPUTS ===
@@ -651,7 +651,7 @@ fn2 ❌ file_replace_text /tmp/t_listener_no_match/readme.md - Search string not
 ````sh
 === CLADA RESULTS ===
 fn1 ✅ file_write /tmp/t_listener_no_match/readme.md
-fn2 ❌ file_replace_text /tmp/t_listener_no_match/readme.md - Search string not found
+fn2 ❌ file_replace_text /tmp/t_listener_no_match/readme.md - old_text not found in file
 === END ===
 
 === OUTPUTS ===

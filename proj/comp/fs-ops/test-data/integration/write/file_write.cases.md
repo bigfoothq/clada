@@ -22,6 +22,10 @@ content = "Hello, World!"
 }
 ```
 
+```
+Hello, World!
+```
+
 ### 002-create-with-parent-dirs
 
 ```sh sham
@@ -42,6 +46,9 @@ content = "Creates parent directories"
 }
 ```
 
+```
+Creates parent directories
+```
 
 ### 003-write-with-special-characters
 
@@ -61,6 +68,10 @@ content = "Line with \"quotes\" and 'apostrophes'"
     "bytesWritten": 36
   }
 }
+```
+
+```
+Line with "quotes" and 'apostrophes'
 ```
 
 ### 004-multiline-content
@@ -85,4 +96,10 @@ EOT_SHAM_mlt
     "bytesWritten": 20
   }
 }
+```
+
+```
+Line 1
+Line 2
+Line 3
 ```

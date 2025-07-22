@@ -16,8 +16,8 @@ export function extractNumberedLines(
     return { result: '', lineCount: 0 };
   }
 
-  // Split content into lines
-  const lines = content.split('\n');
+  // Split content into lines (handle different OS line endings)
+  const lines = content.split(/\r?\n|\r/);
   const totalLines = lines.length;
 
   // Parse line specification
@@ -48,7 +48,7 @@ export function extractNumberedLines(
       }
 
       if (startLine < 1 || endLine < 1) {
-        throw new Error(`Invalid line specification '${lineSpec}' (line numbers must be positive)`);
+        throw new Error(`Invalid line specification '${lineSpec}'`);
       }
 
       if (startLine > endLine) {
@@ -65,25 +65,20 @@ export function extractNumberedLines(
   }
 
   // Check if request is out of range
-  const originalStartLine = startLine;
-  const originalEndLine = endLine;
   const isOutOfRange = startLine > totalLines || endLine > totalLines;
 
   // If start line is beyond file, return empty
   if (startLine > totalLines) {
-    const result = {
+    return {
       result: '',
-      lineCount: totalLines
+      lineCount: totalLines,
+      ...(isOutOfRange && {
+        outOfRange: {
+          requested: requestedSpec,
+          actual: totalLines
+        }
+      })
     };
-    
-    if (isOutOfRange) {
-      result.outOfRange = {
-        requested: requestedSpec,
-        actual: totalLines
-      };
-    }
-    
-    return result;
   }
 
   // Clamp end line to available lines
@@ -91,25 +86,26 @@ export function extractNumberedLines(
 
   // Extract lines and format with numbers
   const numberedLines: string[] = [];
-  const maxLineNum = Math.min(originalEndLine, totalLines);
+  
+  // Calculate the width needed for the largest line number in the range
+  const maxLineNum = endLine;
   const numWidth = maxLineNum.toString().length;
-
-  for (let i = startLine; i <= endLine && i <= totalLines; i++) {
-    const lineNum = i.toString().padStart(numWidth + 5, ' ');
-    numberedLines.push(`${lineNum}${delimiter}${lines[i - 1]}`);
+  
+  // Build the numbered lines
+  for (let i = startLine; i <= endLine; i++) {
+    // Right-justify the line number
+    const lineNumStr = i.toString().padStart(numWidth, ' ');
+    numberedLines.push(`${lineNumStr}${delimiter}${lines[i - 1]}`);
   }
 
-  const result = {
+  return {
     result: numberedLines.join('\n'),
-    lineCount: totalLines
+    lineCount: totalLines,
+    ...(isOutOfRange && {
+      outOfRange: {
+        requested: requestedSpec,
+        actual: totalLines
+      }
+    })
   };
-
-  if (isOutOfRange) {
-    result.outOfRange = {
-      requested: requestedSpec,
-      actual: totalLines
-    };
-  }
-
-  return result;
 }

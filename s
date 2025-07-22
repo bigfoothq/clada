@@ -12,18 +12,11 @@ if [[ "$1" == "p" ]]; then  # p for paths
 fi
 
 file_list=$(cat <<'EOF'
-/Users/stuart/repos/clada/proj/comp/listener/src/errors.ts
-/Users/stuart/repos/clada/proj/comp/listener/src/formatters.ts
-/Users/stuart/repos/clada/proj/comp/listener/src/index.ts
-/Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
-/Users/stuart/repos/clada/proj/comp/listener/src/types.ts
-/Users/stuart/repos/clada/proj/comp/listener/src/utils.ts
-/Users/stuart/repos/clada/proj/comp/listener/doc/ABSTRACT.md
-/Users/stuart/repos/clada/proj/comp/listener/doc/API.md
-/Users/stuart/repos/clada/proj/comp/listener/doc/ARCH.md
-/Users/stuart/repos/clada/proj/comp/listener/test/integration/listener-workflow.test.ts
-/Users/stuart/repos/clada/proj/comp/listener/test-data/integration/listener-workflow.md
-/Users/stuart/repos/clada/proj/comp/listener/test-data/startListener.json
+
+  /Users/stuart/repos/clada/proj/comp/sham-action-parser/test/parseShamResponse.test.ts
+  /Users/stuart/repos/clada/proj/comp/sham-action-parser/test-data/parseShamResponse.md
+
+proj/comp/sham-action-parser/src/index.ts proj/comp/sham-action-parser/src/transformToAction.ts proj/comp/sham-action-parser/src/types.ts proj/comp/sham-action-parser/src/validateShamBlock.ts
 
 /Users/stuart/repos/clada/replacer/replacer_llm_instructions.md
 /Users/stuart/repos/clada/xd5_ref.md

@@ -22,11 +22,8 @@ export function transformToAction(
 
   // Process each parameter defined in the schema
   for (const [paramName, paramDef] of Object.entries(actionDef.parameters || {})) {
-    // Skip if parameter not provided and has a default
+    // Skip if parameter not provided
     if (!(paramName in block.properties)) {
-      if ('default' in paramDef) {
-        parameters[paramName] = paramDef.default;
-      }
       continue;
     }
 

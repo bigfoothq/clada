@@ -14,7 +14,6 @@ export interface ListenerState {
   lastExecutedHash: string;
   isProcessing: boolean;
   outputPath: string;
-  lastExecutionTime: number;
   actionSchema: Map<string, ActionDefinition>;
 }
 

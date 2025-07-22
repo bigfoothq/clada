@@ -60,14 +60,14 @@ describe('listener workflow integration', () => {
     const initialContent = '# My Document\n\nSome content here.\n';
     await writeFile(testFile, initialContent);
 
-    // Start listener
-    handle = await startListener({ filePath: testFile });
+    // Start listener with short debounce for faster tests
+    handle = await startListener({ filePath: testFile, debounceMs: 100 });
     
     // Wait for initial processing to complete
     await waitForInitialProcessing(testFile);
 
-    // Wait for cooldown period to pass (listener has 2s cooldown)
-    await new Promise(resolve => setTimeout(resolve, 2100));
+    // Wait for debounce to settle  
+    await new Promise(resolve => setTimeout(resolve, 150));
 
     // Add SHAM block
     const withSham = initialContent + `
@@ -116,14 +116,14 @@ content = "Hello from listener!"
     // Create initial empty file
     await writeFile(testFile, '');
 
-    // Start listener
-    handle = await startListener({ filePath: testFile });
+    // Start listener with short debounce for faster tests
+    handle = await startListener({ filePath: testFile, debounceMs: 100 });
     
     // Wait for initial processing
     await waitForInitialProcessing(testFile);
     
-    // Wait for cooldown period
-    await new Promise(resolve => setTimeout(resolve, 2100));
+    // Wait for debounce to settle
+    await new Promise(resolve => setTimeout(resolve, 600));
 
     const content = `
 \`\`\`sh sham
@@ -177,14 +177,14 @@ code = "echo 'Hello world'"
     // Create initial empty file
     await writeFile(testFile, '');
 
-    // Start listener
-    handle = await startListener({ filePath: testFile });
+    // Start listener with short debounce for faster tests
+    handle = await startListener({ filePath: testFile, debounceMs: 100 });
     
     // Wait for initial processing
     await waitForInitialProcessing(testFile);
     
-    // Wait for cooldown period
-    await new Promise(resolve => setTimeout(resolve, 2100));
+    // Wait for debounce to settle
+    await new Promise(resolve => setTimeout(resolve, 600));
 
     const content = `
 \`\`\`sh sham
@@ -235,14 +235,14 @@ content = "1"
     // Create initial empty file
     await writeFile(testFile, '');
 
-    // Start listener
-    handle = await startListener({ filePath: testFile });
+    // Start listener with short debounce for faster tests
+    handle = await startListener({ filePath: testFile, debounceMs: 100 });
     
     // Wait for initial processing
     await waitForInitialProcessing(testFile);
     
-    // Wait for cooldown period
-    await new Promise(resolve => setTimeout(resolve, 2100));
+    // Wait for debounce to settle
+    await new Promise(resolve => setTimeout(resolve, 600));
 
     const content = `
 \`\`\`sh sham
@@ -258,12 +258,12 @@ content = "missing closing quote
     // Poll for error to appear
     await pollForContent(testFile, content => 
       content.includes('bad ❌') && 
-      content.includes('Unterminated heredoc')
+      content.includes('Unclosed quoted string')
     );
 
     // Check error was reported
     const updatedContent = await readFile(testFile, 'utf-8');
     expect(updatedContent).toContain('bad ❌');
-    expect(updatedContent).toContain('Unterminated heredoc');
+    expect(updatedContent).toContain('Unclosed quoted string');
   });
 });

@@ -1,462 +1,635 @@
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/errors.ts ===
-export class ListenerError extends Error {
-  constructor(
-    public code: 'FILE_NOT_FOUND' | 'ACCESS_DENIED' | 'ALREADY_WATCHING',
-    public path: string,
-    message?: string
-  ) {
-    super(message || `listener: ${code} '${path}'`);
-    this.name = 'ListenerError';
-  }
-}
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/errors.ts ===
+=== START FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/test/parseShamResponse.test.ts ===
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { marked, Token } from 'marked';
+import { parseShamResponse } from '../src/index';
 
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/formatters.ts ===
-import type { OrchestratorResult } from '../../orch/src/types.js';
+const testPath = join(__dirname, '../test-data/parseShamResponse.md');
+const mdContent = readFileSync(testPath, 'utf8');
 
-export function formatSummary(orchResult: OrchestratorResult, timestamp: Date): string {
-  const lines = ['', '=== CLADA RESULTS ==='];
-  
-  // Add execution results
-  if (orchResult.results) {
-    for (const result of orchResult.results) {
-      const icon = result.success ? '✅' : '❌';
-      const primaryParam = getPrimaryParamFromResult(result);
-      
-      if (result.success) {
-        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam}`.trim());
-      } else {
-        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam} - ${result.error}`.trim());
-      }
-    }
-  }
-  
-  // Add parse errors
-  if (orchResult.parseErrors) {
-    for (const error of orchResult.parseErrors) {
-      lines.push(`${error.blockId || 'unknown'} ❌ (parse error) - ${error.error.message || error.error}`);
-    }
-  }
-  
-  lines.push('=== END ===', '');
-  return lines.join('\n');
-}
+const tokens: Token[] = marked.lexer(mdContent);
+const codeBlocks = tokens.filter(t => t.type === 'code') as Array<Token & {type: 'code', text: string}>;
+const testNames = tokens
+  .filter(t => t.type === 'heading' && 'depth' in t && t.depth === 3)
+  .map(t => (t as any).text as string);
 
-function getPrimaryParamFromResult(result: any): string {
-  if (!result.params) return '';
-  if (result.params.path) return result.params.path;
-  if (result.params.paths) {
-    const paths = result.params.paths.trim().split('\n').filter((p: string) => p.trim());
-    return `(${paths.length} files)`;
-  }
-  if (result.params.pattern) return result.params.pattern;
-  if (result.params.lang) return result.params.lang;
-  if (result.params.old_path) return result.params.old_path;
-  return '';
-}
+describe('parseShamResponse', () => {
+  testNames.forEach((name, i) => {
+    const baseIndex = i * 2;
+    it(name, async () => {
+      const input = codeBlocks[baseIndex].text;
+      const expected = JSON.parse(codeBlocks[baseIndex + 1].text);
+      const result = await parseShamResponse(input);
+      expect(result).toEqual(expected);
+    });
+  });
+});
+=== END FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/test/parseShamResponse.test.ts ===
 
-function formatSummaryLine(result: ExecutionResult): string {
-  const { action, result: execResult } = result;
-  const icon = execResult.success ? '✅' : '❌';
-  const id = action.metadata.blockId;
-  const primaryParam = getPrimaryParam(action);
-  
-  if (execResult.success) {
-    return `${id} ${icon} ${action.action} ${primaryParam}`.trim();
-  } else {
-    const errorSummary = getErrorSummary(execResult.error);
-    return `${id} ${icon} ${action.action} ${primaryParam} - ${errorSummary}`.trim();
-  }
-}
+=== START FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/test-data/parseShamResponse.md ===
+# Tests
 
-function formatErrorLine(error: ParseError): string {
-  const id = error.blockId;
-  const action = error.action || '(parse error)';
-  return `${id} ❌ ${action} - ${error.message}`;
-}
+## general
 
-function getPrimaryParam(action: CladaAction): string {
-  // Handle different action types
-  if (action.parameters.path) return action.parameters.path;
-  if (action.parameters.paths) {
-    // Count lines for files_read
-    const paths = action.parameters.paths.trim().split('\n').filter((p: string) => p.trim());
-    return `(${paths.length} files)`;
-  }
-  if (action.parameters.pattern) return action.parameters.pattern;
-  if (action.parameters.lang) return action.parameters.lang;
-  if (action.parameters.old_path) return action.parameters.old_path;
-  return '';
-}
+### 001-single-valid-file-create-action
 
-function getErrorSummary(error?: string): string {
-  if (!error) return 'Unknown error';
-  
-  // Extract key error info
-  if (error.includes('File not found')) return 'File not found';
-  if (error.includes('no such file or directory')) return 'File not found';
-  if (error.includes('Permission denied')) return 'Permission denied';
-  if (error.includes('Output too large')) return error; // Keep full message
-  
-  // For other errors, take first part before details
-  const match = error.match(/^[^:]+:\s*([^'(]+)/);
-  if (match) return match[1].trim();
-  
-  return error.split('\n')[0]; // First line only
-}
+```sh sham
+#!SHAM [@three-char-SHA-256: abc]
+action = "file_write"
+path = "/tmp/test.txt"
+content = <<'EOT_SHAM_abc'
+Hello world!
+EOT_SHAM_abc
+#!END_SHAM_abc
+````
 
-export function formatFullOutput(orchResult: OrchestratorResult): string {
-  const summary = formatSummary(orchResult, new Date());
-  
-  const lines = [summary.trim(), '', '=== OUTPUTS ==='];
-  
-  // Add outputs for successful actions
-  if (orchResult.results) {
-    for (const result of orchResult.results) {
-      if (result.success && result.data) {
-        const header = `[${result.blockId}] ${result.action} ${getPrimaryParamFromResult(result)}:`.trim();
-        lines.push('', header);
-        
-        // Format output based on data type
-        if (typeof result.data === 'string') {
-          lines.push(result.data.trimEnd());
-        } else if (result.data.stdout || result.data.stderr) {
-          if (result.data.stdout) {
-            lines.push(`stdout:\n${result.data.stdout.trimEnd()}`);
-          }
-          if (result.data.stderr) {
-            lines.push(`stderr:\n${result.data.stderr.trimEnd()}`);
-          }
-        } else {
-          lines.push(JSON.stringify(result.data, null, 2));
-        }
-      }
-    }
-  }
-  
-  lines.push('=== END ===');
-  return lines.join('\n');
-}
-
-function formatOutputHeader(result: ExecutionResult): string {
-  const id = result.action.metadata.blockId;
-  const action = result.action.action;
-  const primaryParam = getPrimaryParam(result.action);
-  
-  return `[${id}] ${action} ${primaryParam}:`.trim();
-}
-
-function formatOutputContent(result: ExecutionResult): string {
-  const { result: execResult } = result;
-  
-  // Handle different output types
-  if (execResult.content !== undefined) {
-    // Trim trailing newline to avoid double spacing
-    return execResult.content.trimEnd();
-  }
-  
-  if (execResult.stdout !== undefined || execResult.stderr !== undefined) {
-    const parts = [];
-    if (execResult.stdout) {
-      parts.push(`stdout:\n${execResult.stdout.trimEnd()}`);
-    }
-    if (execResult.stderr) {
-      parts.push(`stderr:\n${execResult.stderr.trimEnd()}`);
-    }
-    return parts.join('\n');
-  }
-  
-  if (execResult.data !== undefined) {
-    // Pretty print JSON data with 2-space indentation
-    // JSON.stringify doesn't add trailing newline
-    return JSON.stringify(execResult.data, null, 2);
-  }
-  
-  return '';
-}
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/formatters.ts ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/index.ts ===
-export { startListener, stopListener } from './listener.js';
-export type { ListenerConfig, ListenerHandle, ListenerState } from './types.js';
-export { ListenerError } from './errors.js';
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/index.ts ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/listener.ts ===
-import { watchFile, unwatchFile, Stats } from 'fs';
-import { readFile, writeFile, access, constants } from 'fs/promises';
-import { dirname, join } from 'path';
-import { write as writeToClipboard } from 'clipboardy';
-
-import type { ListenerConfig, ListenerHandle, ListenerState } from './types.js';
-import { ListenerError } from './errors.js';
-import { Clada } from '../../orch/src/index.js';
-import { formatSummary, formatFullOutput } from './formatters.js';
-import { computeContentHash } from './utils.js';
-
-// Module-level state for tracking active listeners
-const activeListeners = new Map<string, ListenerHandle>();
-// Strip prepended summary section if present
-function stripSummarySection(content: string): string {
-  const startMarker = '=== CLADA RESULTS ===';
-  const endMarker = '=== END ===';
-  
-  // Check if content starts with a CLADA results section
-  const startIndex = content.indexOf(startMarker);
-  if (startIndex === -1 || startIndex > 100) {
-    // No CLADA section at the beginning of file
-    return content;
-  }
-  
-  // Find the corresponding END marker
-  const endIndex = content.indexOf(endMarker, startIndex);
-  if (endIndex === -1) {
-    return content; // Malformed section, keep content as-is
-  }
-  
-  // Find the newline after the end marker
-  const afterEndIndex = content.indexOf('\n', endIndex + endMarker.length);
-  if (afterEndIndex === -1) {
-    return ''; // File ends with summary
-  }
-  
-  // Skip one more newline if present (blank line after summary)
-  const contentStart = content[afterEndIndex + 1] === '\n' ? afterEndIndex + 2 : afterEndIndex + 1;
-  return content.substring(contentStart);
-}
-
-// Debounce utility
-function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): T & { cancel: () => void } {
-  let timeout: NodeJS.Timeout | null = null;
-  
-  const debounced = (...args: Parameters<T>) => {
-    if (timeout) clearTimeout(timeout);
-    timeout = setTimeout(() => {
-      func(...args);
-    }, wait);
-  };
-  
-  debounced.cancel = () => {
-    if (timeout) clearTimeout(timeout);
-  };
-  
-  return debounced as T & { cancel: () => void };
-}
-
-// Generate unique ID for listener instance
-function generateId(): string {
-  return `listener-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
-
-// Format clipboard status line
-function formatClipboardStatus(success: boolean, timestamp: Date): string {
-  const time = timestamp.toLocaleTimeString();
-  return success ?
-    `📋 Copied to clipboard at ${time}` :
-    `❌ Clipboard copy failed at ${time}`;
-}
-
-// Process file changes
-async function processFileChange(filePath: string, state: ListenerState): Promise<void> {
-  // Check cooldown
-  if (Date.now() - state.lastExecutionTime < 2000) {
-    return; // Still in 2s cooldown period
-  }
-  
-  // Check not already processing
-  if (state.isProcessing) return;
-  
-  try {
-    state.isProcessing = true;
-    
-    // Read file
-    const fullContent = await readFile(filePath, 'utf-8');
-    
-    // DIAGNOSTIC: Log file content
-    console.log('=== FILE READ ===');
-    console.log('File path:', filePath);
-    console.log('File content length:', fullContent.length);
-    console.log('File content preview (first 200 chars):', fullContent.substring(0, 200));
-    console.log('File contains SHAM?', fullContent.includes('#!SHAM'));
-    console.log('=== END FILE READ ===');
-    
-    // Strip summary section for hashing
-    const contentForHash = stripSummarySection(fullContent);
-    console.log('Full content length:', fullContent.length);
-    console.log('Content for hash length:', contentForHash.length);
-    console.log('First 100 chars of content for hash:', contentForHash.substring(0, 100));
-    
-    // Compute hash of content (excluding summary)
-    const currentHash = computeContentHash(contentForHash);
-    
-    // DIAGNOSTIC: Log hash comparison
-    console.log('Content for hash:', contentForHash);
-    console.log('Current hash:', currentHash);
-    console.log('Last hash:', state.lastExecutedHash);
-    
-    // Skip if unchanged
-    if (currentHash === state.lastExecutedHash) {
-      console.log('Hash unchanged, skipping execution');
-      console.log('This suggests stripSummarySection might be removing too much content');
-      return;
-    }
-    
-    // Execute via orchestrator with full file content
-    console.log('\n=== ORCHESTRATOR CALL ===');
-    console.log('Content length:', fullContent.length);
-    console.log('Content preview:', fullContent.substring(0, 200));
-    console.log('Content includes SHAM?', fullContent.includes('#!SHAM'));
-    console.log('Content includes backticks?', fullContent.includes('```'));
-    
-    const clada = new Clada({ gitCommit: false });
-    const orchResult = await clada.execute(fullContent);
-    
-    // DIAGNOSTIC: Log orchestrator result
-    console.log('Orchestrator returned:', JSON.stringify(orchResult, null, 2));
-    console.log('=== END ORCHESTRATOR CALL ===\n');
-    
-    // Format outputs
-    const timestamp = new Date();
-    const summary = formatSummary(orchResult, timestamp);
-    const fullOutput = formatFullOutput(orchResult);
-    
-    // Copy to clipboard
-    let clipboardSuccess = false;
-    try {
-      await writeToClipboard(fullOutput);
-      clipboardSuccess = true;
-    } catch (error) {
-      console.error('listener: Clipboard write failed:', error);
-    }
-    
-    // Format clipboard status
-    const clipboardStatus = formatClipboardStatus(clipboardSuccess, timestamp);
-    
-    // Write output file with clipboard status
-    const outputContent = clipboardStatus + '\n' + fullOutput;
-    await writeFile(state.outputPath, outputContent);
-    
-    // Prepend to input file with clipboard status
-    const prepend = clipboardStatus + '\n' + summary;
-    const updatedContent = prepend + '\n' + fullContent;
-    await writeFile(filePath, updatedContent);
-    
-    // Update state
-    state.lastExecutedHash = currentHash;
-    state.lastExecutionTime = Date.now();
-    
-  } catch (error) {
-    console.error('listener: Error processing file change:', error);
-  } finally {
-    state.isProcessing = false;
-  }
-}
-
-export async function startListener(config: ListenerConfig): Promise<ListenerHandle> {
-  // Validate config
-  if (!config.filePath) {
-    throw new Error('listener: filePath is required');
-  }
-  if (!config.filePath.startsWith('/')) {
-    throw new Error('listener: filePath must be absolute');
-  }
-  if (config.debounceMs !== undefined && config.debounceMs < 100) {
-    throw new Error('listener: debounceMs must be at least 100');
-  }
-  
-  // Check file exists
-  try {
-    await access(config.filePath, constants.F_OK);
-  } catch (error) {
-    throw new ListenerError('FILE_NOT_FOUND', config.filePath);
-  }
-  
-  // Check not already watching
-  if (activeListeners.has(config.filePath)) {
-    throw new ListenerError('ALREADY_WATCHING', config.filePath);
-  }
-  
-  // Initialize state
-  const state: ListenerState = {
-    lastExecutedHash: '',
-    isProcessing: false,
-    outputPath: join(dirname(config.filePath), config.outputFilename || '.clada-output-latest.txt'),
-    lastExecutionTime: 0
-  };
-  
-  // Set up debounced handler
-  const debouncedProcess = debounce(
-    () => {
-      console.log('Debounced process executing');
-      processFileChange(config.filePath, state);
+```json
+{
+  "actions": [{
+    "action": "file_write",
+    "parameters": {
+      "path": "/tmp/test.txt",
+      "content": "Hello world!"
     },
-    config.debounceMs || 500
+    "metadata": {
+      "blockId": "abc",
+      "startLine": 1,
+      "endLine": 7
+    }
+  }],
+  "errors": [],
+  "summary": {
+    "totalBlocks": 1,
+    "successCount": 1,
+    "errorCount": 0
+  }
+}
+```
+
+---
+
+### 002-multiple-blocks-with-one-invalid
+
+```sh sham
+#!SHAM [@three-char-SHA-256: gd1]
+action = "file_write"
+path = "/tmp/good.txt"
+content = "valid"
+#!END_SHAM_gd1
+
+#!SHAM [@three-char-SHA-256: bad]
+action = "unknown_action"
+path = "/tmp/bad.txt"
+#!END_SHAM_bad
+```
+
+```json
+{
+  "actions": [{
+    "action": "file_write",
+    "parameters": {
+      "path": "/tmp/good.txt",
+      "content": "valid"
+    },
+    "metadata": {
+      "blockId": "gd1",
+      "startLine": 1,
+      "endLine": 5
+    }
+  }],
+  "errors": [{
+    "blockId": "bad",
+    "action": "unknown_action",
+    "errorType": "validation",
+    "message": "Unknown action: unknown_action",
+    "blockStartLine": 7,
+    "shamContent": "#!SHAM [@three-char-SHA-256: bad]\naction = \"unknown_action\"\npath = \"/tmp/bad.txt\"\n#!END_SHAM_bad"
+  }],
+  "summary": {
+    "totalBlocks": 2,
+    "successCount": 1,
+    "errorCount": 1
+  }
+}
+```
+
+---
+
+### 003-missing-required-parameter
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mis]
+action = "file_write"
+content = "missing path"
+#!END_SHAM_mis
+```
+
+```json
+{
+  "actions": [],
+  "errors": [{
+    "blockId": "mis",
+    "action": "file_write",
+    "errorType": "validation",
+    "message": "Missing required parameter: path",
+    "blockStartLine": 1,
+    "shamContent": "#!SHAM [@three-char-SHA-256: mis]\naction = \"file_write\"\ncontent = \"missing path\"\n#!END_SHAM_mis"
+  }],
+  "summary": {
+    "totalBlocks": 1,
+    "successCount": 0,
+    "errorCount": 1
+  }
+}
+```
+
+---
+
+### 004-type-conversion-with-boolean-and-integer
+
+```sh sham
+#!SHAM [@three-char-SHA-256: typ]
+action = "exec"
+code = "print('hi')"
+lang = "python"
+cwd = "/tmp"
+#!END_SHAM_typ
+```
+
+```json
+{
+  "actions": [{
+    "action": "exec",
+    "parameters": {
+      "code": "print('hi')",
+      "lang": "python",
+      "cwd": "/tmp"
+    },
+    "metadata": {
+      "blockId": "typ",
+      "startLine": 1,
+      "endLine": 6
+    }
+  }],
+  "errors": [],
+  "summary": {
+    "totalBlocks": 1,
+    "successCount": 1,
+    "errorCount": 0
+  }
+}
+```
+
+=== END FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/test-data/parseShamResponse.md ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/index.ts ===
+/**
+ * SHAM Action Parser - Parses SHAM blocks into validated clada actions
+ */
+
+import { ParseResult, CladaAction, ParseError, ValidationResult, TransformError, ActionDefinition } from './types.js';
+import { validateShamBlock } from './validateShamBlock.js';
+import { transformToAction } from './transformToAction.js';
+import { parseSham, type Block, type ParseResult as NeslParseResult } from 'nesl-js';
+import { load as loadYaml } from 'js-yaml';
+import { readFile } from 'fs/promises';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+// Re-export types for consumers
+export { ParseResult, CladaAction, ParseError, ValidationResult, TransformError };
+
+// Cache for action schema
+let actionSchemaCache: Map<string, ActionDefinition> | null = null;
+
+/**
+ * Clear the action schema cache - useful for testing
+ * Forces reload of unified-design.yaml on next parse
+ */
+export function clearActionSchemaCache(): void {
+  actionSchemaCache = null;
+}
+
+/**
+ * Parse SHAM blocks from text into validated clada actions
+ * Processes all blocks, collecting successes and errors
+ */
+export async function parseShamResponse(shamText: string): Promise<ParseResult> {
+  const actions: CladaAction[] = [];
+  const errors: ParseError[] = [];
+
+  // Parse SHAM blocks using nesl-js
+  let parseResult: NeslParseResult;
+  try {
+   
+    parseResult = parseSham(shamText);
+    
+    // Handle case where parseSham returns undefined or null
+    if (!parseResult) {
+      parseResult = { blocks: [], errors: [] };
+    }
+  } catch (error) {
+    return {
+      actions: [],
+      errors: [{
+        blockId: 'unknown',
+        errorType: 'syntax',
+        message: `Failed to parse SHAM: ${error}`,
+        shamContent: shamText
+      }],
+      summary: {
+        totalBlocks: 0,
+        successCount: 0,
+        errorCount: 1
+      }
+    };
+  }
+
+  // Process syntax errors from nesl-js parser
+  if (parseResult.errors && parseResult.errors.length > 0) {
+    for (const parseError of parseResult.errors) {
+      // Find the block this error belongs to
+      const block = parseResult.blocks?.find(b => b.id === parseError.blockId);
+      
+      errors.push({
+        blockId: parseError.blockId || 'unknown',
+        action: block?.properties?.action,
+        errorType: 'syntax',
+        message: parseError.message,
+        blockStartLine: block?.startLine || parseError.line,
+        shamContent: parseError.context 
+          ? `#!SHAM [@three-char-SHA-256: ${parseError.blockId}]\n${parseError.context}`.trimEnd()
+          : reconstructShamBlock(block || { id: parseError.blockId, properties: {} })
+      });
+    }
+  }
+
+  // Load action schema
+  const actionSchema = await loadActionSchema();
+
+  // Process each SHAM block
+  const blocks = parseResult.blocks || [];
+  
+  // If no blocks found, return empty result
+  if (blocks.length === 0) {
+    return {
+      actions: [],
+      errors: [],
+      summary: {
+        totalBlocks: 0,
+        successCount: 0,
+        errorCount: 0
+      }
+    };
+  }
+  
+  // Track blocks with syntax errors to skip them
+  const blocksWithSyntaxErrors = new Set(
+    parseResult.errors?.map(e => e.blockId) || []
   );
   
-  // Start watching
-  watchFile(config.filePath, { interval: 500 }, (curr: Stats, prev: Stats) => {
-    if (curr.mtime !== prev.mtime) {
-      console.log('File change detected, triggering debounced process');
-      debouncedProcess();
+  for (const block of blocks) {
+    const blockId = block.id || 'unknown';
+    
+    // Skip blocks that already have syntax errors
+    if (blocksWithSyntaxErrors.has(blockId)) {
+      continue;
     }
-  });
-  
-  // Process initial content
-  debouncedProcess();
-  
-  // Create handle
-  const handle: ListenerHandle = {
-    id: generateId(),
-    filePath: config.filePath,
-    stop: async () => {
-      unwatchFile(config.filePath);
-      debouncedProcess.cancel();
-      activeListeners.delete(config.filePath);
+    
+    try {
+      // Get action type from block
+      const actionType = block.properties?.action;
+      const actionDef = actionType ? actionSchema.get(actionType) : undefined;
+
+ 
+
+      // Validate block
+      const validation = validateShamBlock(block, actionDef ?? null);
+      
+      if (!validation.valid) {
+        errors.push({
+          blockId,
+          action: actionType,
+          errorType: 'validation',
+          message: validation.errors?.[0] || 'Validation failed',
+          blockStartLine: block.startLine,
+          shamContent: reconstructShamBlock(block)
+        });
+        continue;
+      }
+
+      // Transform to action
+      try {
+        const action = transformToAction(block, actionDef!);
+        actions.push(action);
+      } catch (error) {
+        if (error instanceof TransformError) {
+          errors.push({
+            blockId,
+            action: actionType,
+            errorType: 'type',
+            message: error.message,
+            blockStartLine: block.startLine,
+            shamContent: reconstructShamBlock(block)
+          });
+        } else {
+          throw error;
+        }
+      }
+    } catch (error) {
+      errors.push({
+        blockId,
+        action: block.properties?.action,
+        errorType: 'validation',
+        message: `Unexpected error: ${error}`,
+        blockStartLine: block.startLine,
+        shamContent: reconstructShamBlock(block)
+      });
+    }
+  }
+
+  const result = {
+    actions,
+    errors,
+    summary: {
+      totalBlocks: blocks.length,
+      successCount: actions.length,
+      errorCount: errors.length
     }
   };
+  return result;
+}
+
+/**
+ * Load and cache action definitions from unified-design.yaml
+ */
+async function loadActionSchema(): Promise<Map<string, ActionDefinition>> {
+ 
+  if (actionSchemaCache) {
+    return actionSchemaCache;
+  }
+
+  // Get the directory of this module
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
   
-  // Track active listener
-  activeListeners.set(config.filePath, handle);
+  // Navigate to project root and find unified-design.yaml
+  const yamlPath = join(__dirname, '../../../../unified-design.yaml');
   
-  return handle;
+  try {
+    // Add timeout to file read operation
+    const yamlContent = await Promise.race([
+      readFile(yamlPath, 'utf8'),
+      new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('YAML read timeout')), 5000)
+      )
+    ]);
+    const design = loadYaml(yamlContent) as any;
+    
+    actionSchemaCache = new Map();
+    
+    // Extract tool definitions
+    if (design.tools) {
+      for (const [toolName, toolDef] of Object.entries(design.tools)) {
+        actionSchemaCache.set(toolName, toolDef as ActionDefinition);
+      }
+    }
+    
+ 
+    
+    return actionSchemaCache;
+  } catch (error) {
+    throw new Error(`Failed to load unified-design.yaml: ${error}`);
+  }
 }
 
-export async function stopListener(handle: ListenerHandle): Promise<void> {
-  await handle.stop();
+/**
+ * Reconstruct SHAM block text for error context
+ */
+function reconstructShamBlock(block: Block): string {
+  const lines: string[] = [];
+  
+  // Start line
+  lines.push(`#!SHAM [@three-char-SHA-256: ${block.id || 'unknown'}]`);
+  
+  // Properties
+  for (const [key, value] of Object.entries(block.properties || {})) {
+    if (key.startsWith('@')) continue; // Skip annotations
+    
+    if (typeof value === 'string' && value.includes('\n')) {
+      // Multi-line value with heredoc
+      lines.push(`${key} = <<'EOT_SHAM_${block.id}'`);
+      lines.push(value);
+      lines.push(`EOT_SHAM_${block.id}`);
+    } else {
+      // Single line value - use JSON.stringify to handle quotes properly
+      lines.push(`${key} = ${JSON.stringify(value)}`);
+    }
+  }
+  
+  // End line
+  lines.push(`#!END_SHAM_${block.id || 'unknown'}`);
+  
+  return lines.join('\n');
 }
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/listener.ts ===
 
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/types.ts ===
-export interface ListenerConfig {
-  filePath: string;
-  debounceMs?: number;
-  outputFilename?: string;
+// Re-export functions for consumers
+export { validateShamBlock, transformToAction };
+=== END FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/index.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/transformToAction.ts ===
+import { CladaAction, TransformError, ActionDefinition } from './types.js';
+import type { Block } from 'nesl-js';
+
+/**
+ * Transform validated SHAM block into typed clada action
+ * Converts string values to proper types based on schema
+ */
+export function transformToAction(
+  block: Block,
+  actionDef: ActionDefinition
+): CladaAction {
+  const action = block.properties.action;
+  if (!action) {
+    throw new TransformError(
+      'Block missing action property',
+      'action',
+      'string',
+      'undefined'
+    );
+  }
+  const parameters: Record<string, any> = {};
+
+  // Process each parameter defined in the schema
+  for (const [paramName, paramDef] of Object.entries(actionDef.parameters || {})) {
+    // Skip if parameter not provided and has a default
+    if (!(paramName in block.properties)) {
+      if ('default' in paramDef) {
+        parameters[paramName] = paramDef.default;
+      }
+      continue;
+    }
+
+    const rawValue = block.properties[paramName];
+    
+    // Skip if value is undefined (shouldn't happen if we got here, but TypeScript needs this)
+    if (rawValue === undefined) {
+      continue;
+    }
+
+    try {
+      // Convert based on parameter type
+      switch (paramDef.type) {
+        case 'string':
+          parameters[paramName] = rawValue;
+          // Validate format if specified
+          if (paramDef.format === 'absolute_path' && !validateAbsolutePath(rawValue)) {
+            throw new TransformError(
+              `Invalid absolute path: ${rawValue}`,
+              paramName,
+              'absolute_path',
+              rawValue
+            );
+          }
+          break;
+
+        case 'integer':
+          parameters[paramName] = parseInteger(rawValue);
+          break;
+
+        case 'boolean':
+          parameters[paramName] = parseBoolean(rawValue);
+          break;
+
+        case 'enum':
+          if (!paramDef.values || !paramDef.values.includes(rawValue)) {
+            throw new TransformError(
+              `Invalid enum value: ${rawValue}. Allowed: ${paramDef.values?.join(', ')}`,
+              paramName,
+              'enum',
+              rawValue
+            );
+          }
+          parameters[paramName] = rawValue;
+          break;
+
+        default:
+          // Default to string for unknown types
+          parameters[paramName] = rawValue;
+      }
+    } catch (error) {
+      if (error instanceof TransformError) {
+        // Update parameter name in error
+        error.parameterName = paramName;
+        throw error;
+      }
+      throw new TransformError(
+        `Failed to transform parameter ${paramName}: ${error}`,
+        paramName,
+        paramDef.type,
+        rawValue
+      );
+    }
+  }
+
+  return {
+    action,
+    parameters,
+    metadata: {
+      blockId: block.id,
+      startLine: block.startLine,
+      endLine: block.endLine ?? block.startLine // Use startLine if endLine is null
+    }
+  };
 }
 
-export interface ListenerHandle {
-  id: string;
-  filePath: string;
-  stop: () => Promise<void>;
+// Helper functions for type conversion and validation
+
+function parseBoolean(value: string): boolean {
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  throw new TransformError(
+    `Invalid boolean value: ${value}`,
+    'unknown',
+    'boolean',
+    value
+  );
 }
 
-export interface ListenerState {
-  lastExecutedHash: string;
-  isProcessing: boolean;
-  outputPath: string;
-  lastExecutionTime: number;
-  actionSchema: Map<string, ActionDefinition>;
+function parseInteger(value: string): number {
+  const num = parseInt(value, 10);
+  if (isNaN(num) || num.toString() !== value.trim()) {
+    throw new TransformError(
+      `Invalid integer value: ${value}`,
+      'unknown',
+      'integer',
+      value
+    );
+  }
+  return num;
+}
+
+function validateAbsolutePath(path: string): boolean {
+  // Unix/Linux/Mac absolute paths start with /
+  // Windows absolute paths like C:\ or \\server\share
+  return /^(\/|[A-Za-z]:\\|\\\\)/.test(path);
+}
+=== END FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/transformToAction.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/types.ts ===
+export interface ParseResult {
+  actions: CladaAction[];
+  errors: ParseError[];
+  summary: {
+    totalBlocks: number;
+    successCount: number;
+    errorCount: number;
+  };
+}
+
+export interface CladaAction {
+  action: string;
+  parameters: Record<string, any>;
+  metadata: {
+    blockId: string;
+    startLine: number;
+    endLine: number;
+  };
+}
+
+export interface ParseError {
+  blockId: string;
+  action?: string;
+  errorType: 'syntax' | 'validation' | 'type';
+  message: string;
+  blockStartLine?: number;
+  shamContent?: string;
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  actionType?: string;
+  errors?: string[];
+}
+
+export class TransformError extends Error {
+  constructor(
+    message: string,
+    public parameterName: string,
+    public expectedType: string,
+    public actualValue: string
+  ) {
+    super(message);
+    this.name = 'TransformError';
+  }
 }
 
 export interface ActionDefinition {
   type: 'read' | 'write' | 'meta' | 'git' | 'dynamic';
   description: string;
-  output_display?: 'always' | 'never' | 'conditional';
-  primary_param?: string;
   parameters: Record<string, ParameterDef>;
-  returns: Record<string, any>;
+  returns?: Record<string, any>;
 }
 
 export interface ParameterDef {
@@ -466,824 +639,71 @@ export interface ParameterDef {
   values?: string[];
   default?: any;
 }
+=== END FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/types.ts ===
 
-export interface SizeCheckResult {
-  valid: boolean;
-  totalSize: number;
-  errors: any[]; // ExecutionResult[] but avoiding circular dependency
-}
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/types.ts ===
+=== START FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/validateShamBlock.ts ===
+import { ValidationResult, ActionDefinition } from './types.js';
+import type { Block } from 'nesl-js';
 
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/utils.ts ===
-import { createHash } from 'node:crypto';
-
-export function computeContentHash(content: string): string {
-  return createHash('sha256').update(content).digest('hex');
-}
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/utils.ts ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/doc/ABSTRACT.md ===
-# File Listener
-
-Watches a file for SHAM blocks, executes them via orchestrator, and prepends results while managing output to clipboard and separate file.
-
-## Overview
-
-The listener component provides continuous monitoring of a designated input file for SHAM action blocks. When file content changes (excluding any prepended results section), it executes all SHAM blocks through the orchestrator component and manages the output flow. Results are formatted as a summary prepended to the input file, with full output written to a companion file and copied to clipboard.
-
-The component handles the complete lifecycle: detecting changes via file system events, parsing content to extract SHAM blocks, determining which blocks are new based on content hashing, executing actions in order, formatting results into summary and detailed views, and coordinating the three output destinations (input file prepend, output file, clipboard). It includes debouncing to handle rapid file saves and provides clear visual feedback when operations complete.
-
-The design prioritizes developer experience with clear status indicators, handles common failure modes gracefully (permission errors, clipboard failures), and maintains a simple state model tracking only the hash of previously executed blocks.
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/doc/ABSTRACT.md ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/doc/API.md ===
-# Component: listener
-
-## Component Type
-standard
-
-## Dependencies
-[Provisional - updated via STOP protocol when implementation reveals actual needs]
-
-```yaml
-dependencies:
-  proj/comp/orch:                                          # [IMPLEMENTED]
-    functions: [execute]
-    types: [OrchestratorResult]
-  
-  node:fs/promises:
-    functions: [readFile, writeFile]
-  
-  node:fs:
-    functions: [watchFile, unwatchFile]
-    types: [Stats]
-  
-  node:path:
-    functions: [dirname, join]
-  
-  node:crypto:
-    functions: [createHash]
-  
-  external/clipboardy:
-    functions: [write as writeToClipboard]
-```
-
-## Exports
-
-```yaml
-exports:
-  functions: [startListener, stopListener]
-  types: [ListenerConfig, ListenerHandle, ListenerState]
-  classes:
-    ListenerError:
-      extends: Error
-```
-
-### startListener
-- **Signature**: `startListener(config: ListenerConfig) -> Promise<ListenerHandle>`
-- **Purpose**: Begin watching file for SHAM blocks and executing them.
-- **Throws**: `ListenerError` when file doesn't exist or can't be accessed
-- **Test-data**: `test-data/startListener.json` [PLANNED]
-
-### stopListener
-- **Signature**: `stopListener(handle: ListenerHandle) -> Promise<void>`
-- **Purpose**: Stop watching file and clean up resources.
-- **Test-data**: `test-data/stopListener.json` [PLANNED]
-
-## Types
-
-### ListenerConfig
-```typescript
-{
-  filePath: string           // Absolute path to watch
-  debounceMs?: number        // Milliseconds to wait before processing (default: 500)
-  outputFilename?: string    // Name for output file (default: ".clada-output-latest.txt")
-}
-```
-
-### ListenerHandle
-```typescript
-{
-  id: string                 // Unique listener instance ID
-  filePath: string           // Path being watched
-  stop: () => Promise<void>  // Method to stop this listener
-}
-```
-
-### ListenerState
-```typescript
-{
-  lastExecutedHash: string   // SHA-256 of previously executed SHAM content
-  isProcessing: boolean      // Currently executing actions
-  outputPath: string         // Full path to output file
-}
-```
-
-### ListenerError
-```typescript
-class ListenerError extends Error {
-  code: 'FILE_NOT_FOUND' | 'ACCESS_DENIED' | 'ALREADY_WATCHING'
-  path: string
-}
-```
-
-## Internal Functions
-[To be discovered during implementation]
-
-### processFileChange
-- **Signature**: `processFileChange(filePath: string, state: ListenerState) -> Promise<void>`
-- **Purpose**: Read file, hash content after summary, execute if changed.
-
-### stripSummarySection
-- **Signature**: `stripSummarySection(content: string) -> string`
-- **Purpose**: Remove prepended results section if present.
-
-### computeContentHash
-- **Signature**: `computeContentHash(content: string) -> string`
-- **Purpose**: Generate SHA-256 hash of content for comparison.
-
-### formatSummary
-- **Signature**: `formatSummary(results: OrchestratorResult, timestamp: Date) -> string`
-- **Purpose**: Create the summary text block for prepending.
-
-### formatFullOutput
-- **Signature**: `formatFullOutput(results: OrchestratorResult) -> string`
-- **Purpose**: Create detailed output including action outputs.
-
-### updateFileWithClipboardStatus
-- **Signature**: `updateFileWithClipboardStatus(filePath: string, timestamp: Date) -> Promise<void>`
-- **Purpose**: Replace first line with clipboard success indicator.
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/doc/API.md ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/doc/ARCH.md ===
-# Listener Architecture
-
-## Design Philosophy
-
-**Minimal State, Maximum Reliability**: Track only what's necessary (content hash), handle failures gracefully, provide clear feedback. No complex state machines or recovery logic.
-
-## Key Design Decisions
-
-### File Watching Strategy
-- Use `fs.watchFile` with polling (more reliable than fs.watch)
-- Poll interval: 500ms default
-- Stat-based change detection
-- Single watcher per file (error if duplicate)
-
-**Rationale**: fs.watch has platform inconsistencies. Polling is battery-hungry but reliable for single-file monitoring.
-
-### Content Hashing
-- Hash file content after stripping any prepended summary section
-- Use SHA-256 of content after first "=== END ===" line
-- If no summary section, hash entire content
-- Hash comparison determines execution
-
-**Note**: Parse errors won't trigger re-execution when fixed (content unchanged).
-
-### Debouncing
-- File change starts debounce timer
-- Subsequent changes reset timer
-- Only process after quiet period
-- Default: 500ms
-
-**Rationale**: Editors often write multiple times. Prevents redundant execution during typing.
-
-### Output Coordination
-
-**Three destinations, specific order**:
-1. Write `.clada-output-latest.txt` (same directory)
-2. Prepend summary to input file (with blank first line)
-3. Copy full output to clipboard
-4. Update first line with clipboard status
-
-**Failure handling**:
-- Output file fails: Continue, log error
-- Prepend fails: Abort (can't update user's file)
-- Clipboard fails: Note in first line
-- All operations independent
-
-### Summary Format
-```
-[blank line for clipboard status]
-=== CLADA RESULTS ===
-{id} ✅ {action} {primary_param}
-{id} ❌ {action} {primary_param} - {error_summary}
-=== END ===
-```
-
-example after copy:
-
-```
-📋 Copied to clipboard at 10:32:45
-=== CLADA RESULTS ===
-c8i ✅ file_write /path/to/file.md
-qb2 ❌ file_write /path/to/other.rs - Permission denied
-v84 ✅ exec javascript - 17 lines
-=== END ===
-```
-
-### Full Output Format
-```
-=== CLADA RESULTS ===
-[same as summary]
-=== OUTPUTS ===
-[{id}] {action} {primary_param}:
-{output content}
-
-[{id}] {action} {primary_param}:
-{output content}
-=== END ===
-```
-
-### Output Display Rules
-Read from unified-design.yaml per action:
-- `output_display: always` - Include in OUTPUTS section
-- `output_display: never` - Summary only
-- `output_display: conditional` - Check return_output parameter
-
-### Truncation
-- 50KB limit per action output
-- UTF-8 aware truncation
-- Show first 25KB + last 25KB
-- Clear truncation message
-
-### Race Condition Acceptance
-**Problem**: User edits during processing
-**Solution**: Document-only. No locking or conflict resolution.
-**Rationale**: Toy project, complex solutions not warranted.
-
-### Process Lifecycle
-1. **Watch** - fs.watchFile on config.filePath
-2. **Detect** - mtime change triggers debounced handler
-3. **Read** - Load file content
-4. **Strip** - Remove prepended summary section if present
-5. **Hash** - Compute hash of remaining content
-6. **Compare** - Skip if hash matches lastExecutedHash
-7. **Execute** - Call orchestrator.execute() with full file
-8. **Format** - Generate summary and full output from results
-9. **Write** - Output file, prepend summary, clipboard
-10. **Update** - Store new hash
-
-## Error Messages
-
-Formatted for developer clarity:
-- "listener: File not found '{path}'"
-- "listener: Already watching '{path}'"
-- "listener: Permission denied writing output '{path}'"
-- "listener: Clipboard write failed"
-
-
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/doc/ARCH.md ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/test/integration/listener-workflow.test.ts ===
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { readFile, writeFile, mkdir, rm, access } from 'fs/promises';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { startListener } from '../../src/listener.js';
-import type { ListenerHandle } from '../../src/types.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-// Helper to poll for expected content
-async function pollForContent(
-  filePath: string, 
-  check: (content: string) => boolean, 
-  timeoutMs: number = 2000
-): Promise<string> {
-  const startTime = Date.now();
-  while (Date.now() - startTime < timeoutMs) {
-    try {
-      const content = await readFile(filePath, 'utf-8');
-      if (check(content)) return content;
-    } catch {}
-    await new Promise(resolve => setTimeout(resolve, 50));
+/**
+ * Validate a single SHAM block against action schema
+ * Checks action exists and required params present
+ */
+export function validateShamBlock(
+  block: Block,
+  actionSchema: ActionDefinition | null
+): ValidationResult {
+  // Check if block has properties object
+  if (!block.properties) {
+    return {
+      valid: false,
+      errors: ['Block missing properties object']
+    };
   }
-  throw new Error(`Timeout after ${timeoutMs}ms waiting for expected content`);
-}
 
-// Helper to wait for initial processing
-async function waitForInitialProcessing(testFile: string): Promise<void> {
-  await pollForContent(testFile, content => 
-    content.includes('=== CLADA RESULTS ==='), 
-    1500
-  );
-}
-
-// Helper to read and normalize timestamps in output
-function normalizeTimestamp(content: string): string {
-  return content.replace(/at \d{1,2}:\d{2}:\d{2}/g, 'at 10:30:00');
-}
-
-describe('listener workflow integration', () => {
-  let handle: ListenerHandle | null = null;
-  const testDir = '/tmp/t_listener_integration';
-  const testFile = join(testDir, 'test.md');
-  const outputFile = join(testDir, '.clada-output-latest.txt');
-
-  beforeEach(async () => {
-    await mkdir(testDir, { recursive: true });
-  });
-
-  afterEach(async () => {
-    if (handle) {
-      await handle.stop();
-      handle = null;
-    }
-    await rm(testDir, { recursive: true, force: true });
-  });
-
-  it('processes SHAM blocks and updates files', async () => {
-    // Create initial file
-    const initialContent = '# My Document\n\nSome content here.\n';
-    await writeFile(testFile, initialContent);
-
-    // Start listener
-    handle = await startListener({ filePath: testFile });
-    
-    // Wait for initial processing to complete
-    await waitForInitialProcessing(testFile);
-
-    // Wait for cooldown period to pass (listener has 2s cooldown)
-    await new Promise(resolve => setTimeout(resolve, 2100));
-
-    // Add SHAM block
-    const withSham = initialContent + `
-\`\`\`sh sham
-#!SHAM [@three-char-SHA-256: abc]
-action = "file_write"
-path = "${testDir}/output.txt"
-content = "Hello from listener!"
-#!END_SHAM_abc
-\`\`\`
-`;
-    await writeFile(testFile, withSham);
-    
-    // Poll for SHAM execution results
-    await pollForContent(testFile, content => 
-      content.includes('abc ✅ file_write') && 
-      content.includes('📋 Copied to clipboard')
-    );
-
-    // Poll for output file creation
-    const outputContent = await pollForContent(
-      join(testDir, 'output.txt'), 
-      content => content === 'Hello from listener!'
-    );
-    expect(outputContent).toBe('Hello from listener!');
-
-    // Poll for .clada-output-latest.txt
-    const cladaOutput = await pollForContent(
-      outputFile,
-      content => content.includes('abc ✅ file_write') && content.includes('=== OUTPUTS ===')
-    );
-    const normalizedOutput = normalizeTimestamp(cladaOutput);
-    expect(normalizedOutput).toContain('📋 Copied to clipboard at 10:30:00');
-    expect(normalizedOutput).toContain('abc ✅ file_write');
-    expect(normalizedOutput).toContain('=== OUTPUTS ===');
-
-    // File should have results prepended
-    const updatedContent = await readFile(testFile, 'utf-8');
-    const normalizedContent = normalizeTimestamp(updatedContent);
-    expect(normalizedContent).toContain('📋 Copied to clipboard at 10:30:00');
-    expect(normalizedContent).toContain('abc ✅ file_write');
-    expect(normalizedContent).toContain('```'); // Original SHAM block preserved
-  });
-
-  it('handles multiple actions with mixed results', async () => {
-    // Create initial empty file
-    await writeFile(testFile, '');
-
-    // Start listener
-    handle = await startListener({ filePath: testFile });
-    
-    // Wait for initial processing
-    await waitForInitialProcessing(testFile);
-    
-    // Wait for cooldown period
-    await new Promise(resolve => setTimeout(resolve, 2100));
-
-    const content = `
-\`\`\`sh sham
-#!SHAM [@three-char-SHA-256: wr1]
-action = "file_write"
-path = "${testDir}/file1.txt"
-content = "First file"
-#!END_SHAM_wr1
-\`\`\`
-
-\`\`\`sh sham
-#!SHAM [@three-char-SHA-256: rd1]
-action = "file_read"
-path = "${testDir}/missing.txt"
-#!END_SHAM_rd1
-\`\`\`
-
-\`\`\`sh sham
-#!SHAM [@three-char-SHA-256: ex1]
-action = "exec"
-lang = "bash"
-code = "echo 'Hello world'"
-#!END_SHAM_ex1
-\`\`\`
-`;
-    await writeFile(testFile, content);
-    
-    // Poll for results
-    await pollForContent(testFile, content => 
-      content.includes('wr1 ✅ file_write') &&
-      content.includes('rd1 ❌ file_read') &&
-      content.includes('ex1 ✅ exec')
-    );
-
-    // Check results
-    const updatedContent = await readFile(testFile, 'utf-8');
-    const normalized = normalizeTimestamp(updatedContent);
-    
-    expect(normalized).toContain('wr1 ✅ file_write');
-    expect(normalized).toContain('rd1 ❌ file_read');
-    expect(normalized).toContain('File not found');
-    expect(normalized).toContain('ex1 ✅ exec bash');
-
-    // Check full output file
-    const fullOutput = await readFile(outputFile, 'utf-8');
-    expect(fullOutput).toContain('[ex1] exec bash:');
-    expect(fullOutput).toContain('Hello world');
-  });
-
-  it('does not re-execute unchanged SHAM blocks', async () => {
-    // Create initial empty file
-    await writeFile(testFile, '');
-
-    // Start listener
-    handle = await startListener({ filePath: testFile });
-    
-    // Wait for initial processing
-    await waitForInitialProcessing(testFile);
-    
-    // Wait for cooldown period
-    await new Promise(resolve => setTimeout(resolve, 2100));
-
-    const content = `
-\`\`\`sh sham
-#!SHAM [@three-char-SHA-256: nc1]
-action = "file_write"
-path = "${testDir}/counter.txt"
-content = "1"
-#!END_SHAM_nc1
-\`\`\`
-`;
-    await writeFile(testFile, content);
-    
-    // Poll for initial execution
-    await pollForContent(testFile, content => 
-      content.includes('nc1 ✅ file_write')
-    );
-
-    // Verify file was created
-    const counterContent1 = await readFile(join(testDir, 'counter.txt'), 'utf-8');
-    expect(counterContent1).toBe('1');
-
-    // Get current file content (with prepended results)
-    const prependedContent = await readFile(testFile, 'utf-8');
-
-    // Simulate editing file but keeping SHAM blocks the same
-    // Just add a comment outside SHAM
-    const editedContent = prependedContent + '\n<!-- Comment added -->\n';
-    await writeFile(testFile, editedContent);
-    
-    // Wait a bit to ensure any processing would have started
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Change the counter file to detect if action re-executed
-    await writeFile(join(testDir, 'counter.txt'), '2');
-
-    // Trigger another save with same SHAM content
-    await writeFile(testFile, editedContent + ' ');
-    
-    // Wait to ensure no re-processing happens
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Counter should still be 2 (not overwritten back to 1)
-    const counterContent2 = await readFile(join(testDir, 'counter.txt'), 'utf-8');
-    expect(counterContent2).toBe('2');
-  });
-
-  it('handles parse errors gracefully', async () => {
-    // Create initial empty file
-    await writeFile(testFile, '');
-
-    // Start listener
-    handle = await startListener({ filePath: testFile });
-    
-    // Wait for initial processing
-    await waitForInitialProcessing(testFile);
-    
-    // Wait for cooldown period
-    await new Promise(resolve => setTimeout(resolve, 2100));
-
-    const content = `
-\`\`\`sh sham
-#!SHAM [@three-char-SHA-256: bad]
-action = "file_write"
-path = "${testDir}/test.txt"
-content = "missing closing quote
-#!END_SHAM_bad
-\`\`\`
-`;
-    await writeFile(testFile, content);
-    
-    // Poll for error to appear
-    await pollForContent(testFile, content => 
-      content.includes('bad ❌') && 
-      content.includes('Unterminated heredoc')
-    );
-
-    // Check error was reported
-    const updatedContent = await readFile(testFile, 'utf-8');
-    expect(updatedContent).toContain('bad ❌');
-    expect(updatedContent).toContain('Unterminated heredoc');
-  });
-});
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/test/integration/listener-workflow.test.ts ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/test-data/integration/listener-workflow.md ===
-# Listener Integration Test Cases
-
-## Basic file write and execution
-
-### Initial file content
-```
-# My Document
-
-Some content here.
-```
-
-### File change with SHAM block
-```
-# My Document
-
-Some content here.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: abc]
-action = "file_write"
-path = "/tmp/t_listener_workflow/output.txt"
-content = "Hello from listener!"
-#!END_SHAM_abc
-```
-```
-
-### Expected clipboard content
-```
-📋 Copied to clipboard at 10:30:00
-
-=== CLADA RESULTS ===
-abc ✅ file_write /tmp/t_listener_workflow/output.txt
-=== END ===
-```
-
-### Expected .clada-output-latest.txt
-```
-📋 Copied to clipboard at 10:30:00
-
-=== CLADA RESULTS ===
-abc ✅ file_write /tmp/t_listener_workflow/output.txt
-=== END ===
-
-=== OUTPUTS ===
-=== END ===
-```
-
-### Expected file content after prepend
-```
-📋 Copied to clipboard at 10:30:00
-
-=== CLADA RESULTS ===
-abc ✅ file_write /tmp/t_listener_workflow/output.txt
-=== END ===
-
-# My Document
-
-Some content here.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: abc]
-action = "file_write"
-path = "/tmp/t_listener_workflow/output.txt"
-content = "Hello from listener!"
-#!END_SHAM_abc
-```
-```
-
-## Multiple actions with mixed results
-
-### File change
-```
-```sh sham
-#!SHAM [@three-char-SHA-256: wr1]
-action = "file_write"
-path = "/tmp/t_listener_multi/file1.txt"
-content = "First file"
-#!END_SHAM_wr1
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rd1]
-action = "file_read"
-path = "/tmp/t_listener_multi/missing.txt"
-#!END_SHAM_rd1
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: ex1]
-action = "exec"
-lang = "bash"
-code = "echo 'Hello world'"
-#!END_SHAM_ex1
-```
-```
-
-### Expected summary
-```
-📋 Copied to clipboard at 10:30:00
-
-=== CLADA RESULTS ===
-wr1 ✅ file_write /tmp/t_listener_multi/file1.txt
-rd1 ❌ file_read /tmp/t_listener_multi/missing.txt - File not found
-ex1 ✅ exec bash
-=== END ===
-```
-
-### Expected full output
-```
-📋 Copied to clipboard at 10:30:00
-
-=== CLADA RESULTS ===
-wr1 ✅ file_write /tmp/t_listener_multi/file1.txt
-rd1 ❌ file_read /tmp/t_listener_multi/missing.txt - File not found
-ex1 ✅ exec bash
-=== END ===
-
-=== OUTPUTS ===
-[ex1] exec bash:
-stdout:
-Hello world
-=== END ===
-```
-
-## Parse error handling
-
-### File with parse error
-```
-```sh sham
-#!SHAM [@three-char-SHA-256: bad]
-action = "file_write"
-path = "/tmp/t_listener_parse/test.txt"
-content = "missing closing quote
-#!END_SHAM_bad
-```
-```
-
-### Expected summary
-```
-📋 Copied to clipboard at 10:30:00
-
-=== CLADA RESULTS ===
-bad ❌ file_write - Unterminated heredoc: Expected EOT_SHAM_bad
-=== END ===
-```
-
-## No change detection (same hash)
-
-### Initial SHAM
-```
-```sh sham
-#!SHAM [@three-char-SHA-256: nc1]
-action = "file_write"
-path = "/tmp/t_listener_nochange/test.txt"
-content = "Initial content"
-#!END_SHAM_nc1
-```
-```
-
-### Second save with same content
-Should not execute again - no output changes
-
-## Output size limits
-
-### Single large output
-```
-```sh sham
-#!SHAM [@three-char-SHA-256: big]
-action = "exec"
-lang = "python"
-code = "print('x' * 60000)"
-#!END_SHAM_big
-```
-```
-
-### Expected summary
-```
-📋 Copied to clipboard at 10:30:00
-
-=== CLADA RESULTS ===
-big ❌ exec python - Output too large: 60001 bytes (max 50000)
-=== END ===
-```
-
-## Clipboard failure
-
-### When clipboard fails
-```
-📌 Clipboard copy failed at 10:30:00
-
-=== CLADA RESULTS ===
-abc ✅ file_write /tmp/t_listener_clipfail/test.txt
-=== END ===
-```
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/test-data/integration/listener-workflow.md ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/test-data/startListener.json ===
-{
-  "cases": [
-    {
-      "name": "successful start with default config",
-      "input": [{
-        "filePath": "/tmp/t_listener_start/test.md"
-      }],
-      "setup": {
-        "createFile": "/tmp/t_listener_start/test.md",
-        "content": "# Test file\n"
-      },
-      "expected": {
-        "id": "mock-id",
-        "filePath": "/tmp/t_listener_start/test.md",
-        "hasStopMethod": true
-      }
-    },
-    {
-      "name": "file not found error",
-      "input": [{
-        "filePath": "/tmp/t_listener_missing/ghost.md"
-      }],
-      "throws": "ListenerError",
-      "expectedError": {
-        "code": "FILE_NOT_FOUND",
-        "path": "/tmp/t_listener_missing/ghost.md"
-      }
-    },
-    {
-      "name": "already watching error",
-      "input": [{
-        "filePath": "/tmp/t_listener_duplicate/test.md"
-      }],
-      "setup": {
-        "createFile": "/tmp/t_listener_duplicate/test.md",
-        "content": "test",
-        "alreadyWatching": true
-      },
-      "throws": "ListenerError",
-      "expectedError": {
-        "code": "ALREADY_WATCHING",
-        "path": "/tmp/t_listener_duplicate/test.md"
-      }
-    },
-    {
-      "name": "custom debounce time",
-      "input": [{
-        "filePath": "/tmp/t_listener_debounce/test.md",
-        "debounceMs": 1000
-      }],
-      "setup": {
-        "createFile": "/tmp/t_listener_debounce/test.md",
-        "content": "test"
-      },
-      "expected": {
-        "id": "mock-id",
-        "filePath": "/tmp/t_listener_debounce/test.md",
-        "hasStopMethod": true
-      }
-    },
-    {
-      "name": "custom output filename",
-      "input": [{
-        "filePath": "/tmp/t_listener_output/test.md",
-        "outputFilename": ".my-output.txt"
-      }],
-      "setup": {
-        "createFile": "/tmp/t_listener_output/test.md",
-        "content": "test"
-      },
-      "expected": {
-        "id": "mock-id",
-        "filePath": "/tmp/t_listener_output/test.md",
-        "hasStopMethod": true
+  // Check if action field exists
+  if (!block.properties.action) {
+    return {
+      valid: false,
+      errors: ['Missing \'action\' field in SHAM block']
+    };
+  }
+
+  const actionType = block.properties.action;
+
+  // If no schema provided, it's an unknown action
+  if (!actionSchema) {
+    return {
+      valid: false,
+      errors: [`Unknown action: ${actionType}`]
+    };
+  }
+
+  // Check all required parameters are present
+  const errors: string[] = [];
+  
+  if (actionSchema.parameters) {
+    for (const [paramName, paramDef] of Object.entries(actionSchema.parameters)) {
+      if (paramDef.required && !(paramName in block.properties)) {
+        errors.push(`Missing required parameter: ${paramName}`);
       }
     }
-  ]
+  }
+
+  if (errors.length > 0) {
+    return {
+      valid: false,
+      errors
+    };
+  }
+
+  return {
+    valid: true,
+    actionType,
+    errors: []
+  };
 }
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/test-data/startListener.json ===
+=== END FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/validateShamBlock.ts ===
 
 === START FILE: /Users/stuart/repos/clada/replacer/replacer_llm_instructions.md ===
 coding style guide:  TDD.  self documenting code.  every api  function name should make it super obvious who is doing what and why

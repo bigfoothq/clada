@@ -13,31 +13,54 @@ import { computeContentHash } from './utils.js';
 const activeListeners = new Map<string, ListenerHandle>();
 // Strip prepended summary section if present
 function stripSummarySection(content: string): string {
+  const clipboardPattern = /^(📋 Copied to clipboard at|❌ Clipboard copy failed at) .+\n/;
   const startMarker = '=== CLADA RESULTS ===';
   const endMarker = '=== END ===';
   
-  // Check if content starts with a CLADA results section
-  const startIndex = content.indexOf(startMarker);
-  if (startIndex === -1 || startIndex > 100) {
-    // No CLADA section at the beginning of file
-    return content;
+  // Remove all CLADA sections from the beginning of the file
+  // There may be multiple prepended sections from multiple executions
+  let strippedContent = content;
+  
+  // Keep removing CLADA sections from the beginning until none are found
+  while (true) {
+    // Check for clipboard status line at the very beginning
+    const clipboardMatch = strippedContent.match(clipboardPattern);
+    let searchStart = 0;
+    
+    if (clipboardMatch) {
+      searchStart = clipboardMatch[0].length;
+    }
+    
+    // Look for CLADA section at the beginning (after optional clipboard line)
+    const searchContent = strippedContent.substring(searchStart);
+    const startIndex = searchContent.indexOf(startMarker);
+    
+    // Check if CLADA section is at the beginning
+    if (startIndex !== 0 && (!searchContent.startsWith('\n' + startMarker) || startIndex > 50)) {
+      // No more CLADA sections at the beginning
+      break;
+    }
+    
+    // Find the corresponding END marker
+    const endIndex = searchContent.indexOf(endMarker, startIndex);
+    if (endIndex === -1) {
+      break; // Malformed section, stop processing
+    }
+    
+    // Find the newline after the end marker
+    const afterEndIndex = searchContent.indexOf('\n', endIndex + endMarker.length);
+    if (afterEndIndex === -1) {
+      return ''; // File ends with summary
+    }
+    
+    // Skip one more newline if present (blank line after summary)
+    const contentStart = searchContent[afterEndIndex + 1] === '\n' ? afterEndIndex + 2 : afterEndIndex + 1;
+    
+    // Remove this CLADA section
+    strippedContent = strippedContent.substring(searchStart + contentStart);
   }
   
-  // Find the corresponding END marker
-  const endIndex = content.indexOf(endMarker, startIndex);
-  if (endIndex === -1) {
-    return content; // Malformed section, keep content as-is
-  }
-  
-  // Find the newline after the end marker
-  const afterEndIndex = content.indexOf('\n', endIndex + endMarker.length);
-  if (afterEndIndex === -1) {
-    return ''; // File ends with summary
-  }
-  
-  // Skip one more newline if present (blank line after summary)
-  const contentStart = content[afterEndIndex + 1] === '\n' ? afterEndIndex + 2 : afterEndIndex + 1;
-  return content.substring(contentStart);
+  return strippedContent.trim();
 }
 
 // Debounce utility
@@ -76,11 +99,6 @@ function formatClipboardStatus(success: boolean, timestamp: Date): string {
 
 // Process file changes
 async function processFileChange(filePath: string, state: ListenerState): Promise<void> {
-  // Check cooldown
-  if (Date.now() - state.lastExecutionTime < 2000) {
-    return; // Still in 2s cooldown period
-  }
-  
   // Check not already processing
   if (state.isProcessing) return;
   
@@ -90,48 +108,33 @@ async function processFileChange(filePath: string, state: ListenerState): Promis
     // Read file
     const fullContent = await readFile(filePath, 'utf-8');
     
-    // DIAGNOSTIC: Log file content
-    console.log('=== FILE READ ===');
-    console.log('File path:', filePath);
-    console.log('File content length:', fullContent.length);
-    console.log('File content preview (first 200 chars):', fullContent.substring(0, 200));
-    console.log('File contains SHAM?', fullContent.includes('#!SHAM'));
-    console.log('=== END FILE READ ===');
-    
     // Strip summary section for hashing
-    const contentForHash = stripSummarySection(fullContent);
-    console.log('Full content length:', fullContent.length);
-    console.log('Content for hash length:', contentForHash.length);
-    console.log('First 100 chars of content for hash:', contentForHash.substring(0, 100));
+    const contentForHash = stripSummarySection(fullContent).trim();
+    
+    // DIAGNOSTIC: Log stripping results
+    console.log('\n=== STRIP SUMMARY ===');
+    console.log('Original length:', fullContent.length);
+    console.log('Stripped length:', contentForHash.length);
+    console.log('Stripped content preview:', contentForHash.substring(0, 150).replace(/\n/g, '\\n'));
+    console.log('=== END STRIP ===\n');
     
     // Compute hash of content (excluding summary)
     const currentHash = computeContentHash(contentForHash);
     
     // DIAGNOSTIC: Log hash comparison
-    console.log('Content for hash:', contentForHash);
     console.log('Current hash:', currentHash);
     console.log('Last hash:', state.lastExecutedHash);
     
     // Skip if unchanged
     if (currentHash === state.lastExecutedHash) {
-      console.log('Hash unchanged, skipping execution');
-      console.log('This suggests stripSummarySection might be removing too much content');
+      console.log('Content unchanged, skipping execution');
       return;
     }
     
     // Execute via orchestrator with full file content
-    console.log('\n=== ORCHESTRATOR CALL ===');
-    console.log('Content length:', fullContent.length);
-    console.log('Content preview:', fullContent.substring(0, 200));
-    console.log('Content includes SHAM?', fullContent.includes('#!SHAM'));
-    console.log('Content includes backticks?', fullContent.includes('```'));
-    
     const clada = new Clada({ gitCommit: false });
     const orchResult = await clada.execute(fullContent);
-    
-    // DIAGNOSTIC: Log orchestrator result
-    console.log('Orchestrator returned:', JSON.stringify(orchResult, null, 2));
-    console.log('=== END ORCHESTRATOR CALL ===\n');
+    console.log('Executed', orchResult.executedActions, 'actions');
     
     // Format outputs
     const timestamp = new Date();
@@ -161,7 +164,6 @@ async function processFileChange(filePath: string, state: ListenerState): Promis
     
     // Update state
     state.lastExecutedHash = currentHash;
-    state.lastExecutionTime = Date.now();
     
   } catch (error) {
     console.error('listener: Error processing file change:', error);
@@ -198,8 +200,7 @@ export async function startListener(config: ListenerConfig): Promise<ListenerHan
   const state: ListenerState = {
     lastExecutedHash: '',
     isProcessing: false,
-    outputPath: join(dirname(config.filePath), config.outputFilename || '.clada-output-latest.txt'),
-    lastExecutionTime: 0
+    outputPath: join(dirname(config.filePath), config.outputFilename || '.clada-output-latest.txt')
   };
   
   // Set up debounced handler

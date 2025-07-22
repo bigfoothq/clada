@@ -12,7 +12,7 @@ export function formatSummary(orchResult: OrchestratorResult, timestamp: Date): 
       if (result.success) {
         lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam}`.trim());
       } else {
-        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam} - ${result.error}`.trim());
+        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam} - ${getErrorSummary(result.error)}`.trim());
       }
     }
   }
@@ -20,7 +20,7 @@ export function formatSummary(orchResult: OrchestratorResult, timestamp: Date): 
   // Add parse errors
   if (orchResult.parseErrors) {
     for (const error of orchResult.parseErrors) {
-      lines.push(`${error.blockId || 'unknown'} ❌ (parse error) - ${error.error.message || error.error}`);
+      lines.push(`${error.blockId || 'unknown'} ❌ ${error.action || '(parse error)'} - ${error.message}`);
     }
   }
   

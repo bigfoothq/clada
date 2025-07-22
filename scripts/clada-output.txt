@@ -1,0 +1,11 @@
+Mock Output (Clada not loaded)
+================================
+Timestamp: 2025-07-22T15:24:04.860Z
+Content length: 150 bytes
+
+Original content:
+#!SHAM [@three-char-SHA-256: abc]
+action = "file_write"
+path = "deletemedeletemedeletemedeletemedeleteme.txt"
+content = "Hello, World!"
+#!END_SHAM_abc

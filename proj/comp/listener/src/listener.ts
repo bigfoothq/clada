@@ -11,57 +11,14 @@ import { computeContentHash } from './utils.js';
 
 // Module-level state for tracking active listeners
 const activeListeners = new Map<string, ListenerHandle>();
+
 // Strip prepended summary section if present
 function stripSummarySection(content: string): string {
-  const clipboardPattern = /^(📋 Copied to clipboard at|❌ Clipboard copy failed at) .+\n/;
-  const startMarker = '=== CLADA RESULTS ===';
-  const endMarker = '=== END ===';
-  
-  // Remove all CLADA sections from the beginning of the file
-  // There may be multiple prepended sections from multiple executions
-  let strippedContent = content;
-  
-  // Keep removing CLADA sections from the beginning until none are found
-  while (true) {
-    // Check for clipboard status line at the very beginning
-    const clipboardMatch = strippedContent.match(clipboardPattern);
-    let searchStart = 0;
-    
-    if (clipboardMatch) {
-      searchStart = clipboardMatch[0].length;
-    }
-    
-    // Look for CLADA section at the beginning (after optional clipboard line)
-    const searchContent = strippedContent.substring(searchStart);
-    const startIndex = searchContent.indexOf(startMarker);
-    
-    // Check if CLADA section is at the beginning
-    if (startIndex !== 0 && (!searchContent.startsWith('\n' + startMarker) || startIndex > 50)) {
-      // No more CLADA sections at the beginning
-      break;
-    }
-    
-    // Find the corresponding END marker
-    const endIndex = searchContent.indexOf(endMarker, startIndex);
-    if (endIndex === -1) {
-      break; // Malformed section, stop processing
-    }
-    
-    // Find the newline after the end marker
-    const afterEndIndex = searchContent.indexOf('\n', endIndex + endMarker.length);
-    if (afterEndIndex === -1) {
-      return ''; // File ends with summary
-    }
-    
-    // Skip one more newline if present (blank line after summary)
-    const contentStart = searchContent[afterEndIndex + 1] === '\n' ? afterEndIndex + 2 : afterEndIndex + 1;
-    
-    // Remove this CLADA section
-    strippedContent = strippedContent.substring(searchStart + contentStart);
-  }
-  
-  return strippedContent.trim();
+  const marker = '=== END ===';
+  const i = content.lastIndexOf(marker);
+  return i === -1 ? content : content.slice(i + marker.length).trimStart();
 }
+
 
 // Debounce utility
 function debounce<T extends (...args: any[]) => any>(

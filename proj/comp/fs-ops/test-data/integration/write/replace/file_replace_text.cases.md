@@ -5,6 +5,14 @@
 ### 001-simple-text-replacement
 
 ```sh sham
+#!SHAM [@three-char-SHA-256: st1]
+action = "file_write"
+path = "/tmp/t_simple-text-replacement/replace-test.txt"
+content = "Hello World"
+#!END_SHAM_st1
+```
+
+```sh sham
 #!SHAM [@three-char-SHA-256: rpl]
 action = "file_replace_text"
 path = "/tmp/t_simple-text-replacement/replace-test.txt"
@@ -30,6 +38,14 @@ Goodbye World
 ### 002-replace-with-count-limit
 
 ```sh sham
+#!SHAM [@three-char-SHA-256: rc1]
+action = "file_write"
+path = "/tmp/t_replace-with-count-limit/multi-replace.txt"
+content = "foo bar foo baz foo qux foo"
+#!END_SHAM_rc1
+```
+
+```sh sham
 #!SHAM [@three-char-SHA-256: cnt]
 action = "file_replace_all_text"
 path = "/tmp/t_replace-with-count-limit/multi-replace.txt"
@@ -47,6 +63,14 @@ count = "2"
 ```
 
 ### 003-replace-text-not-found
+
+```sh sham
+#!SHAM [@three-char-SHA-256: nf1]
+action = "file_write"
+path = "/tmp/t_replace-text-not-found/no-match.txt"
+content = "This file has no matches"
+#!END_SHAM_nf1
+```
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: nfr]
@@ -83,6 +107,25 @@ new_text = "other"
 ```
 
 ### 005-multiline-replacement
+
+```sh sham
+#!SHAM [@three-char-SHA-256: ml1]
+action = "file_write"
+path = "/tmp/t_multiline-replacement/multiline-replace.txt"
+content = <<'EOT_SHAM_ml1'
+export function oldName() {
+  console.log('oldName');
+  return oldName;
+}
+
+function oldName() {
+  return oldName;
+}
+
+const x = oldName();
+EOT_SHAM_ml1
+#!END_SHAM_ml1
+```
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: mlr]
@@ -129,6 +172,14 @@ const x = oldName();
 ### 006-empty-old-text-error
 
 ```sh sham
+#!SHAM [@three-char-SHA-256: em1]
+action = "file_write"
+path = "/tmp/t_empty-old-text-error/empty-search.txt"
+content = "Some content here"
+#!END_SHAM_em1
+```
+
+```sh sham
 #!SHAM [@three-char-SHA-256: emt]
 action = "file_replace_text"
 path = "/tmp/t_empty-old-text-error/empty-search.txt"
@@ -147,6 +198,14 @@ new_text = "something"
 ### 007-file-replace-text-multiple-occurrences
 
 ```sh sham
+#!SHAM [@three-char-SHA-256: mo1]
+action = "file_write"
+path = "/tmp/t_file-replace-text-multiple-occurrences/multiple-occurrences.txt"
+content = "duplicate text with duplicate word and duplicate again"
+#!END_SHAM_mo1
+```
+
+```sh sham
 #!SHAM [@three-char-SHA-256: mul]
 action = "file_replace_text"
 path = "/tmp/t_file-replace-text-multiple-occurrences/multiple-occurrences.txt"
@@ -163,6 +222,14 @@ new_text = "unique"
 ```
 
 ### 008-file-replace-all-text-no-count
+
+```sh sham
+#!SHAM [@three-char-SHA-256: ra1]
+action = "file_write"
+path = "/tmp/t_file-replace-all-text-no-count/replace-all.txt"
+content = "foo bar foo baz foo"
+#!END_SHAM_ra1
+```
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: all]
@@ -188,6 +255,14 @@ bar bar bar baz bar
 ```
 
 ### 009-file-replace-all-text-count-mismatch
+
+```sh sham
+#!SHAM [@three-char-SHA-256: cm1]
+action = "file_write"
+path = "/tmp/t_file-replace-all-text-count-mismatch/count-mismatch.txt"
+content = "test this test case"
+#!END_SHAM_cm1
+```
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: mis]
@@ -299,7 +374,9 @@ class FileProcessor {
 }
 EOT_SHAM_ws1
 #!END_SHAM_ws1
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: ws2]
 action = "file_replace_text"
 path = "/tmp/t_whitespace-sensitive-replacement/indented.txt"
@@ -414,7 +491,9 @@ function two() {
 }
 EOT_SHAM_nl1
 #!END_SHAM_nl1
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: nl2]
 action = "file_replace_text"
 path = "/tmp/t_exact-newline-matching/newlines.txt"
@@ -530,7 +609,9 @@ action = "file_write"
 path = "/tmp/t_trailing-whitespace-sensitivity/trailing.txt"
 content = "function test() {  \n  return true;\n}\n"
 #!END_SHAM_tw1
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: tw2]
 action = "file_replace_text"
 path = "/tmp/t_trailing-whitespace-sensitivity/trailing.txt"
@@ -613,7 +694,9 @@ Start the application with:
 - npm start
 EOT_SHAM_sn1
 #!END_SHAM_sn1
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: sn2]
 action = "file_replace_text"
 path = "/tmp/t_file-replace-text-section-not-found/readme.md"

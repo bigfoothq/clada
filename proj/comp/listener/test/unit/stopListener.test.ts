@@ -1,57 +1,70 @@
-import { describe, it, expect, vi } from 'vitest';
-import { writeFile, mkdir, rm } from 'fs/promises';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { readFile, writeFile, mkdir, rm } from 'fs/promises';
 import { dirname } from 'path';
-import fs from 'fs';
 import { startListener, stopListener } from '../../src/listener.js';
-
-// Mock fs.watchFile/unwatchFile
-vi.mock('fs', async () => {
-  const actual = await vi.importActual<typeof fs>('fs');
-  return {
-    ...actual,
-    watchFile: vi.fn(),
-    unwatchFile: vi.fn()
-  };
-});
+import type { ListenerHandle } from '../../src/types.js';
 
 describe('stopListener', () => {
-  const testFile = '/tmp/t_stop_listener/test.md';
+  const testDir = '/tmp/t_stop_listener';
+  const testFile = `${testDir}/test.md`;
+  let handle: ListenerHandle | null = null;
 
   beforeEach(async () => {
-    vi.clearAllMocks();
-    await mkdir(dirname(testFile), { recursive: true });
-    await writeFile(testFile, 'test content');
+    await mkdir(testDir, { recursive: true });
+    await writeFile(testFile, 'initial content');
   });
 
   afterEach(async () => {
-    await rm(dirname(testFile), { recursive: true, force: true });
+    if (handle) {
+      await handle.stop();
+      handle = null;
+    }
+    await rm(testDir, { recursive: true, force: true });
   });
 
   it('stops watching and cleans up', async () => {
-    const handle = await startListener({ filePath: testFile });
+    // Start listener
+    handle = await startListener({ filePath: testFile });
     
-    // Verify watchFile was called
-    expect(fs.watchFile).toHaveBeenCalledWith(
-      testFile,
-      expect.any(Object),
-      expect.any(Function)
-    );
-
+    // Wait for initial processing to complete
+    await new Promise(resolve => setTimeout(resolve, 700));
+    
+    // Check that initial content was processed
+    let content = await readFile(testFile, 'utf-8');
+    expect(content).toContain('=== CLADA RESULTS ===');
+    
     // Stop the listener
     await stopListener(handle);
-
-    // Verify unwatchFile was called
-    expect(fs.unwatchFile).toHaveBeenCalledWith(testFile);
+    handle = null;
+    
+    // Write new content
+    await writeFile(testFile, 'changed content after stop');
+    await new Promise(resolve => setTimeout(resolve, 700));
+    
+    // File should still have the new content without processing
+    content = await readFile(testFile, 'utf-8');
+    expect(content).toBe('changed content after stop');
+    expect(content).not.toContain('=== CLADA RESULTS ===');
   });
 
-  it('prevents duplicate watching after stop', async () => {
-    const handle = await startListener({ filePath: testFile });
-    await stopListener(handle);
-
-    // Should be able to watch again after stopping
-    const handle2 = await startListener({ filePath: testFile });
-    expect(handle2.filePath).toBe(testFile);
+  it('allows watching again after stop', async () => {
+    // Start first listener
+    handle = await startListener({ filePath: testFile });
+    await new Promise(resolve => setTimeout(resolve, 600));
     
-    await stopListener(handle2);
+    // Stop it
+    await stopListener(handle);
+    handle = null;
+    
+    // Should be able to start again
+    handle = await startListener({ filePath: testFile });
+    expect(handle.filePath).toBe(testFile);
+    
+    // Verify new listener works
+    await writeFile(testFile, '```sh sham\n#!SHAM [@three-char-SHA-256: tst]\naction = "exec"\nlang = "bash"\ncode = "echo test"\n#!END_SHAM_tst\n```');
+    await new Promise(resolve => setTimeout(resolve, 600));
+    
+    const content = await readFile(testFile, 'utf-8');
+    expect(content).toContain('=== CLADA RESULTS ===');
   });
 });

@@ -1,147 +1,144 @@
-=== PROCESSED: 2025-07-21 21:45:58 ===
-🚨🚨🚨 ERROR Block 1: 2 matches found in /Users/stuart/repos/clada/proj/comp/listener/src/listener.ts - ABORTING 🚨🚨🚨
-SUCCESS Block 2: Updated /Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
-SUCCESS Block 3: Updated /Users/stuart/repos/clada/proj/comp/listener/test/unit/stripSummarySection.test.ts
+=== PROCESSED: 2025-07-21 21:57:38 ===
+SUCCESS Block 1: Updated /Users/stuart/repos/clada/proj/comp/listener/src/formatters.ts
+SUCCESS Block 2: Updated /Users/stuart/repos/clada/proj/comp/listener/src/formatters.ts
 ===
 
-Looking at the test failures, I see several issues:
-
-1. **Duplicate `generateId` function** in `listener.ts` - causing compilation error
-2. **Empty test files** that were marked obsolete but still exist
-3. **Logic error** in `stripSummarySection` - it's finding the first `=== END ===` when it should only strip if it's part of a CLADA results section
-
-Let me fix these:
+The function `getPrimaryParam` already exists in the file. Let me fix the duplicate declaration:
 
 <<<EXPLANATION>>>
-Remove duplicate generateId function definition in listener.ts (lines 61-64)
+Remove duplicate getPrimaryParam function and fix imports
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
+/Users/stuart/repos/clada/proj/comp/listener/src/formatters.ts
 <<<SEARCH>>>
-// Generate unique ID for listener instance
-function generateId(): string {
-  return `listener-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+import type { OrchestratorResult } from '../../orch/src/types.js';
+
+export function formatSummary(orchResult: OrchestratorResult, timestamp: Date): string {
+  const lines = ['', '=== CLADA RESULTS ==='];
+  
+  // Add execution results
+  if (orchResult.results) {
+    for (const result of orchResult.results) {
+      const icon = result.success ? '✅' : '❌';
+      const primaryParam = getPrimaryParam(result);
+      
+      if (result.success) {
+        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam}`.trim());
+      } else {
+        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam} - ${result.error}`.trim());
+      }
+    }
+  }
+  
+  // Add parse errors
+  if (orchResult.parseErrors) {
+    for (const error of orchResult.parseErrors) {
+      lines.push(`${error.blockId || 'unknown'} ❌ (parse error) - ${error.error.message || error.error}`);
+    }
+  }
+  
+  lines.push('=== END ===', '');
+  return lines.join('\n');
+}
+
+function getPrimaryParam(result: any): string {
+  if (!result.params) return '';
+  if (result.params.path) return result.params.path;
+  if (result.params.paths) {
+    const paths = result.params.paths.trim().split('\n').filter((p: string) => p.trim());
+    return `(${paths.length} files)`;
+  }
+  if (result.params.pattern) return result.params.pattern;
+  if (result.params.lang) return result.params.lang;
+  if (result.params.old_path) return result.params.old_path;
+  return '';
 }
 <<<REPLACE>>>
- 
+import type { OrchestratorResult } from '../../orch/src/types.js';
+
+export function formatSummary(orchResult: OrchestratorResult, timestamp: Date): string {
+  const lines = ['', '=== CLADA RESULTS ==='];
+  
+  // Add execution results
+  if (orchResult.results) {
+    for (const result of orchResult.results) {
+      const icon = result.success ? '✅' : '❌';
+      const primaryParam = getPrimaryParamFromResult(result);
+      
+      if (result.success) {
+        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam}`.trim());
+      } else {
+        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam} - ${result.error}`.trim());
+      }
+    }
+  }
+  
+  // Add parse errors
+  if (orchResult.parseErrors) {
+    for (const error of orchResult.parseErrors) {
+      lines.push(`${error.blockId || 'unknown'} ❌ (parse error) - ${error.error.message || error.error}`);
+    }
+  }
+  
+  lines.push('=== END ===', '');
+  return lines.join('\n');
+}
+
+function getPrimaryParamFromResult(result: any): string {
+  if (!result.params) return '';
+  if (result.params.path) return result.params.path;
+  if (result.params.paths) {
+    const paths = result.params.paths.trim().split('\n').filter((p: string) => p.trim());
+    return `(${paths.length} files)`;
+  }
+  if (result.params.pattern) return result.params.pattern;
+  if (result.params.lang) return result.params.lang;
+  if (result.params.old_path) return result.params.old_path;
+  return '';
+}
 <<<END>>>
 
 <<<EXPLANATION>>>
-Fix stripSummarySection to only strip CLADA results sections, not any occurrence of === END ===
+Also need to fix formatFullOutput to handle actual orchestrator response
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
+/Users/stuart/repos/clada/proj/comp/listener/src/formatters.ts
 <<<SEARCH>>>
-// Strip prepended summary section if present
-function stripSummarySection(content: string): string {
-  const endMarker = '=== END ===';
-  const endIndex = content.indexOf(endMarker);
-  
-  if (endIndex === -1) {
-    return content; // No summary section
-  }
-  
-  // Find the newline after the end marker
-  const afterEndIndex = content.indexOf('\n', endIndex + endMarker.length);
-  if (afterEndIndex === -1) {
-    return ''; // File ends with summary
-  }
-  
-  // Skip one more newline if present (blank line after summary)
-  const startIndex = content[afterEndIndex + 1] === '\n' ? afterEndIndex + 2 : afterEndIndex + 1;
-  return content.substring(startIndex);
+export function formatFullOutput(orchResult: OrchestratorResult): string {
+  // Return the full formatted output from orchestrator
+  return orchResult.formattedOutput || '';
 }
 <<<REPLACE>>>
-// Strip prepended summary section if present
-function stripSummarySection(content: string): string {
-  const startMarker = '=== CLADA RESULTS ===';
-  const endMarker = '=== END ===';
+export function formatFullOutput(orchResult: OrchestratorResult): string {
+  const summary = formatSummary(orchResult, new Date());
   
-  // Check if content starts with a CLADA results section
-  const startIndex = content.indexOf(startMarker);
-  if (startIndex === -1 || startIndex > 100) {
-    // No CLADA section at the beginning of file
-    return content;
+  const lines = [summary.trim(), '', '=== OUTPUTS ==='];
+  
+  // Add outputs for successful actions
+  if (orchResult.results) {
+    for (const result of orchResult.results) {
+      if (result.success && result.data) {
+        const header = `[${result.blockId}] ${result.action} ${getPrimaryParamFromResult(result)}:`.trim();
+        lines.push('', header);
+        
+        // Format output based on data type
+        if (typeof result.data === 'string') {
+          lines.push(result.data.trimEnd());
+        } else if (result.data.stdout || result.data.stderr) {
+          if (result.data.stdout) {
+            lines.push(`stdout:\n${result.data.stdout.trimEnd()}`);
+          }
+          if (result.data.stderr) {
+            lines.push(`stderr:\n${result.data.stderr.trimEnd()}`);
+          }
+        } else {
+          lines.push(JSON.stringify(result.data, null, 2));
+        }
+      }
+    }
   }
   
-  // Find the corresponding END marker
-  const endIndex = content.indexOf(endMarker, startIndex);
-  if (endIndex === -1) {
-    return content; // Malformed section, keep content as-is
-  }
-  
-  // Find the newline after the end marker
-  const afterEndIndex = content.indexOf('\n', endIndex + endMarker.length);
-  if (afterEndIndex === -1) {
-    return ''; // File ends with summary
-  }
-  
-  // Skip one more newline if present (blank line after summary)
-  const contentStart = content[afterEndIndex + 1] === '\n' ? afterEndIndex + 2 : afterEndIndex + 1;
-  return content.substring(contentStart);
+  lines.push('=== END ===');
+  return lines.join('\n');
 }
 <<<END>>>
 
-<<<EXPLANATION>>>
-Fix the stripSummarySection test helper to match the actual implementation
-<<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/listener/test/unit/stripSummarySection.test.ts
-<<<SEARCH>>>
-  // Create a simple version for testing
-  return (content: string): string => {
-    const endMarker = '=== END ===';
-    const endIndex = content.indexOf(endMarker);
-    
-    if (endIndex === -1) {
-      return content; // No summary section
-    }
-    
-    // Find the newline after the end marker
-    const afterEndIndex = content.indexOf('\n', endIndex + endMarker.length);
-    if (afterEndIndex === -1) {
-      return ''; // File ends with summary
-    }
-    
-    // Skip one more newline if present (blank line after summary)
-    const startIndex = content[afterEndIndex + 1] === '\n' ? afterEndIndex + 2 : afterEndIndex + 1;
-    return content.substring(startIndex);
-  };
-<<<REPLACE>>>
-  // Create a simple version for testing
-  return (content: string): string => {
-    const startMarker = '=== CLADA RESULTS ===';
-    const endMarker = '=== END ===';
-    
-    // Check if content starts with a CLADA results section
-    const startIndex = content.indexOf(startMarker);
-    if (startIndex === -1 || startIndex > 100) {
-      // No CLADA section at the beginning of file
-      return content;
-    }
-    
-    // Find the corresponding END marker
-    const endIndex = content.indexOf(endMarker, startIndex);
-    if (endIndex === -1) {
-      return content; // Malformed section, keep content as-is
-    }
-    
-    // Find the newline after the end marker
-    const afterEndIndex = content.indexOf('\n', endIndex + endMarker.length);
-    if (afterEndIndex === -1) {
-      return ''; // File ends with summary
-    }
-    
-    // Skip one more newline if present (blank line after summary)
-    const contentStart = content[afterEndIndex + 1] === '\n' ? afterEndIndex + 2 : afterEndIndex + 1;
-    return content.substring(contentStart);
-  };
-<<<END>>>
-
-To delete the obsolete test files, run these commands:
-
-```bash
-rm /Users/stuart/repos/clada/proj/comp/listener/test/unit/checkOutputSizes.test.ts
-rm /Users/stuart/repos/clada/proj/comp/listener/test/unit/formatFullOutput.test.ts
-rm /Users/stuart/repos/clada/proj/comp/listener/test/unit/formatSummary.test.ts
-rm /Users/stuart/repos/clada/proj/comp/listener/test/unit/shouldIncludeOutput.test.ts
-```
-
-The key insight here is that `stripSummarySection` should only strip content that's actually a CLADA results section at the beginning of the file, not any arbitrary occurrence of "=== END ===" in the content. This prevents it from incorrectly stripping content that happens to mention these markers.
+Now run the test again to see the file content being passed to orchestrator.

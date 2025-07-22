@@ -90,6 +90,9 @@ async function processFileChange(filePath: string, state: ListenerState): Promis
     // Read file
     const fullContent = await readFile(filePath, 'utf-8');
     
+    // DIAGNOSTIC: Log file content
+    console.log('File content:', fullContent);
+    
     // Strip summary section for hashing
     const contentForHash = stripSummarySection(fullContent);
     
@@ -104,6 +107,9 @@ async function processFileChange(filePath: string, state: ListenerState): Promis
     // Execute via orchestrator with full file content
     const clada = new Clada({ gitCommit: false });
     const orchResult = await clada.execute(fullContent);
+    
+    // DIAGNOSTIC: Log orchestrator result
+    console.log('Orchestrator returned:', JSON.stringify(orchResult, null, 2));
     
     // Format outputs
     const timestamp = new Date();

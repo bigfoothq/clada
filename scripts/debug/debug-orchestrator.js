@@ -1,4 +1,4 @@
-import { Clada } from './proj/comp/orch/src/index.js';
+import { Clada } from '../../proj/comp/orch/src/index.js';
 import { writeFile, readFile, rm } from 'fs/promises';
 
 const testContent = `# My Document
@@ -19,14 +19,14 @@ async function debugOrchestrator() {
   console.log('Input content:');
   console.log(testContent);
   console.log('\n=== Calling Orchestrator ===');
-  
+
   try {
     const clada = new Clada({ gitCommit: false });
     const result = await clada.execute(testContent);
-    
+
     console.log('\nOrchestrator result:');
     console.log(JSON.stringify(result, null, 2));
-    
+
     // Check if output file was created
     try {
       const output = await readFile('/tmp/debug_orch/output.txt', 'utf-8');
@@ -35,7 +35,7 @@ async function debugOrchestrator() {
     } catch (e) {
       console.log('\nOutput file not created');
     }
-    
+
   } catch (error) {
     console.error('Error:', error);
   }

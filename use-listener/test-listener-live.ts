@@ -1,10 +1,10 @@
 #!/usr/bin/env tsx
 
-import { startListener, stopListener } from './proj/comp/listener/src/index.js';
+import { startListener, stopListener } from '../proj/comp/listener/src/index.js';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
 
-const TEST_FILE = join(process.cwd(), 'my-test-commands.md');
+const TEST_FILE = join(process.cwd(), 'use-listener', 'my-test-commands.md');
 
 async function main() {
   // Create initial test file if it doesn't exist
@@ -33,7 +33,7 @@ path = "."
     debounceMs: 500,
     outputFilename: '.my-test-output.txt'
   });
-  
+
   console.log(`
 🎧 Listener started!
 📝 Edit file: ${TEST_FILE}
@@ -51,7 +51,7 @@ Press Ctrl+C to stop
   });
 
   // Keep process alive
-  await new Promise(() => {});
+  await new Promise(() => { });
 }
 
 main().catch(console.error);

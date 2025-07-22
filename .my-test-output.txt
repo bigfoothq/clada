@@ -1,6 +1,0 @@
-=== CLADA RESULTS ===
-xyz ✅ file_write /tmp/test.txt
-=== END ===
-
-=== OUTPUTS ===
-=== END ===

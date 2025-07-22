@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { startListener } from './proj/comp/listener/src/index.ts';
+import { startListener } from '../proj/comp/listener/src/index.ts';
 import { writeFile } from 'fs/promises';
 import { resolve } from 'path';
 
@@ -18,7 +18,7 @@ async function main() {
     // Create the test file with initial content
     await writeFile(testFile, initialContent);
     console.log(`Created test file: ${testFile}`);
-    
+
     // Start the listener
     console.log('\nStarting listener...');
     const handle = await startListener({
@@ -26,13 +26,13 @@ async function main() {
       debounceMs: 500,  // Half second debounce
       outputFilename: '.clada-output-latest.txt'
     });
-    
+
     console.log(`✅ Listener started!`);
     console.log(`📝 Watching: ${testFile}`);
     console.log(`📋 Output will be written to: .clada-output-latest.txt`);
     console.log(`\nThe listener is now running. Try adding SHAM blocks to the file!`);
     console.log('Press Ctrl+C to stop.\n');
-    
+
     // Handle graceful shutdown
     process.on('SIGINT', async () => {
       console.log('\n\nStopping listener...');
@@ -40,10 +40,10 @@ async function main() {
       console.log('Listener stopped. Goodbye!');
       process.exit(0);
     });
-    
+
     // Keep the process running
     process.stdin.resume();
-    
+
   } catch (error) {
     console.error('Error:', error);
     process.exit(1);

@@ -657,3 +657,501 @@ fn2 ❌ file_replace_text /tmp/t_listener_no_match/readme.md - old_text not foun
 === OUTPUTS ===
 === END ===
 ````
+
+### file-read-formatting
+
+#### Initial Content
+````sh
+Testing file read output formatting.
+````
+
+#### New Content
+````sh
+Testing file read output formatting.
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rf1]
+action = "file_write"
+path = "/tmp/t_listener_read/sample.py"
+content = <<'EOT_SHAM_rf1'
+#!/usr/bin/env python3
+"""Sample Python file for testing."""
+
+def greet(name):
+    """Return a greeting message."""
+    return f"Hello, {name}!"
+
+if __name__ == "__main__":
+    print(greet("World"))
+EOT_SHAM_rf1
+#!END_SHAM_rf1
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rf2]
+action = "file_read"
+path = "/tmp/t_listener_read/sample.py"
+#!END_SHAM_rf2
+```
+````
+
+#### Expected Prepended Results
+````sh
+📋 Copied to clipboard
+
+=== CLADA RESULTS ===
+rf1 ✅ file_write /tmp/t_listener_read/sample.py
+rf2 ✅ file_read /tmp/t_listener_read/sample.py
+=== END ===
+
+Testing file read output formatting.
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rf1]
+action = "file_write"
+path = "/tmp/t_listener_read/sample.py"
+content = <<'EOT_SHAM_rf1'
+#!/usr/bin/env python3
+"""Sample Python file for testing."""
+
+def greet(name):
+    """Return a greeting message."""
+    return f"Hello, {name}!"
+
+if __name__ == "__main__":
+    print(greet("World"))
+EOT_SHAM_rf1
+#!END_SHAM_rf1
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rf2]
+action = "file_read"
+path = "/tmp/t_listener_read/sample.py"
+#!END_SHAM_rf2
+```
+````
+
+#### Expected Output File
+````sh
+=== CLADA RESULTS ===
+rf1 ✅ file_write /tmp/t_listener_read/sample.py
+rf2 ✅ file_read /tmp/t_listener_read/sample.py
+=== END ===
+
+=== OUTPUTS ===
+
+[rf2] file_read /tmp/t_listener_read/sample.py:
+=== START FILE: /tmp/t_listener_read/sample.py ===
+#!/usr/bin/env python3
+"""Sample Python file for testing."""
+
+def greet(name):
+    """Return a greeting message."""
+    return f"Hello, {name}!"
+
+if __name__ == "__main__":
+    print(greet("World"))
+=== END FILE: /tmp/t_listener_read/sample.py ===
+=== END ===
+````
+
+#### clipboard
+````sh
+=== CLADA RESULTS ===
+rf1 ✅ file_write /tmp/t_listener_read/sample.py
+rf2 ✅ file_read /tmp/t_listener_read/sample.py
+=== END ===
+
+=== OUTPUTS ===
+
+[rf2] file_read /tmp/t_listener_read/sample.py:
+=== START FILE: /tmp/t_listener_read/sample.py ===
+#!/usr/bin/env python3
+"""Sample Python file for testing."""
+
+def greet(name):
+    """Return a greeting message."""
+    return f"Hello, {name}!"
+
+if __name__ == "__main__":
+    print(greet("World"))
+=== END FILE: /tmp/t_listener_read/sample.py ===
+=== END ===
+````
+
+### file-read-numbered-formatting
+
+#### Initial Content
+````sh
+Testing file read numbered output formatting.
+````
+
+#### New Content
+````sh
+Testing file read numbered output formatting.
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rn1]
+action = "file_write"
+path = "/tmp/t_listener_read_num/config.yaml"
+content = <<'EOT_SHAM_rn1'
+# Application Configuration
+app:
+  name: MyApp
+  version: 1.0.0
+  debug: true
+
+database:
+  host: localhost
+  port: 5432
+  name: myapp_db
+  
+logging:
+  level: info
+  file: /var/log/myapp.log
+EOT_SHAM_rn1
+#!END_SHAM_rn1
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rn2]
+action = "file_read_numbered"
+path = "/tmp/t_listener_read_num/config.yaml"
+#!END_SHAM_rn2
+```
+````
+
+#### Expected Prepended Results
+````sh
+📋 Copied to clipboard
+
+=== CLADA RESULTS ===
+rn1 ✅ file_write /tmp/t_listener_read_num/config.yaml
+rn2 ✅ file_read_numbered /tmp/t_listener_read_num/config.yaml
+=== END ===
+
+Testing file read numbered output formatting.
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rn1]
+action = "file_write"
+path = "/tmp/t_listener_read_num/config.yaml"
+content = <<'EOT_SHAM_rn1'
+# Application Configuration
+app:
+  name: MyApp
+  version: 1.0.0
+  debug: true
+
+database:
+  host: localhost
+  port: 5432
+  name: myapp_db
+  
+logging:
+  level: info
+  file: /var/log/myapp.log
+EOT_SHAM_rn1
+#!END_SHAM_rn1
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rn2]
+action = "file_read_numbered"
+path = "/tmp/t_listener_read_num/config.yaml"
+#!END_SHAM_rn2
+```
+````
+
+#### Expected Output File
+````sh
+=== CLADA RESULTS ===
+rn1 ✅ file_write /tmp/t_listener_read_num/config.yaml
+rn2 ✅ file_read_numbered /tmp/t_listener_read_num/config.yaml
+=== END ===
+
+=== OUTPUTS ===
+
+[rn2] file_read_numbered:
+=== START FILE: [numbered] /tmp/t_listener_read_num/config.yaml ===
+ 1: # Application Configuration
+ 2: app:
+ 3:   name: MyApp
+ 4:   version: 1.0.0
+ 5:   debug: true
+ 6: 
+ 7: database:
+ 8:   host: localhost
+ 9:   port: 5432
+10:   name: myapp_db
+11:   
+12: logging:
+13:   level: info
+14:   file: /var/log/myapp.log
+=== END FILE: [numbered] /tmp/t_listener_read_num/config.yaml ===
+=== END ===
+````
+
+#### clipboard
+````sh
+=== CLADA RESULTS ===
+rn1 ✅ file_write /tmp/t_listener_read_num/config.yaml
+rn2 ✅ file_read_numbered /tmp/t_listener_read_num/config.yaml
+=== END ===
+
+=== OUTPUTS ===
+
+[rn2] file_read_numbered /tmp/t_listener_read_num/config.yaml:
+=== START FILE: [numbered] /tmp/t_listener_read_num/config.yaml ===
+ 1: # Application Configuration
+ 2: app:
+ 3:   name: MyApp
+ 4:   version: 1.0.0
+ 5:   debug: true
+ 6: 
+ 7: database:
+ 8:   host: localhost
+ 9:   port: 5432
+10:   name: myapp_db
+11:   
+12: logging:
+13:   level: info
+14:   file: /var/log/myapp.log
+=== END FILE: [numbered] /tmp/t_listener_read_num/config.yaml ===
+=== END ===
+````
+
+### files-read-formatting
+
+#### Initial Content
+````sh
+Testing files read output formatting with multiple files.
+````
+
+#### New Content
+````sh
+Testing files read output formatting with multiple files.
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mr1]
+action = "file_write"
+path = "/tmp/t_listener_multi_read/README.md"
+content = <<'EOT_SHAM_mr1'
+# Project Documentation
+
+This is the main README file.
+
+## Features
+- Feature 1
+- Feature 2
+- Feature 3
+EOT_SHAM_mr1
+#!END_SHAM_mr1
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mr2]
+action = "file_write"
+path = "/tmp/t_listener_multi_read/main.py"
+content = <<'EOT_SHAM_mr2'
+#!/usr/bin/env python3
+
+def main():
+    print("Hello from main!")
+
+if __name__ == "__main__":
+    main()
+EOT_SHAM_mr2
+#!END_SHAM_mr2
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mr3]
+action = "file_write"
+path = "/tmp/t_listener_multi_read/.gitignore"
+content = <<'EOT_SHAM_mr3'
+*.pyc
+__pycache__/
+.env
+venv/
+EOT_SHAM_mr3
+#!END_SHAM_mr3
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mr4]
+action = "files_read"
+paths = <<'EOT_SHAM_mr4'
+/tmp/t_listener_multi_read/README.md
+/tmp/t_listener_multi_read/main.py
+/tmp/t_listener_multi_read/.gitignore
+EOT_SHAM_mr4
+#!END_SHAM_mr4
+```
+````
+
+#### Expected Prepended Results
+````sh
+📋 Copied to clipboard
+
+=== CLADA RESULTS ===
+mr1 ✅ file_write /tmp/t_listener_multi_read/README.md
+mr2 ✅ file_write /tmp/t_listener_multi_read/main.py
+mr3 ✅ file_write /tmp/t_listener_multi_read/.gitignore
+mr4 ✅ files_read (3 files)
+=== END ===
+
+Testing files read output formatting with multiple files.
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mr1]
+action = "file_write"
+path = "/tmp/t_listener_multi_read/README.md"
+content = <<'EOT_SHAM_mr1'
+# Project Documentation
+
+This is the main README file.
+
+## Features
+- Feature 1
+- Feature 2
+- Feature 3
+EOT_SHAM_mr1
+#!END_SHAM_mr1
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mr2]
+action = "file_write"
+path = "/tmp/t_listener_multi_read/main.py"
+content = <<'EOT_SHAM_mr2'
+#!/usr/bin/env python3
+
+def main():
+    print("Hello from main!")
+
+if __name__ == "__main__":
+    main()
+EOT_SHAM_mr2
+#!END_SHAM_mr2
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mr3]
+action = "file_write"
+path = "/tmp/t_listener_multi_read/.gitignore"
+content = <<'EOT_SHAM_mr3'
+*.pyc
+__pycache__/
+.env
+venv/
+EOT_SHAM_mr3
+#!END_SHAM_mr3
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mr4]
+action = "files_read"
+paths = <<'EOT_SHAM_mr4'
+/tmp/t_listener_multi_read/README.md
+/tmp/t_listener_multi_read/main.py
+/tmp/t_listener_multi_read/.gitignore
+EOT_SHAM_mr4
+#!END_SHAM_mr4
+```
+````
+
+#### Expected Output File
+````sh
+=== CLADA RESULTS ===
+mr1 ✅ file_write /tmp/t_listener_multi_read/README.md
+mr2 ✅ file_write /tmp/t_listener_multi_read/main.py
+mr3 ✅ file_write /tmp/t_listener_multi_read/.gitignore
+mr4 ✅ files_read (3 files)
+=== END ===
+
+=== OUTPUTS ===
+
+[mr4] files_read (3 files):
+Reading 3 files:
+- /tmp/t_listener_multi_read/README.md
+- /tmp/t_listener_multi_read/main.py
+- /tmp/t_listener_multi_read/.gitignore
+
+=== START FILE: /tmp/t_listener_multi_read/README.md ===
+# Project Documentation
+
+This is the main README file.
+
+## Features
+- Feature 1
+- Feature 2
+- Feature 3
+=== END FILE: /tmp/t_listener_multi_read/README.md ===
+
+=== START FILE: /tmp/t_listener_multi_read/main.py ===
+#!/usr/bin/env python3
+
+def main():
+    print("Hello from main!")
+
+if __name__ == "__main__":
+    main()
+=== END FILE: /tmp/t_listener_multi_read/main.py ===
+
+=== START FILE: /tmp/t_listener_multi_read/.gitignore ===
+*.pyc
+__pycache__/
+.env
+venv/
+=== END FILE: /tmp/t_listener_multi_read/.gitignore ===
+=== END ===
+````
+
+#### clipboard
+````sh
+=== CLADA RESULTS ===
+mr1 ✅ file_write /tmp/t_listener_multi_read/README.md
+mr2 ✅ file_write /tmp/t_listener_multi_read/main.py
+mr3 ✅ file_write /tmp/t_listener_multi_read/.gitignore
+mr4 ✅ files_read (3 files)
+=== END ===
+
+=== OUTPUTS ===
+
+[mr4] files_read (3 files):
+Reading 3 files:
+- /tmp/t_listener_multi_read/README.md
+- /tmp/t_listener_multi_read/main.py
+- /tmp/t_listener_multi_read/.gitignore
+
+=== START FILE: /tmp/t_listener_multi_read/README.md ===
+# Project Documentation
+
+This is the main README file.
+
+## Features
+- Feature 1
+- Feature 2
+- Feature 3
+=== END FILE: /tmp/t_listener_multi_read/README.md ===
+
+=== START FILE: /tmp/t_listener_multi_read/main.py ===
+#!/usr/bin/env python3
+
+def main():
+    print("Hello from main!")
+
+if __name__ == "__main__":
+    main()
+=== END FILE: /tmp/t_listener_multi_read/main.py ===
+
+=== START FILE: /tmp/t_listener_multi_read/.gitignore ===
+*.pyc
+__pycache__/
+.env
+venv/
+=== END FILE: /tmp/t_listener_multi_read/.gitignore ===
+=== END ===
+````

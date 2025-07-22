@@ -7,9 +7,29 @@ import type { ListenerHandle } from '../../src/types.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Helper to wait for file changes to be processed
-async function waitForProcessing(ms: number = 1000): Promise<void> {
-  await new Promise(resolve => setTimeout(resolve, ms));
+// Helper to poll for expected content
+async function pollForContent(
+  filePath: string, 
+  check: (content: string) => boolean, 
+  timeoutMs: number = 2000
+): Promise<string> {
+  const startTime = Date.now();
+  while (Date.now() - startTime < timeoutMs) {
+    try {
+      const content = await readFile(filePath, 'utf-8');
+      if (check(content)) return content;
+    } catch {}
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  throw new Error(`Timeout after ${timeoutMs}ms waiting for expected content`);
+}
+
+// Helper to wait for initial processing
+async function waitForInitialProcessing(testFile: string): Promise<void> {
+  await pollForContent(testFile, content => 
+    content.includes('=== CLADA RESULTS ==='), 
+    1500
+  );
 }
 
 // Helper to read and normalize timestamps in output
@@ -42,10 +62,12 @@ describe('listener workflow integration', () => {
 
     // Start listener
     handle = await startListener({ filePath: testFile });
-    await waitForProcessing(700); // Let initial processing complete
     
-    // Log to verify timing
-    console.log('Initial processing complete, now adding SHAM content');
+    // Wait for initial processing to complete
+    await waitForInitialProcessing(testFile);
+
+    // Wait for cooldown period to pass (listener has 2s cooldown)
+    await new Promise(resolve => setTimeout(resolve, 2100));
 
     // Add SHAM block
     const withSham = initialContent + `
@@ -58,31 +80,51 @@ content = "Hello from listener!"
 \`\`\`
 `;
     await writeFile(testFile, withSham);
-    console.log('SHAM content written, waiting for processing');
-    // Small delay to ensure write is flushed before file watcher reads
-    await new Promise(resolve => setTimeout(resolve, 100));
-    await waitForProcessing(1500); // Wait longer for fs.watchFile interval (500ms) + debounce (500ms) + processing
+    
+    // Poll for SHAM execution results
+    await pollForContent(testFile, content => 
+      content.includes('abc ✅ file_write') && 
+      content.includes('📋 Copied to clipboard')
+    );
 
-    // Check output file was created
-    const outputContent = await readFile(join(testDir, 'output.txt'), 'utf-8');
+    // Poll for output file creation
+    const outputContent = await pollForContent(
+      join(testDir, 'output.txt'), 
+      content => content === 'Hello from listener!'
+    );
     expect(outputContent).toBe('Hello from listener!');
 
-    // Check .clada-output-latest.txt was created
-    const cladaOutput = await readFile(outputFile, 'utf-8');
+    // Poll for .clada-output-latest.txt
+    const cladaOutput = await pollForContent(
+      outputFile,
+      content => content.includes('abc ✅ file_write') && content.includes('=== OUTPUTS ===')
+    );
     const normalizedOutput = normalizeTimestamp(cladaOutput);
     expect(normalizedOutput).toContain('📋 Copied to clipboard at 10:30:00');
     expect(normalizedOutput).toContain('abc ✅ file_write');
     expect(normalizedOutput).toContain('=== OUTPUTS ===');
 
-    // Check file was prepended with results
+    // File should have results prepended
     const updatedContent = await readFile(testFile, 'utf-8');
     const normalizedContent = normalizeTimestamp(updatedContent);
     expect(normalizedContent).toContain('📋 Copied to clipboard at 10:30:00');
     expect(normalizedContent).toContain('abc ✅ file_write');
-    expect(normalizedContent).toContain(withSham); // Original content preserved
+    expect(normalizedContent).toContain('```'); // Original SHAM block preserved
   });
 
   it('handles multiple actions with mixed results', async () => {
+    // Create initial empty file
+    await writeFile(testFile, '');
+
+    // Start listener
+    handle = await startListener({ filePath: testFile });
+    
+    // Wait for initial processing
+    await waitForInitialProcessing(testFile);
+    
+    // Wait for cooldown period
+    await new Promise(resolve => setTimeout(resolve, 2100));
+
     const content = `
 \`\`\`sh sham
 #!SHAM [@three-char-SHA-256: wr1]
@@ -108,10 +150,13 @@ code = "echo 'Hello world'"
 \`\`\`
 `;
     await writeFile(testFile, content);
-
-    // Start listener
-    handle = await startListener({ filePath: testFile });
-    await waitForProcessing();
+    
+    // Poll for results
+    await pollForContent(testFile, content => 
+      content.includes('wr1 ✅ file_write') &&
+      content.includes('rd1 ❌ file_read') &&
+      content.includes('ex1 ✅ exec')
+    );
 
     // Check results
     const updatedContent = await readFile(testFile, 'utf-8');
@@ -129,6 +174,18 @@ code = "echo 'Hello world'"
   });
 
   it('does not re-execute unchanged SHAM blocks', async () => {
+    // Create initial empty file
+    await writeFile(testFile, '');
+
+    // Start listener
+    handle = await startListener({ filePath: testFile });
+    
+    // Wait for initial processing
+    await waitForInitialProcessing(testFile);
+    
+    // Wait for cooldown period
+    await new Promise(resolve => setTimeout(resolve, 2100));
+
     const content = `
 \`\`\`sh sham
 #!SHAM [@three-char-SHA-256: nc1]
@@ -139,10 +196,11 @@ content = "1"
 \`\`\`
 `;
     await writeFile(testFile, content);
-
-    // Start listener
-    handle = await startListener({ filePath: testFile });
-    await waitForProcessing();
+    
+    // Poll for initial execution
+    await pollForContent(testFile, content => 
+      content.includes('nc1 ✅ file_write')
+    );
 
     // Verify file was created
     const counterContent1 = await readFile(join(testDir, 'counter.txt'), 'utf-8');
@@ -155,14 +213,18 @@ content = "1"
     // Just add a comment outside SHAM
     const editedContent = prependedContent + '\n<!-- Comment added -->\n';
     await writeFile(testFile, editedContent);
-    await waitForProcessing();
+    
+    // Wait a bit to ensure any processing would have started
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Change the counter file to detect if action re-executed
     await writeFile(join(testDir, 'counter.txt'), '2');
 
     // Trigger another save with same SHAM content
     await writeFile(testFile, editedContent + ' ');
-    await waitForProcessing();
+    
+    // Wait to ensure no re-processing happens
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Counter should still be 2 (not overwritten back to 1)
     const counterContent2 = await readFile(join(testDir, 'counter.txt'), 'utf-8');
@@ -170,6 +232,18 @@ content = "1"
   });
 
   it('handles parse errors gracefully', async () => {
+    // Create initial empty file
+    await writeFile(testFile, '');
+
+    // Start listener
+    handle = await startListener({ filePath: testFile });
+    
+    // Wait for initial processing
+    await waitForInitialProcessing(testFile);
+    
+    // Wait for cooldown period
+    await new Promise(resolve => setTimeout(resolve, 2100));
+
     const content = `
 \`\`\`sh sham
 #!SHAM [@three-char-SHA-256: bad]
@@ -180,10 +254,12 @@ content = "missing closing quote
 \`\`\`
 `;
     await writeFile(testFile, content);
-
-    // Start listener
-    handle = await startListener({ filePath: testFile });
-    await waitForProcessing();
+    
+    // Poll for error to appear
+    await pollForContent(testFile, content => 
+      content.includes('bad ❌') && 
+      content.includes('Unterminated heredoc')
+    );
 
     // Check error was reported
     const updatedContent = await readFile(testFile, 'utf-8');

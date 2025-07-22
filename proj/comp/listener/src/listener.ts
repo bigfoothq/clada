@@ -91,7 +91,12 @@ async function processFileChange(filePath: string, state: ListenerState): Promis
     const fullContent = await readFile(filePath, 'utf-8');
     
     // DIAGNOSTIC: Log file content
-    console.log('File content:', fullContent);
+    console.log('=== FILE READ ===');
+    console.log('File path:', filePath);
+    console.log('File content length:', fullContent.length);
+    console.log('File content preview (first 200 chars):', fullContent.substring(0, 200));
+    console.log('File contains SHAM?', fullContent.includes('#!SHAM'));
+    console.log('=== END FILE READ ===');
     
     // Strip summary section for hashing
     const contentForHash = stripSummarySection(fullContent);

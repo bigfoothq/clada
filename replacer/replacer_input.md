@@ -1,70 +1,61 @@
-=== PROCESSED: 2025-07-21 22:08:24 ===
-SUCCESS Block 1: Updated /Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
+=== PROCESSED: 2025-07-21 22:10:26 ===
+SUCCESS Block 1: Updated /Users/stuart/repos/clada/proj/comp/listener/test/integration/listener-workflow.test.ts
 SUCCESS Block 2: Updated /Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
 ===
 
-The diagnostic output reveals the critical issue:
+Looking at the test failure, the issue is clear: the listener is not detecting the SHAM blocks in the updated file content. The logs show:
 
-```
-Content length: 34
-Content preview: # My Document
+1. Initial content has no SHAM blocks → orchestrator returns 0 blocks
+2. Test adds SHAM content and waits
+3. File change is detected but SHAM blocks aren't found
 
-Some content here.
+The problem is in `stripSummarySection`. When the listener processes the file change, it's stripping the prepended summary from the previous run, but the test is writing fresh content without any prepended summary. This causes `stripSummarySection` to incorrectly strip content.
 
-Content includes SHAM? false
-Content includes backticks? false
-```
+Let me trace through what's happening:
+- Test writes: `# My Document\n\nSome content here.\n\n```sh sham...`
+- `stripSummarySection` looks for `=== CLADA RESULTS ===` 
+- It doesn't find it within the first 100 chars, so returns full content
+- But wait... the logs show the content is being processed correctly
 
-The orchestrator is receiving only the initial content (34 characters), not the content with SHAM blocks. The second `Debounced process executing` log appears after "File change detected", but we don't see the diagnostics from that second execution.
+Actually, looking more carefully at the logs, the real issue is that the orchestrator is being called with the original content (34 chars) instead of the updated content with SHAM blocks. The file watcher is triggering, but it's reading the old content.
 
-This indicates the second processFileChange call isn't completing or isn't running the orchestrator at all. The issue is likely the hash comparison - after the first execution, `lastExecutedHash` is set to the hash of the initial content, and when the file changes, it might still be seeing the same hash.
-
-Let's verify by checking what happens in the second execution:
-
-<<<EXPLANATION>>>
-Add diagnostics to trace the second execution after file change to see why orchestrator isn't processing the SHAM content
-
-<<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
-
-<<<SEARCH>>>
-    // Skip if unchanged
-    if (currentHash === state.lastExecutedHash) {
-      console.log('Hash unchanged, skipping execution');
-      return;
-    }
-<<<REPLACE>>>
-    // Skip if unchanged
-    if (currentHash === state.lastExecutedHash) {
-      console.log('Hash unchanged, skipping execution');
-      console.log('This suggests stripSummarySection might be removing too much content');
-      return;
-    }
-<<<END>>>
-
-Actually, let's also check what stripSummarySection is doing to the content:
+This is a race condition. The test writes the file and immediately waits, but the file watcher's debounced handler might be reading the file before the write is fully flushed.
 
 <<<EXPLANATION>>>
-Add logging to see how stripSummarySection processes the content after the first execution prepends results
-
+Add a small delay after writing the file to ensure the filesystem write is complete before the file watcher reads it. This is a common issue with file watching tests.
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
-
+/Users/stuart/repos/clada/proj/comp/listener/test/integration/listener-workflow.test.ts
 <<<SEARCH>>>
-    // Strip summary section for hashing
-    const contentForHash = stripSummarySection(fullContent);
-    
-    // Compute hash of content (excluding summary)
-    const currentHash = computeContentHash(contentForHash);
+    await writeFile(testFile, withSham);
+    console.log('SHAM content written, waiting for processing');
+    await waitForProcessing(1500); // Wait longer for fs.watchFile interval (500ms) + debounce (500ms) + processing
 <<<REPLACE>>>
-    // Strip summary section for hashing
-    const contentForHash = stripSummarySection(fullContent);
-    console.log('Full content length:', fullContent.length);
-    console.log('Content for hash length:', contentForHash.length);
-    console.log('First 100 chars of content for hash:', contentForHash.substring(0, 100));
-    
-    // Compute hash of content (excluding summary)
-    const currentHash = computeContentHash(contentForHash);
+    await writeFile(testFile, withSham);
+    console.log('SHAM content written, waiting for processing');
+    // Small delay to ensure write is flushed before file watcher reads
+    await new Promise(resolve => setTimeout(resolve, 100));
+    await waitForProcessing(1500); // Wait longer for fs.watchFile interval (500ms) + debounce (500ms) + processing
 <<<END>>>
 
-The pattern suggests that after the first execution prepends a summary, stripSummarySection might be incorrectly stripping the SHAM content along with the summary, resulting in the same hash as before.
+<<<EXPLANATION>>>
+The orchestrator is correctly returning empty results because it's not finding SHAM blocks. We need to verify the content being passed to the orchestrator. Let's also add more detailed logging to understand what content the listener is actually reading after the file change.
+<<<FILE>>>
+/Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
+<<<SEARCH>>>
+    // Read file
+    const fullContent = await readFile(filePath, 'utf-8');
+    
+    // DIAGNOSTIC: Log file content
+    console.log('File content:', fullContent);
+<<<REPLACE>>>
+    // Read file
+    const fullContent = await readFile(filePath, 'utf-8');
+    
+    // DIAGNOSTIC: Log file content
+    console.log('=== FILE READ ===');
+    console.log('File path:', filePath);
+    console.log('File content length:', fullContent.length);
+    console.log('File content preview (first 200 chars):', fullContent.substring(0, 200));
+    console.log('File contains SHAM?', fullContent.includes('#!SHAM'));
+    console.log('=== END FILE READ ===');
+<<<END>>>

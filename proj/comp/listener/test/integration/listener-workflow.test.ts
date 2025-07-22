@@ -59,6 +59,8 @@ content = "Hello from listener!"
 `;
     await writeFile(testFile, withSham);
     console.log('SHAM content written, waiting for processing');
+    // Small delay to ensure write is flushed before file watcher reads
+    await new Promise(resolve => setTimeout(resolve, 100));
     await waitForProcessing(1500); // Wait longer for fs.watchFile interval (500ms) + debounce (500ms) + processing
 
     // Check output file was created

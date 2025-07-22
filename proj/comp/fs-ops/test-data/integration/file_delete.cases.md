@@ -5,6 +5,14 @@
 ### 001-delete-existing-file
 
 ```sh sham
+#!SHAM [@three-char-SHA-256: cre]
+action = "file_write"
+path = "/tmp/t_delete-existing-file/to-delete.txt"
+content = "This file will be deleted"
+#!END_SHAM_cre
+```
+
+```sh sham
 #!SHAM [@three-char-SHA-256: del]
 action = "file_delete"
 path = "/tmp/t_delete-existing-file/to-delete.txt"

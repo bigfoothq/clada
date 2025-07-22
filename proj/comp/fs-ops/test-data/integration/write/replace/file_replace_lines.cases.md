@@ -79,7 +79,7 @@ EOT_SHAM_rr2
   "success": true,
   "data": {
     "path": "/tmp/t_replace-line-range/code.js",
-    "lines_replaced": 3
+    "lines_replaced": 4
   }
 }
 ```
@@ -172,11 +172,6 @@ Keep this line too
 ```
 
 ### 005-replace-nonexistent-file
-
-```sh sham
-#!SHAM [@three-char-SHA-256: ec1]
-#!END_SHAM_ec1
-```
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: ne1]

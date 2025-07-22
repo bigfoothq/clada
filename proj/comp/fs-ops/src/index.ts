@@ -242,6 +242,138 @@ async function handleFileReadNumbered(action: CladaAction): Promise<FileOpResult
 }
 
 /**
+ * Handle file_replace_lines action - replaces specified lines in a file
+ * Supports single line ("4") or range ("23-43") specifications
+ * Preserves line endings and handles edge cases
+ */
+async function handleFileReplaceLines(action: CladaAction): Promise<FileOpResult> {
+  const { path, lines, new_content } = action.parameters;
+  
+  try {
+    // Read existing file content
+    const content = await readFile(path, 'utf8');
+    
+    // Split into lines, preserving empty lines
+    const fileLines = content.split(/\r?\n|\r/);
+    // Handle edge case: empty file returns [''] which is 1 line, but should be 0
+    const totalLines = content === '' ? 0 : fileLines.length;
+    
+    // Parse line specification
+    let startLine: number;
+    let endLine: number;
+    
+    if (!lines || lines === '') {
+      return {
+        success: false,
+        error: `file_replace_lines: Invalid line specification '${lines}'`
+      };
+    }
+    
+    if (lines.includes('-')) {
+      // Range format: "23-43"
+      const parts = lines.split('-');
+      if (parts.length !== 2) {
+        return {
+          success: false,
+          error: `file_replace_lines: Invalid line specification '${lines}'`
+        };
+      }
+      
+      startLine = parseInt(parts[0], 10);
+      endLine = parseInt(parts[1], 10);
+      
+      if (isNaN(startLine) || isNaN(endLine)) {
+        return {
+          success: false,
+          error: `file_replace_lines: Invalid line specification '${lines}'`
+        };
+      }
+      
+      if (startLine < 1 || endLine < 1) {
+        return {
+          success: false,
+          error: `file_replace_lines: Invalid line specification '${lines}'`
+        };
+      }
+      
+      if (startLine > endLine) {
+        return {
+          success: false,
+          error: `file_replace_lines: Invalid line range '${lines}' (start must be <= end)`
+        };
+      }
+    } else {
+      // Single line format: "4"
+      startLine = parseInt(lines, 10);
+      if (isNaN(startLine) || startLine < 1) {
+        return {
+          success: false,
+          error: `file_replace_lines: Invalid line specification '${lines}'`
+        };
+      }
+      endLine = startLine;
+    }
+    
+    // Check bounds - handle empty file
+    if (totalLines === 0) {
+      return {
+        success: false,
+        error: `file_replace_lines: Line range ${lines} is out of bounds (file has 0 lines)`
+      };
+    }
+    
+    // Check if lines are out of range
+    if (startLine > totalLines || endLine > totalLines) {
+      return {
+        success: false,
+        error: `file_replace_lines: Line range ${lines} is out of bounds (file has ${totalLines} lines)`
+      };
+    }
+    
+    // Split new content into lines
+    const newLines = new_content === '' ? [] : new_content.split(/\r?\n|\r/);
+    
+    // Reconstruct the file with replaced lines
+    const resultLines: string[] = [];
+    
+    // Add lines before the replacement range
+    for (let i = 0; i < startLine - 1; i++) {
+      resultLines.push(fileLines[i]);
+    }
+    
+    // Add the new content
+    resultLines.push(...newLines);
+    
+    // Add lines after the replacement range
+    for (let i = endLine; i < totalLines; i++) {
+      resultLines.push(fileLines[i]);
+    }
+    
+    // Join back with newlines
+    const result = resultLines.join('\n');
+    
+    // Write the file back
+    await writeFile(path, result, 'utf8');
+    
+    const linesReplaced = endLine - startLine + 1;
+    
+    return {
+      success: true,
+      data: {
+        path,
+        lines_replaced: linesReplaced
+      }
+    };
+    
+  } catch (error: any) {
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'open')
+    };
+  }
+}
+
+/**
  * Handle files_read action - reads multiple files and concatenates with delimiters
  * Parses multi-line paths parameter, one absolute path per line
  * Returns concatenated content with === /path/to/file === delimiters
@@ -515,6 +647,7 @@ const actionHandlers: Record<string, (action: CladaAction) => Promise<FileOpResu
   'file_read': handleFileRead,
   'files_read': handleFilesRead,
   'file_read_numbered': handleFileReadNumbered,
+  'file_replace_lines': handleFileReplaceLines,
   'dir_create': async (action) => {
     return { success: false, error: 'Not implemented' };
   },

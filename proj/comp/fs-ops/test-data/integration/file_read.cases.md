@@ -5,6 +5,14 @@
 ### 001-read-existing-file
 
 ```sh sham
+#!SHAM [@three-char-SHA-256: crf]
+action = "file_write"
+path = "/tmp/t_read-existing-file/readable.txt"
+content = "This is readable content"
+#!END_SHAM_crf
+```
+
+```sh sham
 #!SHAM [@three-char-SHA-256: rdf]
 action = "file_read"
 path = "/tmp/t_read-existing-file/readable.txt"

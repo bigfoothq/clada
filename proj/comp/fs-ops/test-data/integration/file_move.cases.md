@@ -5,6 +5,14 @@
 ### 001-move-file-simple
 
 ```sh sham
+#!SHAM [@three-char-SHA-256: cr1]
+action = "file_write"
+path = "/tmp/t_move-file-simple/source.txt"
+content = "Content to be moved"
+#!END_SHAM_cr1
+```
+
+```sh sham
 #!SHAM [@three-char-SHA-256: mvs]
 action = "file_move"
 old_path = "/tmp/t_move-file-simple/source.txt"
@@ -23,6 +31,14 @@ new_path = "/tmp/t_move-file-simple/destination.txt"
 ```
 
 ### 002-move-file-to-new-directory
+
+```sh sham
+#!SHAM [@three-char-SHA-256: cr2]
+action = "file_write"
+path = "/tmp/t_move-file-to-new-directory/original.txt"
+content = "File to move to new directory"
+#!END_SHAM_cr2
+```
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: mvd]
@@ -60,6 +76,22 @@ new_path = "/tmp/t_move-nonexistent-file/nowhere.txt"
 ```
 
 ### 004-move-to-existing-file
+
+```sh sham
+#!SHAM [@three-char-SHA-256: cr4a]
+action = "file_write"
+path = "/tmp/t_move-to-existing-file/source-exists.txt"
+content = "Source file content"
+#!END_SHAM_cr4a
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: cr4b]
+action = "file_write"
+path = "/tmp/t_move-to-existing-file/dest-exists.txt"
+content = "Destination file to be overwritten"
+#!END_SHAM_cr4b
+```
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: mef]

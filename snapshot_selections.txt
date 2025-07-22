@@ -1,3 +1,1608 @@
+=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/errors.ts ===
+export class ListenerError extends Error {
+  constructor(
+    public code: 'FILE_NOT_FOUND' | 'ACCESS_DENIED' | 'ALREADY_WATCHING',
+    public path: string,
+    message?: string
+  ) {
+    super(message || `listener: ${code} '${path}'`);
+    this.name = 'ListenerError';
+  }
+}
+=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/errors.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/formatters.ts ===
+import type { OrchestratorResult } from '../../orch/src/types.js';
+
+export function formatSummary(orchResult: OrchestratorResult, timestamp: Date): string {
+  const lines = ['', '=== CLADA RESULTS ==='];
+  
+  // Add execution results
+  if (orchResult.results) {
+    for (const result of orchResult.results) {
+      const icon = result.success ? '✅' : '❌';
+      const primaryParam = getPrimaryParamFromResult(result);
+      
+      if (result.success) {
+        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam}`.trim());
+      } else {
+        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam} - ${result.error}`.trim());
+      }
+    }
+  }
+  
+  // Add parse errors
+  if (orchResult.parseErrors) {
+    for (const error of orchResult.parseErrors) {
+      lines.push(`${error.blockId || 'unknown'} ❌ (parse error) - ${error.error.message || error.error}`);
+    }
+  }
+  
+  lines.push('=== END ===', '');
+  return lines.join('\n');
+}
+
+function getPrimaryParamFromResult(result: any): string {
+  if (!result.params) return '';
+  if (result.params.path) return result.params.path;
+  if (result.params.paths) {
+    const paths = result.params.paths.trim().split('\n').filter((p: string) => p.trim());
+    return `(${paths.length} files)`;
+  }
+  if (result.params.pattern) return result.params.pattern;
+  if (result.params.lang) return result.params.lang;
+  if (result.params.old_path) return result.params.old_path;
+  return '';
+}
+
+function formatSummaryLine(result: ExecutionResult): string {
+  const { action, result: execResult } = result;
+  const icon = execResult.success ? '✅' : '❌';
+  const id = action.metadata.blockId;
+  const primaryParam = getPrimaryParam(action);
+  
+  if (execResult.success) {
+    return `${id} ${icon} ${action.action} ${primaryParam}`.trim();
+  } else {
+    const errorSummary = getErrorSummary(execResult.error);
+    return `${id} ${icon} ${action.action} ${primaryParam} - ${errorSummary}`.trim();
+  }
+}
+
+function formatErrorLine(error: ParseError): string {
+  const id = error.blockId;
+  const action = error.action || '(parse error)';
+  return `${id} ❌ ${action} - ${error.message}`;
+}
+
+function getPrimaryParam(action: CladaAction): string {
+  // Handle different action types
+  if (action.parameters.path) return action.parameters.path;
+  if (action.parameters.paths) {
+    // Count lines for files_read
+    const paths = action.parameters.paths.trim().split('\n').filter((p: string) => p.trim());
+    return `(${paths.length} files)`;
+  }
+  if (action.parameters.pattern) return action.parameters.pattern;
+  if (action.parameters.lang) return action.parameters.lang;
+  if (action.parameters.old_path) return action.parameters.old_path;
+  return '';
+}
+
+function getErrorSummary(error?: string): string {
+  if (!error) return 'Unknown error';
+  
+  // Extract key error info
+  if (error.includes('File not found')) return 'File not found';
+  if (error.includes('no such file or directory')) return 'File not found';
+  if (error.includes('Permission denied')) return 'Permission denied';
+  if (error.includes('Output too large')) return error; // Keep full message
+  
+  // For other errors, take first part before details
+  const match = error.match(/^[^:]+:\s*([^'(]+)/);
+  if (match) return match[1].trim();
+  
+  return error.split('\n')[0]; // First line only
+}
+
+export function formatFullOutput(orchResult: OrchestratorResult): string {
+  const summary = formatSummary(orchResult, new Date());
+  
+  const lines = [summary.trim(), '', '=== OUTPUTS ==='];
+  
+  // Add outputs for successful actions
+  if (orchResult.results) {
+    for (const result of orchResult.results) {
+      if (result.success && result.data) {
+        const header = `[${result.blockId}] ${result.action} ${getPrimaryParamFromResult(result)}:`.trim();
+        lines.push('', header);
+        
+        // Format output based on data type
+        if (typeof result.data === 'string') {
+          lines.push(result.data.trimEnd());
+        } else if (result.data.stdout || result.data.stderr) {
+          if (result.data.stdout) {
+            lines.push(`stdout:\n${result.data.stdout.trimEnd()}`);
+          }
+          if (result.data.stderr) {
+            lines.push(`stderr:\n${result.data.stderr.trimEnd()}`);
+          }
+        } else {
+          lines.push(JSON.stringify(result.data, null, 2));
+        }
+      }
+    }
+  }
+  
+  lines.push('=== END ===');
+  return lines.join('\n');
+}
+
+function formatOutputHeader(result: ExecutionResult): string {
+  const id = result.action.metadata.blockId;
+  const action = result.action.action;
+  const primaryParam = getPrimaryParam(result.action);
+  
+  return `[${id}] ${action} ${primaryParam}:`.trim();
+}
+
+function formatOutputContent(result: ExecutionResult): string {
+  const { result: execResult } = result;
+  
+  // Handle different output types
+  if (execResult.content !== undefined) {
+    // Trim trailing newline to avoid double spacing
+    return execResult.content.trimEnd();
+  }
+  
+  if (execResult.stdout !== undefined || execResult.stderr !== undefined) {
+    const parts = [];
+    if (execResult.stdout) {
+      parts.push(`stdout:\n${execResult.stdout.trimEnd()}`);
+    }
+    if (execResult.stderr) {
+      parts.push(`stderr:\n${execResult.stderr.trimEnd()}`);
+    }
+    return parts.join('\n');
+  }
+  
+  if (execResult.data !== undefined) {
+    // Pretty print JSON data with 2-space indentation
+    // JSON.stringify doesn't add trailing newline
+    return JSON.stringify(execResult.data, null, 2);
+  }
+  
+  return '';
+}
+=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/formatters.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/index.ts ===
+export { startListener, stopListener } from './listener.js';
+export type { ListenerConfig, ListenerHandle, ListenerState } from './types.js';
+export { ListenerError } from './errors.js';
+=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/index.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/listener.ts ===
+import { watchFile, unwatchFile, Stats } from 'fs';
+import { readFile, writeFile, access, constants } from 'fs/promises';
+import { dirname, join } from 'path';
+import { write as writeToClipboard } from 'clipboardy';
+
+import type { ListenerConfig, ListenerHandle, ListenerState } from './types.js';
+import { ListenerError } from './errors.js';
+import { Clada } from '../../orch/src/index.js';
+import { formatSummary, formatFullOutput } from './formatters.js';
+import { computeContentHash } from './utils.js';
+
+// Module-level state for tracking active listeners
+const activeListeners = new Map<string, ListenerHandle>();
+// Strip prepended summary section if present
+function stripSummarySection(content: string): string {
+  const startMarker = '=== CLADA RESULTS ===';
+  const endMarker = '=== END ===';
+  
+  // Check if content starts with a CLADA results section
+  const startIndex = content.indexOf(startMarker);
+  if (startIndex === -1 || startIndex > 100) {
+    // No CLADA section at the beginning of file
+    return content;
+  }
+  
+  // Find the corresponding END marker
+  const endIndex = content.indexOf(endMarker, startIndex);
+  if (endIndex === -1) {
+    return content; // Malformed section, keep content as-is
+  }
+  
+  // Find the newline after the end marker
+  const afterEndIndex = content.indexOf('\n', endIndex + endMarker.length);
+  if (afterEndIndex === -1) {
+    return ''; // File ends with summary
+  }
+  
+  // Skip one more newline if present (blank line after summary)
+  const contentStart = content[afterEndIndex + 1] === '\n' ? afterEndIndex + 2 : afterEndIndex + 1;
+  return content.substring(contentStart);
+}
+
+// Debounce utility
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): T & { cancel: () => void } {
+  let timeout: NodeJS.Timeout | null = null;
+  
+  const debounced = (...args: Parameters<T>) => {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      func(...args);
+    }, wait);
+  };
+  
+  debounced.cancel = () => {
+    if (timeout) clearTimeout(timeout);
+  };
+  
+  return debounced as T & { cancel: () => void };
+}
+
+// Generate unique ID for listener instance
+function generateId(): string {
+  return `listener-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+// Format clipboard status line
+function formatClipboardStatus(success: boolean, timestamp: Date): string {
+  const time = timestamp.toLocaleTimeString();
+  return success ?
+    `📋 Copied to clipboard at ${time}` :
+    `❌ Clipboard copy failed at ${time}`;
+}
+
+// Process file changes
+async function processFileChange(filePath: string, state: ListenerState): Promise<void> {
+  // Check cooldown
+  if (Date.now() - state.lastExecutionTime < 2000) {
+    return; // Still in 2s cooldown period
+  }
+  
+  // Check not already processing
+  if (state.isProcessing) return;
+  
+  try {
+    state.isProcessing = true;
+    
+    // Read file
+    const fullContent = await readFile(filePath, 'utf-8');
+    
+    // DIAGNOSTIC: Log file content
+    console.log('=== FILE READ ===');
+    console.log('File path:', filePath);
+    console.log('File content length:', fullContent.length);
+    console.log('File content preview (first 200 chars):', fullContent.substring(0, 200));
+    console.log('File contains SHAM?', fullContent.includes('#!SHAM'));
+    console.log('=== END FILE READ ===');
+    
+    // Strip summary section for hashing
+    const contentForHash = stripSummarySection(fullContent);
+    console.log('Full content length:', fullContent.length);
+    console.log('Content for hash length:', contentForHash.length);
+    console.log('First 100 chars of content for hash:', contentForHash.substring(0, 100));
+    
+    // Compute hash of content (excluding summary)
+    const currentHash = computeContentHash(contentForHash);
+    
+    // DIAGNOSTIC: Log hash comparison
+    console.log('Content for hash:', contentForHash);
+    console.log('Current hash:', currentHash);
+    console.log('Last hash:', state.lastExecutedHash);
+    
+    // Skip if unchanged
+    if (currentHash === state.lastExecutedHash) {
+      console.log('Hash unchanged, skipping execution');
+      console.log('This suggests stripSummarySection might be removing too much content');
+      return;
+    }
+    
+    // Execute via orchestrator with full file content
+    console.log('\n=== ORCHESTRATOR CALL ===');
+    console.log('Content length:', fullContent.length);
+    console.log('Content preview:', fullContent.substring(0, 200));
+    console.log('Content includes SHAM?', fullContent.includes('#!SHAM'));
+    console.log('Content includes backticks?', fullContent.includes('```'));
+    
+    const clada = new Clada({ gitCommit: false });
+    const orchResult = await clada.execute(fullContent);
+    
+    // DIAGNOSTIC: Log orchestrator result
+    console.log('Orchestrator returned:', JSON.stringify(orchResult, null, 2));
+    console.log('=== END ORCHESTRATOR CALL ===\n');
+    
+    // Format outputs
+    const timestamp = new Date();
+    const summary = formatSummary(orchResult, timestamp);
+    const fullOutput = formatFullOutput(orchResult);
+    
+    // Copy to clipboard
+    let clipboardSuccess = false;
+    try {
+      await writeToClipboard(fullOutput);
+      clipboardSuccess = true;
+    } catch (error) {
+      console.error('listener: Clipboard write failed:', error);
+    }
+    
+    // Format clipboard status
+    const clipboardStatus = formatClipboardStatus(clipboardSuccess, timestamp);
+    
+    // Write output file with clipboard status
+    const outputContent = clipboardStatus + '\n' + fullOutput;
+    await writeFile(state.outputPath, outputContent);
+    
+    // Prepend to input file with clipboard status
+    const prepend = clipboardStatus + '\n' + summary;
+    const updatedContent = prepend + '\n' + fullContent;
+    await writeFile(filePath, updatedContent);
+    
+    // Update state
+    state.lastExecutedHash = currentHash;
+    state.lastExecutionTime = Date.now();
+    
+  } catch (error) {
+    console.error('listener: Error processing file change:', error);
+  } finally {
+    state.isProcessing = false;
+  }
+}
+
+export async function startListener(config: ListenerConfig): Promise<ListenerHandle> {
+  // Validate config
+  if (!config.filePath) {
+    throw new Error('listener: filePath is required');
+  }
+  if (!config.filePath.startsWith('/')) {
+    throw new Error('listener: filePath must be absolute');
+  }
+  if (config.debounceMs !== undefined && config.debounceMs < 100) {
+    throw new Error('listener: debounceMs must be at least 100');
+  }
+  
+  // Check file exists
+  try {
+    await access(config.filePath, constants.F_OK);
+  } catch (error) {
+    throw new ListenerError('FILE_NOT_FOUND', config.filePath);
+  }
+  
+  // Check not already watching
+  if (activeListeners.has(config.filePath)) {
+    throw new ListenerError('ALREADY_WATCHING', config.filePath);
+  }
+  
+  // Initialize state
+  const state: ListenerState = {
+    lastExecutedHash: '',
+    isProcessing: false,
+    outputPath: join(dirname(config.filePath), config.outputFilename || '.clada-output-latest.txt'),
+    lastExecutionTime: 0
+  };
+  
+  // Set up debounced handler
+  const debouncedProcess = debounce(
+    () => {
+      console.log('Debounced process executing');
+      processFileChange(config.filePath, state);
+    },
+    config.debounceMs || 500
+  );
+  
+  // Start watching
+  watchFile(config.filePath, { interval: 500 }, (curr: Stats, prev: Stats) => {
+    if (curr.mtime !== prev.mtime) {
+      console.log('File change detected, triggering debounced process');
+      debouncedProcess();
+    }
+  });
+  
+  // Process initial content
+  debouncedProcess();
+  
+  // Create handle
+  const handle: ListenerHandle = {
+    id: generateId(),
+    filePath: config.filePath,
+    stop: async () => {
+      unwatchFile(config.filePath);
+      debouncedProcess.cancel();
+      activeListeners.delete(config.filePath);
+    }
+  };
+  
+  // Track active listener
+  activeListeners.set(config.filePath, handle);
+  
+  return handle;
+}
+
+export async function stopListener(handle: ListenerHandle): Promise<void> {
+  await handle.stop();
+}
+=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/listener.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/types.ts ===
+export interface ListenerConfig {
+  filePath: string;
+  debounceMs?: number;
+  outputFilename?: string;
+}
+
+export interface ListenerHandle {
+  id: string;
+  filePath: string;
+  stop: () => Promise<void>;
+}
+
+export interface ListenerState {
+  lastExecutedHash: string;
+  isProcessing: boolean;
+  outputPath: string;
+  lastExecutionTime: number;
+  actionSchema: Map<string, ActionDefinition>;
+}
+
+export interface ActionDefinition {
+  type: 'read' | 'write' | 'meta' | 'git' | 'dynamic';
+  description: string;
+  output_display?: 'always' | 'never' | 'conditional';
+  primary_param?: string;
+  parameters: Record<string, ParameterDef>;
+  returns: Record<string, any>;
+}
+
+export interface ParameterDef {
+  type: string;
+  required: boolean;
+  format?: string;
+  values?: string[];
+  default?: any;
+}
+
+export interface SizeCheckResult {
+  valid: boolean;
+  totalSize: number;
+  errors: any[]; // ExecutionResult[] but avoiding circular dependency
+}
+=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/types.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/utils.ts ===
+import { createHash } from 'node:crypto';
+
+export function computeContentHash(content: string): string {
+  return createHash('sha256').update(content).digest('hex');
+}
+=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/utils.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/doc/ABSTRACT.md ===
+# File Listener
+
+Watches a file for SHAM blocks, executes them via orchestrator, and prepends results while managing output to clipboard and separate file.
+
+## Overview
+
+The listener component provides continuous monitoring of a designated input file for SHAM action blocks. When file content changes (excluding any prepended results section), it executes all SHAM blocks through the orchestrator component and manages the output flow. Results are formatted as a summary prepended to the input file, with full output written to a companion file and copied to clipboard.
+
+The component handles the complete lifecycle: detecting changes via file system events, parsing content to extract SHAM blocks, determining which blocks are new based on content hashing, executing actions in order, formatting results into summary and detailed views, and coordinating the three output destinations (input file prepend, output file, clipboard). It includes debouncing to handle rapid file saves and provides clear visual feedback when operations complete.
+
+The design prioritizes developer experience with clear status indicators, handles common failure modes gracefully (permission errors, clipboard failures), and maintains a simple state model tracking only the hash of previously executed blocks.
+=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/doc/ABSTRACT.md ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/doc/API.md ===
+# Component: listener
+
+## Component Type
+standard
+
+## Dependencies
+[Provisional - updated via STOP protocol when implementation reveals actual needs]
+
+```yaml
+dependencies:
+  proj/comp/orch:                                          # [IMPLEMENTED]
+    functions: [execute]
+    types: [OrchestratorResult]
+  
+  node:fs/promises:
+    functions: [readFile, writeFile]
+  
+  node:fs:
+    functions: [watchFile, unwatchFile]
+    types: [Stats]
+  
+  node:path:
+    functions: [dirname, join]
+  
+  node:crypto:
+    functions: [createHash]
+  
+  external/clipboardy:
+    functions: [write as writeToClipboard]
+```
+
+## Exports
+
+```yaml
+exports:
+  functions: [startListener, stopListener]
+  types: [ListenerConfig, ListenerHandle, ListenerState]
+  classes:
+    ListenerError:
+      extends: Error
+```
+
+### startListener
+- **Signature**: `startListener(config: ListenerConfig) -> Promise<ListenerHandle>`
+- **Purpose**: Begin watching file for SHAM blocks and executing them.
+- **Throws**: `ListenerError` when file doesn't exist or can't be accessed
+- **Test-data**: `test-data/startListener.json` [PLANNED]
+
+### stopListener
+- **Signature**: `stopListener(handle: ListenerHandle) -> Promise<void>`
+- **Purpose**: Stop watching file and clean up resources.
+- **Test-data**: `test-data/stopListener.json` [PLANNED]
+
+## Types
+
+### ListenerConfig
+```typescript
+{
+  filePath: string           // Absolute path to watch
+  debounceMs?: number        // Milliseconds to wait before processing (default: 500)
+  outputFilename?: string    // Name for output file (default: ".clada-output-latest.txt")
+}
+```
+
+### ListenerHandle
+```typescript
+{
+  id: string                 // Unique listener instance ID
+  filePath: string           // Path being watched
+  stop: () => Promise<void>  // Method to stop this listener
+}
+```
+
+### ListenerState
+```typescript
+{
+  lastExecutedHash: string   // SHA-256 of previously executed SHAM content
+  isProcessing: boolean      // Currently executing actions
+  outputPath: string         // Full path to output file
+}
+```
+
+### ListenerError
+```typescript
+class ListenerError extends Error {
+  code: 'FILE_NOT_FOUND' | 'ACCESS_DENIED' | 'ALREADY_WATCHING'
+  path: string
+}
+```
+
+## Internal Functions
+[To be discovered during implementation]
+
+### processFileChange
+- **Signature**: `processFileChange(filePath: string, state: ListenerState) -> Promise<void>`
+- **Purpose**: Read file, hash content after summary, execute if changed.
+
+### stripSummarySection
+- **Signature**: `stripSummarySection(content: string) -> string`
+- **Purpose**: Remove prepended results section if present.
+
+### computeContentHash
+- **Signature**: `computeContentHash(content: string) -> string`
+- **Purpose**: Generate SHA-256 hash of content for comparison.
+
+### formatSummary
+- **Signature**: `formatSummary(results: OrchestratorResult, timestamp: Date) -> string`
+- **Purpose**: Create the summary text block for prepending.
+
+### formatFullOutput
+- **Signature**: `formatFullOutput(results: OrchestratorResult) -> string`
+- **Purpose**: Create detailed output including action outputs.
+
+### updateFileWithClipboardStatus
+- **Signature**: `updateFileWithClipboardStatus(filePath: string, timestamp: Date) -> Promise<void>`
+- **Purpose**: Replace first line with clipboard success indicator.
+=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/doc/API.md ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/doc/ARCH.md ===
+# Listener Architecture
+
+## Design Philosophy
+
+**Minimal State, Maximum Reliability**: Track only what's necessary (content hash), handle failures gracefully, provide clear feedback. No complex state machines or recovery logic.
+
+## Key Design Decisions
+
+### File Watching Strategy
+- Use `fs.watchFile` with polling (more reliable than fs.watch)
+- Poll interval: 500ms default
+- Stat-based change detection
+- Single watcher per file (error if duplicate)
+
+**Rationale**: fs.watch has platform inconsistencies. Polling is battery-hungry but reliable for single-file monitoring.
+
+### Content Hashing
+- Hash file content after stripping any prepended summary section
+- Use SHA-256 of content after first "=== END ===" line
+- If no summary section, hash entire content
+- Hash comparison determines execution
+
+**Note**: Parse errors won't trigger re-execution when fixed (content unchanged).
+
+### Debouncing
+- File change starts debounce timer
+- Subsequent changes reset timer
+- Only process after quiet period
+- Default: 500ms
+
+**Rationale**: Editors often write multiple times. Prevents redundant execution during typing.
+
+### Output Coordination
+
+**Three destinations, specific order**:
+1. Write `.clada-output-latest.txt` (same directory)
+2. Prepend summary to input file (with blank first line)
+3. Copy full output to clipboard
+4. Update first line with clipboard status
+
+**Failure handling**:
+- Output file fails: Continue, log error
+- Prepend fails: Abort (can't update user's file)
+- Clipboard fails: Note in first line
+- All operations independent
+
+### Summary Format
+```
+[blank line for clipboard status]
+=== CLADA RESULTS ===
+{id} ✅ {action} {primary_param}
+{id} ❌ {action} {primary_param} - {error_summary}
+=== END ===
+```
+
+example after copy:
+
+```
+📋 Copied to clipboard at 10:32:45
+=== CLADA RESULTS ===
+c8i ✅ file_write /path/to/file.md
+qb2 ❌ file_write /path/to/other.rs - Permission denied
+v84 ✅ exec javascript - 17 lines
+=== END ===
+```
+
+### Full Output Format
+```
+=== CLADA RESULTS ===
+[same as summary]
+=== OUTPUTS ===
+[{id}] {action} {primary_param}:
+{output content}
+
+[{id}] {action} {primary_param}:
+{output content}
+=== END ===
+```
+
+### Output Display Rules
+Read from unified-design.yaml per action:
+- `output_display: always` - Include in OUTPUTS section
+- `output_display: never` - Summary only
+- `output_display: conditional` - Check return_output parameter
+
+### Truncation
+- 50KB limit per action output
+- UTF-8 aware truncation
+- Show first 25KB + last 25KB
+- Clear truncation message
+
+### Race Condition Acceptance
+**Problem**: User edits during processing
+**Solution**: Document-only. No locking or conflict resolution.
+**Rationale**: Toy project, complex solutions not warranted.
+
+### Process Lifecycle
+1. **Watch** - fs.watchFile on config.filePath
+2. **Detect** - mtime change triggers debounced handler
+3. **Read** - Load file content
+4. **Strip** - Remove prepended summary section if present
+5. **Hash** - Compute hash of remaining content
+6. **Compare** - Skip if hash matches lastExecutedHash
+7. **Execute** - Call orchestrator.execute() with full file
+8. **Format** - Generate summary and full output from results
+9. **Write** - Output file, prepend summary, clipboard
+10. **Update** - Store new hash
+
+## Error Messages
+
+Formatted for developer clarity:
+- "listener: File not found '{path}'"
+- "listener: Already watching '{path}'"
+- "listener: Permission denied writing output '{path}'"
+- "listener: Clipboard write failed"
+
+
+=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/doc/ARCH.md ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/test/integration/listener-workflow.test.ts ===
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { readFile, writeFile, mkdir, rm, access } from 'fs/promises';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { startListener } from '../../src/listener.js';
+import type { ListenerHandle } from '../../src/types.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Helper to poll for expected content
+async function pollForContent(
+  filePath: string, 
+  check: (content: string) => boolean, 
+  timeoutMs: number = 2000
+): Promise<string> {
+  const startTime = Date.now();
+  while (Date.now() - startTime < timeoutMs) {
+    try {
+      const content = await readFile(filePath, 'utf-8');
+      if (check(content)) return content;
+    } catch {}
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  throw new Error(`Timeout after ${timeoutMs}ms waiting for expected content`);
+}
+
+// Helper to wait for initial processing
+async function waitForInitialProcessing(testFile: string): Promise<void> {
+  await pollForContent(testFile, content => 
+    content.includes('=== CLADA RESULTS ==='), 
+    1500
+  );
+}
+
+// Helper to read and normalize timestamps in output
+function normalizeTimestamp(content: string): string {
+  return content.replace(/at \d{1,2}:\d{2}:\d{2}/g, 'at 10:30:00');
+}
+
+describe('listener workflow integration', () => {
+  let handle: ListenerHandle | null = null;
+  const testDir = '/tmp/t_listener_integration';
+  const testFile = join(testDir, 'test.md');
+  const outputFile = join(testDir, '.clada-output-latest.txt');
+
+  beforeEach(async () => {
+    await mkdir(testDir, { recursive: true });
+  });
+
+  afterEach(async () => {
+    if (handle) {
+      await handle.stop();
+      handle = null;
+    }
+    await rm(testDir, { recursive: true, force: true });
+  });
+
+  it('processes SHAM blocks and updates files', async () => {
+    // Create initial file
+    const initialContent = '# My Document\n\nSome content here.\n';
+    await writeFile(testFile, initialContent);
+
+    // Start listener
+    handle = await startListener({ filePath: testFile });
+    
+    // Wait for initial processing to complete
+    await waitForInitialProcessing(testFile);
+
+    // Wait for cooldown period to pass (listener has 2s cooldown)
+    await new Promise(resolve => setTimeout(resolve, 2100));
+
+    // Add SHAM block
+    const withSham = initialContent + `
+\`\`\`sh sham
+#!SHAM [@three-char-SHA-256: abc]
+action = "file_write"
+path = "${testDir}/output.txt"
+content = "Hello from listener!"
+#!END_SHAM_abc
+\`\`\`
+`;
+    await writeFile(testFile, withSham);
+    
+    // Poll for SHAM execution results
+    await pollForContent(testFile, content => 
+      content.includes('abc ✅ file_write') && 
+      content.includes('📋 Copied to clipboard')
+    );
+
+    // Poll for output file creation
+    const outputContent = await pollForContent(
+      join(testDir, 'output.txt'), 
+      content => content === 'Hello from listener!'
+    );
+    expect(outputContent).toBe('Hello from listener!');
+
+    // Poll for .clada-output-latest.txt
+    const cladaOutput = await pollForContent(
+      outputFile,
+      content => content.includes('abc ✅ file_write') && content.includes('=== OUTPUTS ===')
+    );
+    const normalizedOutput = normalizeTimestamp(cladaOutput);
+    expect(normalizedOutput).toContain('📋 Copied to clipboard at 10:30:00');
+    expect(normalizedOutput).toContain('abc ✅ file_write');
+    expect(normalizedOutput).toContain('=== OUTPUTS ===');
+
+    // File should have results prepended
+    const updatedContent = await readFile(testFile, 'utf-8');
+    const normalizedContent = normalizeTimestamp(updatedContent);
+    expect(normalizedContent).toContain('📋 Copied to clipboard at 10:30:00');
+    expect(normalizedContent).toContain('abc ✅ file_write');
+    expect(normalizedContent).toContain('```'); // Original SHAM block preserved
+  });
+
+  it('handles multiple actions with mixed results', async () => {
+    // Create initial empty file
+    await writeFile(testFile, '');
+
+    // Start listener
+    handle = await startListener({ filePath: testFile });
+    
+    // Wait for initial processing
+    await waitForInitialProcessing(testFile);
+    
+    // Wait for cooldown period
+    await new Promise(resolve => setTimeout(resolve, 2100));
+
+    const content = `
+\`\`\`sh sham
+#!SHAM [@three-char-SHA-256: wr1]
+action = "file_write"
+path = "${testDir}/file1.txt"
+content = "First file"
+#!END_SHAM_wr1
+\`\`\`
+
+\`\`\`sh sham
+#!SHAM [@three-char-SHA-256: rd1]
+action = "file_read"
+path = "${testDir}/missing.txt"
+#!END_SHAM_rd1
+\`\`\`
+
+\`\`\`sh sham
+#!SHAM [@three-char-SHA-256: ex1]
+action = "exec"
+lang = "bash"
+code = "echo 'Hello world'"
+#!END_SHAM_ex1
+\`\`\`
+`;
+    await writeFile(testFile, content);
+    
+    // Poll for results
+    await pollForContent(testFile, content => 
+      content.includes('wr1 ✅ file_write') &&
+      content.includes('rd1 ❌ file_read') &&
+      content.includes('ex1 ✅ exec')
+    );
+
+    // Check results
+    const updatedContent = await readFile(testFile, 'utf-8');
+    const normalized = normalizeTimestamp(updatedContent);
+    
+    expect(normalized).toContain('wr1 ✅ file_write');
+    expect(normalized).toContain('rd1 ❌ file_read');
+    expect(normalized).toContain('File not found');
+    expect(normalized).toContain('ex1 ✅ exec bash');
+
+    // Check full output file
+    const fullOutput = await readFile(outputFile, 'utf-8');
+    expect(fullOutput).toContain('[ex1] exec bash:');
+    expect(fullOutput).toContain('Hello world');
+  });
+
+  it('does not re-execute unchanged SHAM blocks', async () => {
+    // Create initial empty file
+    await writeFile(testFile, '');
+
+    // Start listener
+    handle = await startListener({ filePath: testFile });
+    
+    // Wait for initial processing
+    await waitForInitialProcessing(testFile);
+    
+    // Wait for cooldown period
+    await new Promise(resolve => setTimeout(resolve, 2100));
+
+    const content = `
+\`\`\`sh sham
+#!SHAM [@three-char-SHA-256: nc1]
+action = "file_write"
+path = "${testDir}/counter.txt"
+content = "1"
+#!END_SHAM_nc1
+\`\`\`
+`;
+    await writeFile(testFile, content);
+    
+    // Poll for initial execution
+    await pollForContent(testFile, content => 
+      content.includes('nc1 ✅ file_write')
+    );
+
+    // Verify file was created
+    const counterContent1 = await readFile(join(testDir, 'counter.txt'), 'utf-8');
+    expect(counterContent1).toBe('1');
+
+    // Get current file content (with prepended results)
+    const prependedContent = await readFile(testFile, 'utf-8');
+
+    // Simulate editing file but keeping SHAM blocks the same
+    // Just add a comment outside SHAM
+    const editedContent = prependedContent + '\n<!-- Comment added -->\n';
+    await writeFile(testFile, editedContent);
+    
+    // Wait a bit to ensure any processing would have started
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Change the counter file to detect if action re-executed
+    await writeFile(join(testDir, 'counter.txt'), '2');
+
+    // Trigger another save with same SHAM content
+    await writeFile(testFile, editedContent + ' ');
+    
+    // Wait to ensure no re-processing happens
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Counter should still be 2 (not overwritten back to 1)
+    const counterContent2 = await readFile(join(testDir, 'counter.txt'), 'utf-8');
+    expect(counterContent2).toBe('2');
+  });
+
+  it('handles parse errors gracefully', async () => {
+    // Create initial empty file
+    await writeFile(testFile, '');
+
+    // Start listener
+    handle = await startListener({ filePath: testFile });
+    
+    // Wait for initial processing
+    await waitForInitialProcessing(testFile);
+    
+    // Wait for cooldown period
+    await new Promise(resolve => setTimeout(resolve, 2100));
+
+    const content = `
+\`\`\`sh sham
+#!SHAM [@three-char-SHA-256: bad]
+action = "file_write"
+path = "${testDir}/test.txt"
+content = "missing closing quote
+#!END_SHAM_bad
+\`\`\`
+`;
+    await writeFile(testFile, content);
+    
+    // Poll for error to appear
+    await pollForContent(testFile, content => 
+      content.includes('bad ❌') && 
+      content.includes('Unterminated heredoc')
+    );
+
+    // Check error was reported
+    const updatedContent = await readFile(testFile, 'utf-8');
+    expect(updatedContent).toContain('bad ❌');
+    expect(updatedContent).toContain('Unterminated heredoc');
+  });
+});
+=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/test/integration/listener-workflow.test.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/test-data/integration/listener-workflow.md ===
+# Listener Integration Test Cases
+
+## Basic file write and execution
+
+### Initial file content
+```
+# My Document
+
+Some content here.
+```
+
+### File change with SHAM block
+```
+# My Document
+
+Some content here.
+
+```sh sham
+#!SHAM [@three-char-SHA-256: abc]
+action = "file_write"
+path = "/tmp/t_listener_workflow/output.txt"
+content = "Hello from listener!"
+#!END_SHAM_abc
+```
+```
+
+### Expected clipboard content
+```
+📋 Copied to clipboard at 10:30:00
+
+=== CLADA RESULTS ===
+abc ✅ file_write /tmp/t_listener_workflow/output.txt
+=== END ===
+```
+
+### Expected .clada-output-latest.txt
+```
+📋 Copied to clipboard at 10:30:00
+
+=== CLADA RESULTS ===
+abc ✅ file_write /tmp/t_listener_workflow/output.txt
+=== END ===
+
+=== OUTPUTS ===
+=== END ===
+```
+
+### Expected file content after prepend
+```
+📋 Copied to clipboard at 10:30:00
+
+=== CLADA RESULTS ===
+abc ✅ file_write /tmp/t_listener_workflow/output.txt
+=== END ===
+
+# My Document
+
+Some content here.
+
+```sh sham
+#!SHAM [@three-char-SHA-256: abc]
+action = "file_write"
+path = "/tmp/t_listener_workflow/output.txt"
+content = "Hello from listener!"
+#!END_SHAM_abc
+```
+```
+
+## Multiple actions with mixed results
+
+### File change
+```
+```sh sham
+#!SHAM [@three-char-SHA-256: wr1]
+action = "file_write"
+path = "/tmp/t_listener_multi/file1.txt"
+content = "First file"
+#!END_SHAM_wr1
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rd1]
+action = "file_read"
+path = "/tmp/t_listener_multi/missing.txt"
+#!END_SHAM_rd1
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: ex1]
+action = "exec"
+lang = "bash"
+code = "echo 'Hello world'"
+#!END_SHAM_ex1
+```
+```
+
+### Expected summary
+```
+📋 Copied to clipboard at 10:30:00
+
+=== CLADA RESULTS ===
+wr1 ✅ file_write /tmp/t_listener_multi/file1.txt
+rd1 ❌ file_read /tmp/t_listener_multi/missing.txt - File not found
+ex1 ✅ exec bash
+=== END ===
+```
+
+### Expected full output
+```
+📋 Copied to clipboard at 10:30:00
+
+=== CLADA RESULTS ===
+wr1 ✅ file_write /tmp/t_listener_multi/file1.txt
+rd1 ❌ file_read /tmp/t_listener_multi/missing.txt - File not found
+ex1 ✅ exec bash
+=== END ===
+
+=== OUTPUTS ===
+[ex1] exec bash:
+stdout:
+Hello world
+=== END ===
+```
+
+## Parse error handling
+
+### File with parse error
+```
+```sh sham
+#!SHAM [@three-char-SHA-256: bad]
+action = "file_write"
+path = "/tmp/t_listener_parse/test.txt"
+content = "missing closing quote
+#!END_SHAM_bad
+```
+```
+
+### Expected summary
+```
+📋 Copied to clipboard at 10:30:00
+
+=== CLADA RESULTS ===
+bad ❌ file_write - Unterminated heredoc: Expected EOT_SHAM_bad
+=== END ===
+```
+
+## No change detection (same hash)
+
+### Initial SHAM
+```
+```sh sham
+#!SHAM [@three-char-SHA-256: nc1]
+action = "file_write"
+path = "/tmp/t_listener_nochange/test.txt"
+content = "Initial content"
+#!END_SHAM_nc1
+```
+```
+
+### Second save with same content
+Should not execute again - no output changes
+
+## Output size limits
+
+### Single large output
+```
+```sh sham
+#!SHAM [@three-char-SHA-256: big]
+action = "exec"
+lang = "python"
+code = "print('x' * 60000)"
+#!END_SHAM_big
+```
+```
+
+### Expected summary
+```
+📋 Copied to clipboard at 10:30:00
+
+=== CLADA RESULTS ===
+big ❌ exec python - Output too large: 60001 bytes (max 50000)
+=== END ===
+```
+
+## Clipboard failure
+
+### When clipboard fails
+```
+📌 Clipboard copy failed at 10:30:00
+
+=== CLADA RESULTS ===
+abc ✅ file_write /tmp/t_listener_clipfail/test.txt
+=== END ===
+```
+=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/test-data/integration/listener-workflow.md ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/test-data/startListener.json ===
+{
+  "cases": [
+    {
+      "name": "successful start with default config",
+      "input": [{
+        "filePath": "/tmp/t_listener_start/test.md"
+      }],
+      "setup": {
+        "createFile": "/tmp/t_listener_start/test.md",
+        "content": "# Test file\n"
+      },
+      "expected": {
+        "id": "mock-id",
+        "filePath": "/tmp/t_listener_start/test.md",
+        "hasStopMethod": true
+      }
+    },
+    {
+      "name": "file not found error",
+      "input": [{
+        "filePath": "/tmp/t_listener_missing/ghost.md"
+      }],
+      "throws": "ListenerError",
+      "expectedError": {
+        "code": "FILE_NOT_FOUND",
+        "path": "/tmp/t_listener_missing/ghost.md"
+      }
+    },
+    {
+      "name": "already watching error",
+      "input": [{
+        "filePath": "/tmp/t_listener_duplicate/test.md"
+      }],
+      "setup": {
+        "createFile": "/tmp/t_listener_duplicate/test.md",
+        "content": "test",
+        "alreadyWatching": true
+      },
+      "throws": "ListenerError",
+      "expectedError": {
+        "code": "ALREADY_WATCHING",
+        "path": "/tmp/t_listener_duplicate/test.md"
+      }
+    },
+    {
+      "name": "custom debounce time",
+      "input": [{
+        "filePath": "/tmp/t_listener_debounce/test.md",
+        "debounceMs": 1000
+      }],
+      "setup": {
+        "createFile": "/tmp/t_listener_debounce/test.md",
+        "content": "test"
+      },
+      "expected": {
+        "id": "mock-id",
+        "filePath": "/tmp/t_listener_debounce/test.md",
+        "hasStopMethod": true
+      }
+    },
+    {
+      "name": "custom output filename",
+      "input": [{
+        "filePath": "/tmp/t_listener_output/test.md",
+        "outputFilename": ".my-output.txt"
+      }],
+      "setup": {
+        "createFile": "/tmp/t_listener_output/test.md",
+        "content": "test"
+      },
+      "expected": {
+        "id": "mock-id",
+        "filePath": "/tmp/t_listener_output/test.md",
+        "hasStopMethod": true
+      }
+    }
+  ]
+}
+=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/test-data/startListener.json ===
+
+=== START FILE: /Users/stuart/repos/clada/replacer/replacer_llm_instructions.md ===
+coding style guide:  TDD.  self documenting code.  every api  function name should make it super obvious who is doing what and why
+
+WOL = "words or less, please"
+
+keep the docs as lean
+
+refactor code to make it smaller whenever possible.  DRY.
+
+IMPORTANT:  do not generate edit instructions unless specifically asked to.  not necessary when just discussing and brainstorming
+
+- all code functions and classes or large (10 lines of code or more?) need code comments to cocnisely and lcearly describe what they're doing and why and how
+
+IMPORTANT: 
+
+whenever you generate new code, use the following format.  dont just generate a standalone artifact.  when generating one or multiple new files, use the OVERWRITE pattern shown below 
+
+For each specific edit that needs to happen, list a brief explanation for the change, list file name, and then explicitly make it clear what the target text is that need to be changed, and then the replacement text is that will replace it. Each of those blocks of text or code need to be explicit verbatim character by character Perfect matches for the intended text.  be sure to put the filenames and expalanations on their own lines for easy human reading even in output format.  like paragraph breaks before and after so thye're on their own lines even when not in code blocks.  use this format below exactly. note that the OVERWRITE style block can be used to create new files and its parent dirs.
+
+make the search find text or code blocks as small as possible to still be unique identifiers for what needs to be changed in the underlying files 
+
+for the file path, use as much of the path that you know of.  should be as specific as you can accurately be.  
+
+make sure that file paths include the current main project dir
+
+<<<EXPLANATION>>>
+
+this is why the change should happen
+
+<<<FILE>>>
+
+package/replacer_demo_src/main.py
+
+<<<SEARCH>>>
+def old_function():
+   x = 1
+   y = 2
+   return x + y
+<<<REPLACE>>>
+def new_function():
+   result = 3
+   return result
+<<<END>>>
+
+
+
+
+<<<EXPLANATION>>>
+
+this is why this change should happen
+
+<<<FILE>>>
+july/coding/bobstuff/react/config/settings.json
+<<<OVERWRITE>>>
+{
+   "debug": true,
+   "port": 8080
+}
+<<<END>>>
+
+NOTE: if you want to remove a section of code, your replace block must contain a blank line and a space:
+
+
+<<<EXPLANATION>>>
+
+remove the search code
+
+<<<FILE>>>
+
+package/replacer_demo_src/main.py
+
+<<<SEARCH>>>
+def old_function():
+   x = 1
+   y = 2
+   return x + y
+<<<REPLACE>>>
+ 
+<<<END>>>
+
+see how the REPLACE block can never be totally empty. must contain blank line and whitespace (space(s)) too
+
+IMPORTANT:  each edit item must list its associated FILE.  each SEARCH/REPLACE or OVERWRITE etc block must be immediately preceeded by the respective file 
+
+$$$$$$$$$$$$$
+
+Prioritize substance, clarity, and depth. Challenge all my proposals, designs, and conclusions as hypotheses to be tested. Sharpen follow-up questions for precision, surfacing hidden assumptions, trade offs, and failure modes early. Default to terse, logically structured, information-dense responses unless detailed exploration is required. Skip unnecessary praise unless grounded in evidence. Explicitly acknowledge uncertainty when applicable. Always propose at least one alternative framing. Accept critical debate as normal and preferred. Treat all factual claims as provisional unless cited or clearly justified. Cite when appropriate. Acknowledge when claims rely on inference or incomplete information. Favor accuracy over sounding certain.
+
+check anything online when it feels relevant.  good to compare our thoughts/assumptions with what other people are actually doing and thinking
+
+when asked to share your thoughts (like if user says "wdyt"), then walk it out and talk it out gradually, incrementally, slowly, and thoughtfully.  challenge me so we can succeed overall
+
+dont fall into the trap of equating "implementation" with "low-level".  implementation decisions can be high-level when they affect the system's fundamental behavior
+
+IMPORTANT EDIT INSTRUCTIONS NOTE:
+
+- always use full absolute file paths for edit instructions
+
+- to delete a file, share bash commands with the user in your response.  do not use edit instructions to delete a file
+
+
+=== END FILE: /Users/stuart/repos/clada/replacer/replacer_llm_instructions.md ===
+
+=== START FILE: /Users/stuart/repos/clada/xd5_ref.md ===
+# XD5 LLM Quick Reference
+
+## Core Principle
+Documentation maintains dependency graphs for deterministic context assembly. Initial dependencies are hypotheses - implementation discovers reality. The STOP protocol ensures documentation evolves to match actual dependencies.
+
+## File Structure
+```
+<repo>/
+└── proj/
+    ├── doc/
+    │   ├── API.md        # ⚠️ CRITICAL: All dependencies + exports
+    │   ├── ABSTRACT.md   # 60-word purpose + 300-word overview
+    │   └── ARCH.md       # Technical decisions, constraints
+    ├── test-data/        # Test cases as JSON/MD files
+    │   ├── unit/         # Unit test data
+    │   └── integration/  # Integration test data
+    ├── test/             # Minimal harnesses loading test-data
+    │   ├── unit/         # Unit test harnesses
+    │   └── integration/  # Integration test harnesses
+    ├── test-intn/        # Integration tests for dependencies
+    ├── src/              # Implementation
+    └── comp/             # Sub-components (recursive) - do not need 'proj' dirs
+```
+
+## API.md Template
+```markdown
+# Component: {name}
+
+## Component Type
+standard | types-only
+
+## Dependencies
+[Provisional - updated via STOP protocol when implementation reveals actual needs]
+
+Mark internal component status: [PLANNED], [IN-PROGRESS], or [IMPLEMENTED]
+External dependencies do not need status markers.
+
+```yaml
+dependencies:
+  # Initial hypothesis based on design
+  proj/comp/payment:                                       # [PLANNED]
+    functions: [validateCard, processRefund] # may change 
+    types: [PaymentResult, CardType]
+    errors: [PaymentError]
+  
+  proj/comp/auth:                                          # [IMPLEMENTED]
+    functions: [checkPermission, validateToken]
+    types: [User, TokenPayload]
+  
+  proj/comp/logger:                                        # [IN-PROGRESS]
+    functions: [logTransaction]  # Audit requirement
+  
+  proj/comp/payment-types: "*"  # Wildcard for types-only  # [IMPLEMENTED] 
+  
+  external/lodash:
+    functions: [groupBy, mapValues]
+  
+  external/@stripe/stripe-js:
+    types: [Stripe, PaymentIntent]
+    functions: [loadStripe]
+```
+
+## Exports
+[Structured YAML for dependency graph tooling, then prose descriptions]
+
+```yaml
+exports:
+  functions: [functionName1, functionName2]
+  types: [Type1, Type2, Type3]
+  classes:
+    ClassName:
+      methods: [method1, method2]
+  errors: [CustomError1, CustomError2]
+```
+
+### {functionName}
+- **Signature**: `{functionName}(param: Type) -> ReturnType`
+- **Purpose**: Single sentence.
+- **Throws**: `{ErrorType}` when {condition}
+- **Test-data**: `test-data/{path}/{functionName}.json` [PLANNED|IMPLEMENTED]
+
+
+
+## Workflow
+
+### Core Flow: Design → Test → Implement
+
+1. **Write docs**: ABSTRACT.md → ARCH.md → API.md (provisional)
+2. **Design tests**: E2E hypothesis → Decompose → Unit tests  
+3. **Implement**: Discover real dependencies → Update docs → Complete code
+
+### Test Authority & Evolution
+
+**Tests Are Source of Truth (But Not Infallible)**
+- Tests define what code SHOULD do
+- During debug: ALWAYS fix code to match tests first
+- Test errors discovered? Ask human: "I believe test X is incorrect because Y. Should I update it?"
+- NEVER auto-modify tests while debugging
+- Each test change needs explicit approval
+
+### Detailed Flow
+
+1. **E2E Test Hypothesis** - Write component test-data (expect evolution)
+2. **Pseudocode** - Rough implementation to discover structure
+3. **Extract Functions** - Identify & extract all pure functions
+4. **Unit Tests** - Write test-data for each function
+5. **Implement Functions** - Red/green/debug (fix code, not tests)
+6. **Revise E2E Tests** - Align with discovered behavior (ask human)
+7. **Wire Component** - Connect tested functions
+8. **Debug E2E** - Fix code until green
+
+**Debug Protocol**: Test fails? → Try fixing code → Still failing? → Consider test error → Request human approval for any test change
+
+**If docs are wrong**: STOP → Update docs → Update tests → Continue
+
+
+
+### Critical Implementation Rules
+
+**Initial Docs Are Hypotheses**: 
+- First API.md contains best guesses
+- Dependencies WILL be wrong
+- This is expected and healthy
+- Discovery through implementation is the goal
+
+**🛑 STOP Protocol**: When implementation reveals doc errors:
+1. STOP immediately
+2. Update API.md/ARCH.md
+3. Continue with correct docs
+
+**Test Immutability**: 
+- Test harnesses = frozen after creation
+- Test data = only change with human approval
+- Fix code, not tests (unless explicitly approved)
+
+**Dependency Updates**:
+- Add to API.md as discovered
+- Include transitive deps if needed for understanding
+- External deps must be explicit
+
+## Test Data Format
+```json
+{
+  "cases": [
+    {
+      "name": "descriptive name",
+      "input": [arg1, arg2],
+      "expected": {result},
+      "throws": "ErrorType"  // optional
+    }
+  ]
+}
+```
+
+## Quick Checks
+
+Before implementing:
+- [ ] API.md declares all exports?
+- [ ] Dependencies section updated?
+- [ ] Test data files created?
+
+During implementation:
+- [ ] Tests fail first (red phase)?
+- [ ] Docs match reality? (if not → STOP)
+- [ ] All imports declared in API.md?
+
+## Common Patterns
+
+**Extract pure functions during pseudocode**:
+```javascript
+// Pseudocode reveals:
+// extractedFn: validateInput(x) -> bool
+// extractedFn: processData(data) -> result
+```
+
+**Types-only components**: No test/ or src/, only doc/
+
+**Path conventions**: All relative to `<repo>/`
+- Component: `proj/comp/{name}`
+- Nested: `proj/comp/{parent}/comp/{child}`
+
+
+# update 
+
+- need to update this so that we save our pseudocde in some sort of documetnation, maybe temp documentation.  so if we implement the fucntiosn to unit test, we dont get confused later about how theyre supposed to be used.
+
+- ideally, each extracted function unit-testable function would be in its own file.  for parallelism with the unit test files
+
+- TESTING PATHS
+
+dont save files directly to `/tmp/`.  save them to a dir in the tmp dir taht is named with the name of the test preceedd by 't_', eg `/tmp/t_move-nonexistent-file`
+
+like: 
+
+
+### 003-move-nonexistent-file
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mnf]
+action = "file_move"
+old_path = "/tmp/t_move-nonexistent-file/ghost.txt"
+new_path = "/tmp/t_move-nonexistent-file/nowhere.txt"
+#!END_SHAM_mnf
+```
+
+```json
+{
+  "success": false,
+  "error": "file_move: Source file not found '/tmp/t_move-nonexistent-file/ghost.txt' (ENOENT)"
+}
+```
+
+=== END FILE: /Users/stuart/repos/clada/xd5_ref.md ===
+
 === START FILE: /Users/stuart/repos/clada/unified-design.yaml ===
 # AI Coder Tools Schema - Unified Design
 
@@ -412,219 +2017,4 @@ TODO: |
 
   # and add a wayt o get file numbers per read.  like an attribute to add to file_read to get the text with line numbers. and then a file_lines_replace that takes in a line range and replacement_text params. or maybe even each as an array.  maybe we should just change nesl-js so its not an error to have repeated values.  cos right now its like impossible to make a lot of small changes to a big code file.  but if we new the line number per each... that would make it easy for LLM... 
 === END FILE: /Users/stuart/repos/clada/unified-design.yaml ===
-
-=== START FILE: /Users/stuart/repos/clada/xd5_ref.md ===
-# XD5 LLM Quick Reference
-
-## Core Principle
-Documentation maintains dependency graphs for deterministic context assembly. Initial dependencies are hypotheses - implementation discovers reality. The STOP protocol ensures documentation evolves to match actual dependencies.
-
-## File Structure
-```
-<repo>/
-└── proj/
-    ├── doc/
-    │   ├── API.md        # ⚠️ CRITICAL: All dependencies + exports
-    │   ├── ABSTRACT.md   # 60-word purpose + 300-word overview
-    │   └── ARCH.md       # Technical decisions, constraints
-    ├── test-data/        # Test cases as JSON/MD files
-    │   ├── unit/         # Unit test data
-    │   └── integration/  # Integration test data
-    ├── test/             # Minimal harnesses loading test-data
-    │   ├── unit/         # Unit test harnesses
-    │   └── integration/  # Integration test harnesses
-    ├── test-intn/        # Integration tests for dependencies
-    ├── src/              # Implementation
-    └── comp/             # Sub-components (recursive) - do not need 'proj' dirs
-```
-
-## API.md Template
-```markdown
-# Component: {name}
-
-## Component Type
-standard | types-only
-
-## Dependencies
-[Provisional - updated via STOP protocol when implementation reveals actual needs]
-
-Mark internal component status: [PLANNED], [IN-PROGRESS], or [IMPLEMENTED]
-External dependencies do not need status markers.
-
-```yaml
-dependencies:
-  # Initial hypothesis based on design
-  proj/comp/payment:                                       # [PLANNED]
-    functions: [validateCard, processRefund] # may change 
-    types: [PaymentResult, CardType]
-    errors: [PaymentError]
-  
-  proj/comp/auth:                                          # [IMPLEMENTED]
-    functions: [checkPermission, validateToken]
-    types: [User, TokenPayload]
-  
-  proj/comp/logger:                                        # [IN-PROGRESS]
-    functions: [logTransaction]  # Audit requirement
-  
-  proj/comp/payment-types: "*"  # Wildcard for types-only  # [IMPLEMENTED] 
-  
-  external/lodash:
-    functions: [groupBy, mapValues]
-  
-  external/@stripe/stripe-js:
-    types: [Stripe, PaymentIntent]
-    functions: [loadStripe]
-```
-
-## Exports
-[Structured YAML for dependency graph tooling, then prose descriptions]
-
-```yaml
-exports:
-  functions: [functionName1, functionName2]
-  types: [Type1, Type2, Type3]
-  classes:
-    ClassName:
-      methods: [method1, method2]
-  errors: [CustomError1, CustomError2]
-```
-
-### {functionName}
-- **Signature**: `{functionName}(param: Type) -> ReturnType`
-- **Purpose**: Single sentence.
-- **Throws**: `{ErrorType}` when {condition}
-- **Test-data**: `test-data/{path}/{functionName}.json` [PLANNED|IMPLEMENTED]
-
-
-
-## Workflow
-
-### Core Flow: Design → Test → Implement
-
-1. **Write docs**: ABSTRACT.md → ARCH.md → API.md (provisional)
-2. **Design tests**: E2E hypothesis → Decompose → Unit tests  
-3. **Implement**: Discover real dependencies → Update docs → Complete code
-
-### Test Authority & Evolution
-
-**Tests Are Source of Truth (But Not Infallible)**
-- Tests define what code SHOULD do
-- During debug: ALWAYS fix code to match tests first
-- Test errors discovered? Ask human: "I believe test X is incorrect because Y. Should I update it?"
-- NEVER auto-modify tests while debugging
-- Each test change needs explicit approval
-
-### Detailed Flow
-
-1. **E2E Test Hypothesis** - Write component test-data (expect evolution)
-2. **Pseudocode** - Rough implementation to discover structure
-3. **Extract Functions** - Identify & extract all pure functions
-4. **Unit Tests** - Write test-data for each function
-5. **Implement Functions** - Red/green/debug (fix code, not tests)
-6. **Revise E2E Tests** - Align with discovered behavior (ask human)
-7. **Wire Component** - Connect tested functions
-8. **Debug E2E** - Fix code until green
-
-**Debug Protocol**: Test fails? → Try fixing code → Still failing? → Consider test error → Request human approval for any test change
-
-**If docs are wrong**: STOP → Update docs → Update tests → Continue
-
-
-
-### Critical Implementation Rules
-
-**Initial Docs Are Hypotheses**: 
-- First API.md contains best guesses
-- Dependencies WILL be wrong
-- This is expected and healthy
-- Discovery through implementation is the goal
-
-**🛑 STOP Protocol**: When implementation reveals doc errors:
-1. STOP immediately
-2. Update API.md/ARCH.md
-3. Continue with correct docs
-
-**Test Immutability**: 
-- Test harnesses = frozen after creation
-- Test data = only change with human approval
-- Fix code, not tests (unless explicitly approved)
-
-**Dependency Updates**:
-- Add to API.md as discovered
-- Include transitive deps if needed for understanding
-- External deps must be explicit
-
-## Test Data Format
-```json
-{
-  "cases": [
-    {
-      "name": "descriptive name",
-      "input": [arg1, arg2],
-      "expected": {result},
-      "throws": "ErrorType"  // optional
-    }
-  ]
-}
-```
-
-## Quick Checks
-
-Before implementing:
-- [ ] API.md declares all exports?
-- [ ] Dependencies section updated?
-- [ ] Test data files created?
-
-During implementation:
-- [ ] Tests fail first (red phase)?
-- [ ] Docs match reality? (if not → STOP)
-- [ ] All imports declared in API.md?
-
-## Common Patterns
-
-**Extract pure functions during pseudocode**:
-```javascript
-// Pseudocode reveals:
-// extractedFn: validateInput(x) -> bool
-// extractedFn: processData(data) -> result
-```
-
-**Types-only components**: No test/ or src/, only doc/
-
-**Path conventions**: All relative to `<repo>/`
-- Component: `proj/comp/{name}`
-- Nested: `proj/comp/{parent}/comp/{child}`
-
-
-# update 
-
-- need to update this so that we save our pseudocde in some sort of documetnation, maybe temp documentation.  so if we implement the fucntiosn to unit test, we dont get confused later about how theyre supposed to be used.
-
-- ideally, each extracted function unit-testable function would be in its own file.  for parallelism with the unit test files
-
-- TESTING PATHS
-
-dont save files directly to `/tmp/`.  save them to a dir in the tmp dir taht is named with the name of the test preceedd by 't_', eg `/tmp/t_move-nonexistent-file`
-
-like: 
-
-
-### 003-move-nonexistent-file
-
-```sh sham
-#!SHAM [@three-char-SHA-256: mnf]
-action = "file_move"
-old_path = "/tmp/t_move-nonexistent-file/ghost.txt"
-new_path = "/tmp/t_move-nonexistent-file/nowhere.txt"
-#!END_SHAM_mnf
-```
-
-```json
-{
-  "success": false,
-  "error": "file_move: Source file not found '/tmp/t_move-nonexistent-file/ghost.txt' (ENOENT)"
-}
-```
-
-=== END FILE: /Users/stuart/repos/clada/xd5_ref.md ===
 

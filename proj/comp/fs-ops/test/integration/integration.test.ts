@@ -92,7 +92,8 @@ const testPaths = [
   '/tmp/multiple-occurrences.txt',
   '/tmp/replace-all.txt',
   '/tmp/count-mismatch.txt',
-  '/tmp/special-chars.txt'
+  '/tmp/special-chars.txt',
+  '/tmp/numbered.txt'
 ];
 
 describe('fs-ops integration tests', () => {

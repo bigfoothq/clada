@@ -27,6 +27,9 @@ dependencies:
   
   external/clipboardy:
     functions: [write as writeToClipboard]
+  
+  external/js-yaml:
+    functions: [parse as parseYaml]
 ```
 
 ## Exports

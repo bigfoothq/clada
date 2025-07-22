@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 // Re-export types for consumers
-export { ParseResult, CladaAction, ParseError, ValidationResult, TransformError };
+export type { ParseResult, CladaAction, ParseError, ValidationResult, TransformError };
 
 // Cache for action schema
 let actionSchemaCache: Map<string, ActionDefinition> | null = null;

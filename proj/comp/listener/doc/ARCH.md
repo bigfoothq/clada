@@ -56,7 +56,7 @@
 example after copy:
 
 ```
-📋 Copied to clipboard at 10:32:45
+📋 Copied to clipboard
 === CLADA RESULTS ===
 c8i ✅ file_write /path/to/file.md
 qb2 ❌ file_write /path/to/other.rs - Permission denied

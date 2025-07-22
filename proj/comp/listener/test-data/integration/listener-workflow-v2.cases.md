@@ -28,8 +28,7 @@ content = "Hello from SHAM!"
 
 #### input file
 ````sh
-
-📋 Copied to clipboard at 10:30:00
+📋 Copied to clipboard
 
 === CLADA RESULTS ===
 sf1 ✅ file_write /tmp/t_listener_simple/output.txt
@@ -77,7 +76,9 @@ Empty file to start.
 
 #### input file
 ````sh
-```sh
+Empty file to start.
+
+```sh sham
 #!SHAM [@three-char-SHA-256: wr1]
 action = "file_write"
 path = "/tmp/t_listener_multi/created.txt"
@@ -103,8 +104,7 @@ code = "echo 'Hello from bash'"
 
 #### input file
 ````sh
-```
-📋 Copied to clipboard at 10:30:00
+📋 Copied to clipboard
 
 === CLADA RESULTS ===
 wr1 ✅ file_write /tmp/t_listener_multi/created.txt
@@ -192,7 +192,7 @@ content = "missing closing quote
 
 #### Expected Prepended Results
 ````sh
-📋 Copied to clipboard at 10:30:00
+📋 Copied to clipboard
 
 === CLADA RESULTS ===
 bad ❌ file_write - Unclosed quoted string
@@ -253,7 +253,7 @@ Adding a comment outside SHAM blocks.
 
 #### Expected Prepended Results
 ````sh
-📋 Copied to clipboard at 10:30:00
+📋 Copied to clipboard
 
 === CLADA RESULTS ===
 nc1 ✅ file_write /tmp/t_listener_nochange/counter.txt
@@ -286,6 +286,372 @@ nc1 ✅ file_write /tmp/t_listener_nochange/counter.txt
 ````sh
 === CLADA RESULTS ===
 nc1 ✅ file_write /tmp/t_listener_nochange/counter.txt
+=== END ===
+
+=== OUTPUTS ===
+=== END ===
+````
+
+### successful-file-replace-text
+
+#### Initial Content
+````sh
+Testing file replacement functionality.
+````
+
+#### New Content
+````sh
+Testing file replacement functionality.
+
+```sh sham
+#!SHAM [@three-char-SHA-256: fr1]
+action = "file_write"
+path = "/tmp/t_listener_replace/config.yaml"
+content = <<'EOT_SHAM_fr1'
+# Configuration file
+database:
+  host: localhost
+  port: 5432
+  name: myapp_dev
+
+server:
+  host: localhost
+  port: 3000
+EOT_SHAM_fr1
+#!END_SHAM_fr1
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: fr2]
+action = "file_replace_text"
+path = "/tmp/t_listener_replace/config.yaml"
+old_text = <<'EOT_SHAM_fr2'
+database:
+  host: localhost
+  port: 5432
+  name: myapp_dev
+EOT_SHAM_fr2
+new_text = <<'EOT_SHAM_fr2'
+database:
+  host: production.example.com
+  port: 5432
+  name: myapp_prod
+EOT_SHAM_fr2
+#!END_SHAM_fr2
+```
+````
+
+#### Expected Prepended Results
+````sh
+📋 Copied to clipboard
+
+=== CLADA RESULTS ===
+fr1 ✅ file_write /tmp/t_listener_replace/config.yaml
+fr2 ✅ file_replace_text /tmp/t_listener_replace/config.yaml
+=== END ===
+
+Testing file replacement functionality.
+
+```sh sham
+#!SHAM [@three-char-SHA-256: fr1]
+action = "file_write"
+path = "/tmp/t_listener_replace/config.yaml"
+content = <<'EOT_SHAM_fr1'
+# Configuration file
+database:
+  host: localhost
+  port: 5432
+  name: myapp_dev
+
+server:
+  host: localhost
+  port: 3000
+EOT_SHAM_fr1
+#!END_SHAM_fr1
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: fr2]
+action = "file_replace_text"
+path = "/tmp/t_listener_replace/config.yaml"
+old_text = <<'EOT_SHAM_fr2'
+database:
+  host: localhost
+  port: 5432
+  name: myapp_dev
+EOT_SHAM_fr2
+new_text = <<'EOT_SHAM_fr2'
+database:
+  host: production.example.com
+  port: 5432
+  name: myapp_prod
+EOT_SHAM_fr2
+#!END_SHAM_fr2
+```
+````
+
+#### Expected Output File
+````sh
+=== CLADA RESULTS ===
+fr1 ✅ file_write /tmp/t_listener_replace/config.yaml
+fr2 ✅ file_replace_text /tmp/t_listener_replace/config.yaml
+=== END ===
+
+=== OUTPUTS ===
+=== END ===
+````
+
+#### clipboard
+````sh
+=== CLADA RESULTS ===
+fr1 ✅ file_write /tmp/t_listener_replace/config.yaml
+fr2 ✅ file_replace_text /tmp/t_listener_replace/config.yaml
+=== END ===
+
+=== OUTPUTS ===
+=== END ===
+````
+
+### failed-file-replace-text-multiple-matches
+
+#### Initial Content
+````sh
+Testing multiple match failure.
+````
+
+#### New Content
+````sh
+Testing multiple match failure.
+
+```sh sham
+#!SHAM [@three-char-SHA-256: fm1]
+action = "file_write"
+path = "/tmp/t_listener_multi_match/app.js"
+content = <<'EOT_SHAM_fm1'
+// Application code
+function process() {
+  const value = 100;
+  console.log(value);
+  
+  if (value > 50) {
+    console.log("High value");
+  }
+  
+  return value;
+}
+
+function validate() {
+  const value = 200;
+  return value > 0;
+}
+EOT_SHAM_fm1
+#!END_SHAM_fm1
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: fm2]
+action = "file_replace_text"
+path = "/tmp/t_listener_multi_match/app.js"
+old_text = <<'EOT_SHAM_fm2'
+  const value = 100;
+EOT_SHAM_fm2
+new_text = <<'EOT_SHAM_fm2'
+  const value = 999;
+EOT_SHAM_fm2
+#!END_SHAM_fm2
+```
+````
+
+#### Expected Prepended Results
+````sh
+📋 Copied to clipboard
+
+=== CLADA RESULTS ===
+fm1 ✅ file_write /tmp/t_listener_multi_match/app.js
+fm2 ❌ file_replace_text /tmp/t_listener_multi_match/app.js - Search string found 2 times (expected exactly 1)
+=== END ===
+
+Testing multiple match failure.
+
+```sh sham
+#!SHAM [@three-char-SHA-256: fm1]
+action = "file_write"
+path = "/tmp/t_listener_multi_match/app.js"
+content = <<'EOT_SHAM_fm1'
+// Application code
+function process() {
+  const value = 100;
+  console.log(value);
+  
+  if (value > 50) {
+    console.log("High value");
+  }
+  
+  return value;
+}
+
+function validate() {
+  const value = 200;
+  return value > 0;
+}
+EOT_SHAM_fm1
+#!END_SHAM_fm1
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: fm2]
+action = "file_replace_text"
+path = "/tmp/t_listener_multi_match/app.js"
+old_text = <<'EOT_SHAM_fm2'
+  const value = 100;
+EOT_SHAM_fm2
+new_text = <<'EOT_SHAM_fm2'
+  const value = 999;
+EOT_SHAM_fm2
+#!END_SHAM_fm2
+```
+````
+
+#### Expected Output File
+````sh
+=== CLADA RESULTS ===
+fm1 ✅ file_write /tmp/t_listener_multi_match/app.js
+fm2 ❌ file_replace_text /tmp/t_listener_multi_match/app.js - Search string found 2 times (expected exactly 1)
+=== END ===
+
+=== OUTPUTS ===
+=== END ===
+````
+
+#### clipboard
+````sh
+=== CLADA RESULTS ===
+fm1 ✅ file_write /tmp/t_listener_multi_match/app.js
+fm2 ❌ file_replace_text /tmp/t_listener_multi_match/app.js - Search string found 2 times (expected exactly 1)
+=== END ===
+
+=== OUTPUTS ===
+=== END ===
+````
+
+### failed-file-replace-text-no-matches
+
+#### Initial Content
+````sh
+Testing no match failure.
+````
+
+#### New Content
+````sh
+Testing no match failure.
+
+```sh sham
+#!SHAM [@three-char-SHA-256: fn1]
+action = "file_write"
+path = "/tmp/t_listener_no_match/readme.md"
+content = <<'EOT_SHAM_fn1'
+# Project README
+
+This is a sample project.
+
+## Installation
+
+Run the following command:
+- npm install
+
+## Usage
+
+Start the application with:
+- npm start
+EOT_SHAM_fn1
+#!END_SHAM_fn1
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: fn2]
+action = "file_replace_text"
+path = "/tmp/t_listener_no_match/readme.md"
+old_text = <<'EOT_SHAM_fn2'
+## Configuration
+
+Configure the app by editing config.json
+EOT_SHAM_fn2
+new_text = <<'EOT_SHAM_fn2'
+## Configuration
+
+Configure the app by editing settings.yaml
+EOT_SHAM_fn2
+#!END_SHAM_fn2
+```
+````
+
+#### Expected Prepended Results
+````sh
+📋 Copied to clipboard
+
+=== CLADA RESULTS ===
+fn1 ✅ file_write /tmp/t_listener_no_match/readme.md
+fn2 ❌ file_replace_text /tmp/t_listener_no_match/readme.md - Search string not found
+=== END ===
+
+Testing no match failure.
+
+```sh sham
+#!SHAM [@three-char-SHA-256: fn1]
+action = "file_write"
+path = "/tmp/t_listener_no_match/readme.md"
+content = <<'EOT_SHAM_fn1'
+# Project README
+
+This is a sample project.
+
+## Installation
+
+Run the following command:
+- npm install
+
+## Usage
+
+Start the application with:
+- npm start
+EOT_SHAM_fn1
+#!END_SHAM_fn1
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: fn2]
+action = "file_replace_text"
+path = "/tmp/t_listener_no_match/readme.md"
+old_text = <<'EOT_SHAM_fn2'
+## Configuration
+
+Configure the app by editing config.json
+EOT_SHAM_fn2
+new_text = <<'EOT_SHAM_fn2'
+## Configuration
+
+Configure the app by editing settings.yaml
+EOT_SHAM_fn2
+#!END_SHAM_fn2
+```
+````
+
+#### Expected Output File
+````sh
+=== CLADA RESULTS ===
+fn1 ✅ file_write /tmp/t_listener_no_match/readme.md
+fn2 ❌ file_replace_text /tmp/t_listener_no_match/readme.md - Search string not found
+=== END ===
+
+=== OUTPUTS ===
+=== END ===
+````
+
+#### clipboard
+````sh
+=== CLADA RESULTS ===
+fn1 ✅ file_write /tmp/t_listener_no_match/readme.md
+fn2 ❌ file_replace_text /tmp/t_listener_no_match/readme.md - Search string not found
 === END ===
 
 === OUTPUTS ===

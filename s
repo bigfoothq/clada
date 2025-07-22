@@ -12,8 +12,7 @@ if [[ "$1" == "p" ]]; then  # p for paths
 fi
 
 file_list=$(cat <<'EOF'
-proj/comp/listener/test/integration/listener-workflow-v2.test.ts proj/comp/listener/src/index.ts proj/comp/listener/src/listener.ts proj/comp/listener/test-data/integration/listener-workflow-v2.cases.md proj/comp/listener/doc/ABSTRACT.md proj/comp/listener/doc/API.md proj/comp/listener/doc/ARCH.md package.json proj/comp/orch/doc/API.md proj/comp/orch/doc/ARCH.md replacer/replacer_llm_instructions.md
-
+replacer/replacer_llm_instructions.md xd5_ref.md proj/comp/fs-ops/test-data/integration/file_read_numbered.cases.md proj/comp/fs-ops/test/unit/extractNumberedLines.test.ts proj/comp/fs-ops/test/unit/formatNodeError.test.ts proj/comp/fs-ops/test/unit/replaceText.test.ts proj/comp/fs-ops/test/integration/integration.test.ts proj/comp/fs-ops/src/extractNumberedLines.ts proj/comp/fs-ops/src/fileSystemUtils.ts proj/comp/fs-ops/src/formatNodeError.ts proj/comp/fs-ops/src/index.ts proj/comp/fs-ops/src/replaceText.ts proj/comp/fs-ops/doc/ABSTRACT.md proj/comp/fs-ops/doc/API.md proj/comp/fs-ops/doc/ARCH.md
 
 
 EOF

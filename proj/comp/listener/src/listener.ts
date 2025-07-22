@@ -1,7 +1,7 @@
 import { watchFile, unwatchFile, Stats } from 'fs';
 import { readFile, writeFile, access, constants } from 'fs/promises';
 import { dirname, join } from 'path';
-import { write as writeToClipboard } from 'clipboardy';
+import clipboard from 'clipboardy';
 
 import type { ListenerConfig, ListenerHandle, ListenerState } from './types.js';
 import { ListenerError } from './errors.js';
@@ -50,8 +50,8 @@ function generateId(): string {
 function formatClipboardStatus(success: boolean, timestamp: Date): string {
   const time = timestamp.toLocaleTimeString();
   return success ?
-    `📋 Copied to clipboard at ${time}` :
-    `❌ Clipboard copy failed at ${time}`;
+    `📋 Copied to clipboard` :
+    `❌ Clipboard copy failed`;
 }
 
 // Process file changes
@@ -64,44 +64,47 @@ async function processFileChange(filePath: string, state: ListenerState): Promis
     
     // Read file
     const fullContent = await readFile(filePath, 'utf-8');
+    if (fullContent.trim() == ""){
+      return;
+    }
     
     // Strip summary section for hashing
     const contentForHash = stripSummarySection(fullContent).trim();
     
-    // DIAGNOSTIC: Log stripping results
-    console.log('\n=== STRIP SUMMARY ===');
-    console.log('Original length:', fullContent.length);
-    console.log('Stripped length:', contentForHash.length);
-    console.log('Stripped content preview:', contentForHash.substring(0, 150).replace(/\n/g, '\\n'));
-    console.log('=== END STRIP ===\n');
+    // // DIAGNOSTIC: Log stripping results
+    // console.log('\n=== STRIP SUMMARY ===');
+    // console.log('Original length:', fullContent.length);
+    // console.log('Stripped length:', contentForHash.length);
+    // console.log('Stripped content preview:', contentForHash.substring(0, 150).replace(/\n/g, '\\n'));
+    // console.log('=== END STRIP ===\n');
     
     // Compute hash of content (excluding summary)
     const currentHash = computeContentHash(contentForHash);
     
-    // DIAGNOSTIC: Log hash comparison
-    console.log('Current hash:', currentHash);
-    console.log('Last hash:', state.lastExecutedHash);
+    // // DIAGNOSTIC: Log hash comparison
+    // console.log('Current hash:', currentHash);
+    // console.log('Last hash:', state.lastExecutedHash);
     
     // Skip if unchanged
     if (currentHash === state.lastExecutedHash) {
-      console.log('Content unchanged, skipping execution');
+      // console.log('Content unchanged, skipping execution');
       return;
     }
     
     // Execute via orchestrator with full file content
     const clada = new Clada({ gitCommit: false });
     const orchResult = await clada.execute(fullContent);
-    console.log('Executed', orchResult.executedActions, 'actions');
+    // console.log('Executed', orchResult.executedActions, 'actions');
     
     // Format outputs
     const timestamp = new Date();
     const summary = formatSummary(orchResult, timestamp);
-    const fullOutput = formatFullOutput(orchResult);
+    const fullOutput = await formatFullOutput(orchResult);
     
     // Copy to clipboard
     let clipboardSuccess = false;
     try {
-      await writeToClipboard(fullOutput);
+      await clipboard.write(fullOutput);
       clipboardSuccess = true;
     } catch (error) {
       console.error('listener: Clipboard write failed:', error);
@@ -110,9 +113,8 @@ async function processFileChange(filePath: string, state: ListenerState): Promis
     // Format clipboard status
     const clipboardStatus = formatClipboardStatus(clipboardSuccess, timestamp);
     
-    // Write output file with clipboard status
-    const outputContent = clipboardStatus + '\n' + fullOutput;
-    await writeFile(state.outputPath, outputContent);
+    // Write output file (without clipboard status)
+    await writeFile(state.outputPath, fullOutput);
     
     // Prepend to input file with clipboard status
     const prepend = clipboardStatus + '\n' + summary;
@@ -163,7 +165,7 @@ export async function startListener(config: ListenerConfig): Promise<ListenerHan
   // Set up debounced handler
   const debouncedProcess = debounce(
     () => {
-      console.log('Debounced process executing');
+      // console.log('Debounced process executing');
       processFileChange(config.filePath, state);
     },
     config.debounceMs || 500
@@ -172,7 +174,7 @@ export async function startListener(config: ListenerConfig): Promise<ListenerHan
   // Start watching
   watchFile(config.filePath, { interval: 500 }, (curr: Stats, prev: Stats) => {
     if (curr.mtime !== prev.mtime) {
-      console.log('File change detected, triggering debounced process');
+      // console.log('File change detected, triggering debounced process');
       debouncedProcess();
     }
   });

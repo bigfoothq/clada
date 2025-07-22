@@ -147,6 +147,19 @@ tools:
       path: {type: string, required: true, format: absolute_path}
     returns: {success: boolean, content?: string, error?: string}
 
+  file_read_numbered:
+    type: read
+    executor: fs-ops
+    description: Read file content with line numbers for specified line range
+    accessibility: [llm]
+    output_display: always
+    primary_param: path
+    parameters:
+      path: {type: string, required: true, format: absolute_path}
+      lines: {type: string, required: false, description: "Line range: single '4' or range '23-43'. If omitted, reads all lines."}
+      delimiter: {type: string, required: false, default: ": ", description: "Delimiter between line number and content"}
+    returns: {success: boolean, content?: string, error?: string}
+
 
   files_read:
     type: read

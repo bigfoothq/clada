@@ -92,14 +92,35 @@ function getErrorSummary(error?: string): string {
 }
 
 export function formatFullOutput(orchResult: OrchestratorResult): string {
-  const summary = formatSummary(orchResult, new Date());
+  const lines = ['=== CLADA RESULTS ==='];
   
-  const lines = [summary.trim(), '', '=== OUTPUTS ==='];
-  
-  // Add outputs for successful actions
+  // Add execution results
   if (orchResult.results) {
     for (const result of orchResult.results) {
-      if (result.success && result.data) {
+      const icon = result.success ? '✅' : '❌';
+      const primaryParam = getPrimaryParamFromResult(result);
+      
+      if (result.success) {
+        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam}`.trim());
+      } else {
+        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam} - ${getErrorSummary(result.error)}`.trim());
+      }
+    }
+  }
+  
+  // Add parse errors
+  if (orchResult.parseErrors) {
+    for (const error of orchResult.parseErrors) {
+      lines.push(`${error.blockId || 'unknown'} ❌ ${error.action || '(parse error)'} - ${error.message}`);
+    }
+  }
+  
+  lines.push('=== END ===', '', '=== OUTPUTS ===');
+  
+  // Add outputs for successful actions based on output_display rules
+  if (orchResult.results) {
+    for (const result of orchResult.results) {
+      if (result.success && result.data && shouldShowOutput(result.action, result.params)) {
         const header = `[${result.blockId}] ${result.action} ${getPrimaryParamFromResult(result)}:`.trim();
         lines.push('', header);
         
@@ -122,6 +143,33 @@ export function formatFullOutput(orchResult: OrchestratorResult): string {
   
   lines.push('=== END ===');
   return lines.join('\n');
+}
+
+/**
+ * Check if output should be displayed for an action based on unified-design.yaml rules.
+ * This is a simplified check - the real implementation would load from unified-design.yaml.
+ */
+function shouldShowOutput(action: string, params?: any): boolean {
+  // Actions with output_display: never
+  const neverShowOutput = ['file_write', 'file_replace_text', 'file_replace_all_text', 'file_append', 'file_delete', 'file_move', 'dir_create', 'dir_delete'];
+  if (neverShowOutput.includes(action)) {
+    return false;
+  }
+  
+  // Actions with output_display: always
+  const alwaysShowOutput = ['file_read', 'files_read', 'ls', 'grep', 'glob'];
+  if (alwaysShowOutput.includes(action)) {
+    return true;
+  }
+  
+  // Actions with output_display: conditional
+  if (action === 'exec') {
+    // Check return_output parameter (default is true)
+    return params?.return_output !== false;
+  }
+  
+  // Default to showing output for unknown actions
+  return true;
 }
 
 function formatOutputHeader(result: ExecutionResult): string {

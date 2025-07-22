@@ -57,7 +57,7 @@ describe('stripSummarySection', async () => {
   });
 
   it('strips summary at start of file', () => {
-    const content = `📋 Copied to clipboard at 10:30:00
+    const content = `📋 Copied to clipboard
 
 === CLADA RESULTS ===
 abc ✅ file_write /tmp/test.txt
@@ -75,7 +75,7 @@ Some content here.`;
   });
 
   it('handles file ending with summary', () => {
-    const content = `📋 Copied to clipboard at 10:30:00
+    const content = `📋 Copied to clipboard
 
 === CLADA RESULTS ===
 abc ✅ file_write /tmp/test.txt

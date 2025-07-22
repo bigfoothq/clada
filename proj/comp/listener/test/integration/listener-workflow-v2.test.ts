@@ -3,7 +3,8 @@ import { readFile, writeFile, mkdir, rm } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { marked } from 'marked';
-import { read as readFromClipboard } from 'clipboardy';
+import clipboard from 'clipboardy';
+
 import { startListener } from '../../src/listener.js';
 import type { ListenerHandle } from '../../src/types.js';
 
@@ -18,17 +19,6 @@ interface TestCase {
   expectedClipboard: string;
 }
 
-// Helper to normalize timestamps for comparison
-function normalizeTimestamp(content: string): string {
-  return content.replace(/at \d{1,2}:\d{2}:\d{2}/g, 'at 10:30:00');
-}
-
-// Helper to normalize block IDs (abc, wr1, etc) for comparison
-function normalizeBlockIds(content: string): string {
-  // This is a simplified version - in real tests we'd need to map generated IDs
-  return content;
-}
-
 // Parse test cases from markdown
 async function parseTestCases(): Promise<TestCase[]> {
   const testDataPath = join(__dirname, '../../test-data/integration/listener-workflow-v2.cases.md');
@@ -37,62 +27,90 @@ async function parseTestCases(): Promise<TestCase[]> {
   const tokens = marked.lexer(markdown);
   const testCases: TestCase[] = [];
   let currentTest: Partial<TestCase> | null = null;
-  let codeBlocksForCurrentTest: string[] = [];
+  let codeBlockCount = 0;
   
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i];
-    
+  for (const token of tokens) {
     // Test case name (h3)
     if (token.type === 'heading' && token.depth === 3) {
       // Save previous test if complete
-      if (currentTest && currentTest.name && codeBlocksForCurrentTest.length === 5) {
-        currentTest.initialContent = codeBlocksForCurrentTest[0];
-        currentTest.newContent = codeBlocksForCurrentTest[1];
-        currentTest.expectedPrepended = codeBlocksForCurrentTest[2];
-        currentTest.expectedOutput = codeBlocksForCurrentTest[3];
-        currentTest.expectedClipboard = codeBlocksForCurrentTest[4];
+      if (currentTest && currentTest.name && 
+          currentTest.initialContent && 
+          currentTest.newContent && 
+          currentTest.expectedPrepended && 
+          currentTest.expectedOutput && 
+          currentTest.expectedClipboard) {
         testCases.push(currentTest as TestCase);
       }
       
       // Start new test
       currentTest = { name: token.text };
-      codeBlocksForCurrentTest = [];
+      codeBlockCount = 0;
     }
     
-    // Collect code blocks (regardless of h4 headings)
+    // Code blocks - just take them in order, ignoring h4 headers
     if (token.type === 'code' && currentTest) {
-      codeBlocksForCurrentTest.push(token.text);
+      const content = token.text;
+      codeBlockCount++;
+      
+      switch (codeBlockCount) {
+        case 1:
+          currentTest.initialContent = content;
+          break;
+        case 2:
+          currentTest.newContent = content;
+          break;
+        case 3:
+          currentTest.expectedPrepended = content;
+          break;
+        case 4:
+          currentTest.expectedOutput = content;
+          break;
+        case 5:
+          currentTest.expectedClipboard = content;
+          break;
+      }
     }
   }
   
   // Don't forget the last test case
-  if (currentTest && currentTest.name && codeBlocksForCurrentTest.length === 5) {
-    currentTest.initialContent = codeBlocksForCurrentTest[0];
-    currentTest.newContent = codeBlocksForCurrentTest[1];
-    currentTest.expectedPrepended = codeBlocksForCurrentTest[2];
-    currentTest.expectedOutput = codeBlocksForCurrentTest[3];
-    currentTest.expectedClipboard = codeBlocksForCurrentTest[4];
+  if (currentTest && currentTest.name && 
+      currentTest.initialContent && 
+      currentTest.newContent && 
+      currentTest.expectedPrepended && 
+      currentTest.expectedOutput && 
+      currentTest.expectedClipboard) {
     testCases.push(currentTest as TestCase);
   }
   
   return testCases;
 }
 
-// Helper to poll for expected content
-async function pollForContent(
-  filePath: string, 
-  check: (content: string) => boolean, 
-  timeoutMs: number = 2000
+// Helper to extract test directory name from test case
+function getTestDir(testCaseName: string): string {
+  const safeName = testCaseName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  return `/tmp/t_listener_${safeName}`;
+}
+
+// Helper to poll for file content change
+async function pollForFileChange(
+  filePath: string,
+  initialContent: string,
+  timeoutMs: number = 5000
 ): Promise<string> {
   const startTime = Date.now();
+  let lastContent = initialContent;
+  
   while (Date.now() - startTime < timeoutMs) {
     try {
       const content = await readFile(filePath, 'utf-8');
-      if (check(content)) return content;
+      if (content !== lastContent && content.includes('=== CLADA RESULTS ===')) {
+        return content;
+      }
+      lastContent = content;
     } catch {}
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await new Promise(resolve => setTimeout(resolve, 100));
   }
-  throw new Error(`Timeout after ${timeoutMs}ms waiting for expected content`);
+  throw new Error(`Timeout waiting for file change after ${timeoutMs}ms`);
 }
 
 describe('listener workflow v2', async () => {
@@ -101,7 +119,7 @@ describe('listener workflow v2', async () => {
   for (const testCase of testCases) {
     it(testCase.name, async () => {
       let handle: ListenerHandle | null = null;
-      const testDir = `/tmp/t_listener_${testCase.name.toLowerCase().replace(/\s+/g, '_')}`;
+      const testDir = getTestDir(testCase.name);
       const testFile = join(testDir, 'test.txt');
       const outputFile = join(testDir, '.clada-output-latest.txt');
       
@@ -117,54 +135,29 @@ describe('listener workflow v2', async () => {
         });
         
         // Wait for initial processing
-        await pollForContent(testFile, content => 
-          content.includes('=== CLADA RESULTS ===')
-        );
+        await pollForFileChange(testFile, testCase.initialContent);
         
-        // Wait for debounce
+        // Wait for debounce to settle
         await new Promise(resolve => setTimeout(resolve, 200));
         
         // Write new content
         await writeFile(testFile, testCase.newContent);
         
-        // Poll for execution to complete
-        await pollForContent(testFile, content => {
-          const normalized = normalizeTimestamp(content);
-          // Check if the summary section matches expected pattern
-          return normalized.includes('📋 Copied to clipboard at 10:30:00') &&
-                 normalized.includes('=== CLADA RESULTS ===') &&
-                 normalized.includes('=== END ===');
-        });
+        // Wait for processing to complete
+        await pollForFileChange(testFile, testCase.newContent);
         
-        // Verify prepended results
+        // Wait a bit more for clipboard and output file writes
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Read actual results
         const actualPrepended = await readFile(testFile, 'utf-8');
-        const normalizedActual = normalizeTimestamp(normalizeBlockIds(actualPrepended));
-        const normalizedExpected = normalizeTimestamp(normalizeBlockIds(testCase.expectedPrepended));
-        
-        // For now, just check key elements are present
-        expect(normalizedActual).toContain('📋 Copied to clipboard at 10:30:00');
-        expect(normalizedActual).toContain('=== CLADA RESULTS ===');
-        expect(normalizedActual).toContain('=== END ===');
-        expect(normalizedActual).toContain(testCase.newContent);
-        
-        // Verify output file
         const actualOutput = await readFile(outputFile, 'utf-8');
-        const normalizedOutput = normalizeTimestamp(normalizeBlockIds(actualOutput));
+        const actualClipboard = await clipboard.read();
         
-        expect(normalizedOutput).toContain('📋 Copied to clipboard at 10:30:00');
-        expect(normalizedOutput).toContain('=== CLADA RESULTS ===');
-        expect(normalizedOutput).toContain('=== OUTPUTS ===');
-        
-        // Verify clipboard contents
-        const actualClipboard = await readFromClipboard();
-        const normalizedClipboard = normalizeTimestamp(normalizeBlockIds(actualClipboard));
-        const normalizedExpectedClipboard = normalizeTimestamp(normalizeBlockIds(testCase.expectedClipboard));
-        
-        // Check that clipboard contains the expected content
-        // Note: The clipboard should have the full output without the clipboard status line
-        expect(normalizedClipboard).toContain('=== CLADA RESULTS ===');
-        expect(normalizedClipboard).toContain('=== OUTPUTS ===');
-        expect(normalizedClipboard).toContain('=== END ===');
+        // Compare results (exact match)
+        expect(actualPrepended).toBe(testCase.expectedPrepended);
+        expect(actualOutput).toBe(testCase.expectedOutput);
+        expect(actualClipboard).toBe(testCase.expectedClipboard);
         
       } finally {
         // Cleanup

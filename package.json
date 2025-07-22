@@ -17,7 +17,8 @@
     "test:handles": "node --expose-gc ./node_modules/.bin/vitest run --reporter=verbose --no-coverage",
     "typecheck": "tsc --noEmit",
     "lint": "eslint proj/**/*.ts",
-    "lint:fix": "eslint proj/**/*.ts --fix"
+    "lint:fix": "eslint proj/**/*.ts --fix",
+    "listener": "tsx test-listener-live.ts"
   },
   "dependencies": {
     "clipboardy": "^4.0.0",

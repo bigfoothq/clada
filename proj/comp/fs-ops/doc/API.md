@@ -112,6 +112,26 @@ interface FileOpError extends Error {
 - **Signature**: `globFiles(pattern: string, basePath: string) -> Promise<string[]>`
 - **Purpose**: Find files matching glob pattern
 
+### extractNumberedLines
+- **Signature**: `extractNumberedLines(content: string, lineSpec: string, delimiter: string) -> { result: string, lineCount: number }`
+- **Purpose**: Pure function to extract and number specific lines from content
+- **Parameters**:
+  - `content`: Full file content
+  - `lineSpec`: Line specification ("4" for single line, "23-43" for range)
+  - `delimiter`: Delimiter between line number and content
+- **Returns**: Object with numbered lines and total line count
+- **Throws**: Error for invalid line specifications
+
+### handleFileReadNumbered
+- **Signature**: `handleFileReadNumbered(action: CladaAction) -> Promise<FileOpResult>`
+- **Purpose**: Read file content with line numbers for specified line range
+- **Parameters**: 
+  - `path`: File path to read
+  - `lines`: Line range string ("23-43") or single line ("4")
+  - `delimiter`: Optional delimiter between line number and content (default: ": ")
+- **Returns**: FileOpResult with numbered content
+- **Test-data**: `test-data/integration/file_read_numbered.cases.md` [IMPLEMENTED]
+
 ## Action Mapping
 
 ```typescript
@@ -124,6 +144,7 @@ const actionHandlers = {
   'file_move': handleFileMove,
   'file_read': handleFileRead,
   'files_read': handleFilesRead,
+  'file_read_numbered': handleFileReadNumbered,
   
   // Not implemented
   'dir_create': async (action) => ({ success: false, error: 'Not implemented' }),

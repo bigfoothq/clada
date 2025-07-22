@@ -1,1237 +1,3 @@
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/test/integration/listener-workflow-v2.test.ts ===
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { readFile, writeFile, mkdir, rm } from 'fs/promises';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { marked } from 'marked';
-import { startListener } from '../../src/listener.js';
-import type { ListenerHandle } from '../../src/types.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-interface TestCase {
-  name: string;
-  initialContent: string;
-  newContent: string;
-  expectedPrepended: string;
-  expectedOutput: string;
-}
-
-// Helper to normalize timestamps for comparison
-function normalizeTimestamp(content: string): string {
-  return content.replace(/at \d{1,2}:\d{2}:\d{2}/g, 'at 10:30:00');
-}
-
-// Helper to normalize block IDs (abc, wr1, etc) for comparison
-function normalizeBlockIds(content: string): string {
-  // This is a simplified version - in real tests we'd need to map generated IDs
-  return content;
-}
-
-// Parse test cases from markdown
-async function parseTestCases(): Promise<TestCase[]> {
-  const testDataPath = join(__dirname, '../../test-data/integration/listener-workflow-v2.cases.md');
-  const markdown = await readFile(testDataPath, 'utf-8');
-  
-  const tokens = marked.lexer(markdown);
-  const testCases: TestCase[] = [];
-  let currentTest: Partial<TestCase> | null = null;
-  let codeBlocksForCurrentTest: string[] = [];
-  
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i];
-    
-    // Test case name (h3)
-    if (token.type === 'heading' && token.depth === 3) {
-      // Save previous test if complete
-      if (currentTest && currentTest.name && codeBlocksForCurrentTest.length === 4) {
-        currentTest.initialContent = codeBlocksForCurrentTest[0];
-        currentTest.newContent = codeBlocksForCurrentTest[1];
-        currentTest.expectedPrepended = codeBlocksForCurrentTest[2];
-        currentTest.expectedOutput = codeBlocksForCurrentTest[3];
-        testCases.push(currentTest as TestCase);
-      }
-      
-      // Start new test
-      currentTest = { name: token.text };
-      codeBlocksForCurrentTest = [];
-    }
-    
-    // Collect code blocks (regardless of h4 headings)
-    if (token.type === 'code' && currentTest) {
-      codeBlocksForCurrentTest.push(token.text);
-    }
-  }
-  
-  // Don't forget the last test case
-  if (currentTest && currentTest.name && codeBlocksForCurrentTest.length === 4) {
-    currentTest.initialContent = codeBlocksForCurrentTest[0];
-    currentTest.newContent = codeBlocksForCurrentTest[1];
-    currentTest.expectedPrepended = codeBlocksForCurrentTest[2];
-    currentTest.expectedOutput = codeBlocksForCurrentTest[3];
-    testCases.push(currentTest as TestCase);
-  }
-  
-  return testCases;
-}
-
-// Helper to poll for expected content
-async function pollForContent(
-  filePath: string, 
-  check: (content: string) => boolean, 
-  timeoutMs: number = 2000
-): Promise<string> {
-  const startTime = Date.now();
-  while (Date.now() - startTime < timeoutMs) {
-    try {
-      const content = await readFile(filePath, 'utf-8');
-      if (check(content)) return content;
-    } catch {}
-    await new Promise(resolve => setTimeout(resolve, 50));
-  }
-  throw new Error(`Timeout after ${timeoutMs}ms waiting for expected content`);
-}
-
-describe('listener workflow v2', async () => {
-  const testCases = await parseTestCases();
-  
-  for (const testCase of testCases) {
-    it(testCase.name, async () => {
-      let handle: ListenerHandle | null = null;
-      const testDir = `/tmp/t_listener_${testCase.name.toLowerCase().replace(/\s+/g, '_')}`;
-      const testFile = join(testDir, 'test.txt');
-      const outputFile = join(testDir, '.clada-output-latest.txt');
-      
-      try {
-        // Setup
-        await mkdir(testDir, { recursive: true });
-        await writeFile(testFile, testCase.initialContent);
-        
-        // Start listener
-        handle = await startListener({ 
-          filePath: testFile, 
-          debounceMs: 100 
-        });
-        
-        // Wait for initial processing
-        await pollForContent(testFile, content => 
-          content.includes('=== CLADA RESULTS ===')
-        );
-        
-        // Wait for debounce
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // Write new content
-        await writeFile(testFile, testCase.newContent);
-        
-        // Poll for execution to complete
-        await pollForContent(testFile, content => {
-          const normalized = normalizeTimestamp(content);
-          // Check if the summary section matches expected pattern
-          return normalized.includes('📋 Copied to clipboard at 10:30:00') &&
-                 normalized.includes('=== CLADA RESULTS ===') &&
-                 normalized.includes('=== END ===');
-        });
-        
-        // Verify prepended results
-        const actualPrepended = await readFile(testFile, 'utf-8');
-        const normalizedActual = normalizeTimestamp(normalizeBlockIds(actualPrepended));
-        const normalizedExpected = normalizeTimestamp(normalizeBlockIds(testCase.expectedPrepended));
-        
-        // For now, just check key elements are present
-        expect(normalizedActual).toContain('📋 Copied to clipboard at 10:30:00');
-        expect(normalizedActual).toContain('=== CLADA RESULTS ===');
-        expect(normalizedActual).toContain('=== END ===');
-        expect(normalizedActual).toContain(testCase.newContent);
-        
-        // Verify output file
-        const actualOutput = await readFile(outputFile, 'utf-8');
-        const normalizedOutput = normalizeTimestamp(normalizeBlockIds(actualOutput));
-        
-        expect(normalizedOutput).toContain('📋 Copied to clipboard at 10:30:00');
-        expect(normalizedOutput).toContain('=== CLADA RESULTS ===');
-        expect(normalizedOutput).toContain('=== OUTPUTS ===');
-        
-      } finally {
-        // Cleanup
-        if (handle) {
-          await handle.stop();
-        }
-        await rm(testDir, { recursive: true, force: true });
-      }
-    });
-  }
-});
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/test/integration/listener-workflow-v2.test.ts ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/index.ts ===
-export { startListener, stopListener } from './listener.js';
-export type { ListenerConfig, ListenerHandle, ListenerState } from './types.js';
-export { ListenerError } from './errors.js';
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/index.ts ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/listener.ts ===
-import { watchFile, unwatchFile, Stats } from 'fs';
-import { readFile, writeFile, access, constants } from 'fs/promises';
-import { dirname, join } from 'path';
-import { write as writeToClipboard } from 'clipboardy';
-
-import type { ListenerConfig, ListenerHandle, ListenerState } from './types.js';
-import { ListenerError } from './errors.js';
-import { Clada } from '../../orch/src/index.js';
-import { formatSummary, formatFullOutput } from './formatters.js';
-import { computeContentHash } from './utils.js';
-
-// Module-level state for tracking active listeners
-const activeListeners = new Map<string, ListenerHandle>();
-
-// Strip prepended summary section if present
-function stripSummarySection(content: string): string {
-  const marker = '=== END ===';
-  const i = content.lastIndexOf(marker);
-  return i === -1 ? content : content.slice(i + marker.length).trimStart();
-}
-
-
-// Debounce utility
-function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): T & { cancel: () => void } {
-  let timeout: NodeJS.Timeout | null = null;
-  
-  const debounced = (...args: Parameters<T>) => {
-    if (timeout) clearTimeout(timeout);
-    timeout = setTimeout(() => {
-      func(...args);
-    }, wait);
-  };
-  
-  debounced.cancel = () => {
-    if (timeout) clearTimeout(timeout);
-  };
-  
-  return debounced as T & { cancel: () => void };
-}
-
-// Generate unique ID for listener instance
-function generateId(): string {
-  return `listener-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
-
-// Format clipboard status line
-function formatClipboardStatus(success: boolean, timestamp: Date): string {
-  const time = timestamp.toLocaleTimeString();
-  return success ?
-    `📋 Copied to clipboard at ${time}` :
-    `❌ Clipboard copy failed at ${time}`;
-}
-
-// Process file changes
-async function processFileChange(filePath: string, state: ListenerState): Promise<void> {
-  // Check not already processing
-  if (state.isProcessing) return;
-  
-  try {
-    state.isProcessing = true;
-    
-    // Read file
-    const fullContent = await readFile(filePath, 'utf-8');
-    
-    // Strip summary section for hashing
-    const contentForHash = stripSummarySection(fullContent).trim();
-    
-    // DIAGNOSTIC: Log stripping results
-    console.log('\n=== STRIP SUMMARY ===');
-    console.log('Original length:', fullContent.length);
-    console.log('Stripped length:', contentForHash.length);
-    console.log('Stripped content preview:', contentForHash.substring(0, 150).replace(/\n/g, '\\n'));
-    console.log('=== END STRIP ===\n');
-    
-    // Compute hash of content (excluding summary)
-    const currentHash = computeContentHash(contentForHash);
-    
-    // DIAGNOSTIC: Log hash comparison
-    console.log('Current hash:', currentHash);
-    console.log('Last hash:', state.lastExecutedHash);
-    
-    // Skip if unchanged
-    if (currentHash === state.lastExecutedHash) {
-      console.log('Content unchanged, skipping execution');
-      return;
-    }
-    
-    // Execute via orchestrator with full file content
-    const clada = new Clada({ gitCommit: false });
-    const orchResult = await clada.execute(fullContent);
-    console.log('Executed', orchResult.executedActions, 'actions');
-    
-    // Format outputs
-    const timestamp = new Date();
-    const summary = formatSummary(orchResult, timestamp);
-    const fullOutput = formatFullOutput(orchResult);
-    
-    // Copy to clipboard
-    let clipboardSuccess = false;
-    try {
-      await writeToClipboard(fullOutput);
-      clipboardSuccess = true;
-    } catch (error) {
-      console.error('listener: Clipboard write failed:', error);
-    }
-    
-    // Format clipboard status
-    const clipboardStatus = formatClipboardStatus(clipboardSuccess, timestamp);
-    
-    // Write output file with clipboard status
-    const outputContent = clipboardStatus + '\n' + fullOutput;
-    await writeFile(state.outputPath, outputContent);
-    
-    // Prepend to input file with clipboard status
-    const prepend = clipboardStatus + '\n' + summary;
-    const updatedContent = prepend + '\n' + fullContent;
-    await writeFile(filePath, updatedContent);
-    
-    // Update state
-    state.lastExecutedHash = currentHash;
-    
-  } catch (error) {
-    console.error('listener: Error processing file change:', error);
-  } finally {
-    state.isProcessing = false;
-  }
-}
-
-export async function startListener(config: ListenerConfig): Promise<ListenerHandle> {
-  // Validate config
-  if (!config.filePath) {
-    throw new Error('listener: filePath is required');
-  }
-  if (!config.filePath.startsWith('/')) {
-    throw new Error('listener: filePath must be absolute');
-  }
-  if (config.debounceMs !== undefined && config.debounceMs < 100) {
-    throw new Error('listener: debounceMs must be at least 100');
-  }
-  
-  // Check file exists
-  try {
-    await access(config.filePath, constants.F_OK);
-  } catch (error) {
-    throw new ListenerError('FILE_NOT_FOUND', config.filePath);
-  }
-  
-  // Check not already watching
-  if (activeListeners.has(config.filePath)) {
-    throw new ListenerError('ALREADY_WATCHING', config.filePath);
-  }
-  
-  // Initialize state
-  const state: ListenerState = {
-    lastExecutedHash: '',
-    isProcessing: false,
-    outputPath: join(dirname(config.filePath), config.outputFilename || '.clada-output-latest.txt')
-  };
-  
-  // Set up debounced handler
-  const debouncedProcess = debounce(
-    () => {
-      console.log('Debounced process executing');
-      processFileChange(config.filePath, state);
-    },
-    config.debounceMs || 500
-  );
-  
-  // Start watching
-  watchFile(config.filePath, { interval: 500 }, (curr: Stats, prev: Stats) => {
-    if (curr.mtime !== prev.mtime) {
-      console.log('File change detected, triggering debounced process');
-      debouncedProcess();
-    }
-  });
-  
-  // Process initial content
-  debouncedProcess();
-  
-  // Create handle
-  const handle: ListenerHandle = {
-    id: generateId(),
-    filePath: config.filePath,
-    stop: async () => {
-      unwatchFile(config.filePath);
-      debouncedProcess.cancel();
-      activeListeners.delete(config.filePath);
-    }
-  };
-  
-  // Track active listener
-  activeListeners.set(config.filePath, handle);
-  
-  return handle;
-}
-
-export async function stopListener(handle: ListenerHandle): Promise<void> {
-  await handle.stop();
-}
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/listener.ts ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/test-data/integration/listener-workflow-v2.cases.md ===
-# Listener Workflow Integration Tests v2
-
-## listener-workflow-v2
-
-### simple-file-write
-
-#### input file
-
-````sh
-Just a simple text file.
-Nothing special here.
-````
-
-#### input file
-````sh
-Just a simple text file.
-Nothing special here.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: sf1]
-action = "file_write"
-path = "/tmp/t_listener_simple/output.txt"
-content = "Hello from SHAM!"
-#!END_SHAM_sf1
-```
-````
-
-
-#### input file
-````sh
-
-📋 Copied to clipboard at 10:30:00
-
-=== CLADA RESULTS ===
-sf1 ✅ file_write /tmp/t_listener_simple/output.txt
-=== END ===
-
-Just a simple text file.
-Nothing special here.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: sf1]
-action = "file_write"
-path = "/tmp/t_listener_simple/output.txt"
-content = "Hello from SHAM!"
-#!END_SHAM_sf1
-```
-````
-
-#### output file
-````sh
-📋 Copied to clipboard at 10:30:00
-
-=== CLADA RESULTS ===
-sf1 ✅ file_write /tmp/t_listener_simple/output.txt
-=== END ===
-
-=== OUTPUTS ===
-=== END ===
-````
-
-### multiple-actions-mixed-results
-
-#### input file
-
-````sh
-Empty file to start.
-````
-
-#### input file
-````sh
-```sh
-#!SHAM [@three-char-SHA-256: wr1]
-action = "file_write"
-path = "/tmp/t_listener_multi/created.txt"
-content = "This will succeed"
-#!END_SHAM_wr1
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rd1]
-action = "file_read"
-path = "/tmp/t_listener_multi/missing.txt"
-#!END_SHAM_rd1
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: ex1]
-action = "exec"
-lang = "bash"
-code = "echo 'Hello from bash'"
-#!END_SHAM_ex1
-```
-````
-
-#### input file
-````sh
-```
-📋 Copied to clipboard at 10:30:00
-
-=== CLADA RESULTS ===
-wr1 ✅ file_write /tmp/t_listener_multi/created.txt
-rd1 ❌ file_read /tmp/t_listener_multi/missing.txt - File not found
-ex1 ✅ exec bash
-=== END ===
-
-Empty file to start.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: wr1]
-action = "file_write"
-path = "/tmp/t_listener_multi/created.txt"
-content = "This will succeed"
-#!END_SHAM_wr1
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rd1]
-action = "file_read"
-path = "/tmp/t_listener_multi/missing.txt"
-#!END_SHAM_rd1
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: ex1]
-action = "exec"
-lang = "bash"
-code = "echo 'Hello from bash'"
-#!END_SHAM_ex1
-```
-````
-
-#### output file
-````sh
-📋 Copied to clipboard at 10:30:00
-
-=== CLADA RESULTS ===
-wr1 ✅ file_write /tmp/t_listener_multi/created.txt
-rd1 ❌ file_read /tmp/t_listener_multi/missing.txt - File not found
-ex1 ✅ exec bash
-=== END ===
-
-=== OUTPUTS ===
-
-[ex1] exec bash:
-stdout:
-Hello from bash
-=== END ===
-````
-
-### parse-error-handling
-
-#### Initial Content
-````sh
-Testing parse errors.
-````
-
-#### New Content
-````sh
-Testing parse errors.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: bad]
-action = "file_write"
-path = "/tmp/t_listener_parse/test.txt"
-content = "missing closing quote
-#!END_SHAM_bad
-```
-````
-
-#### Expected Prepended Results
-````sh
-📋 Copied to clipboard at 10:30:00
-
-=== CLADA RESULTS ===
-bad ❌ file_write - Unclosed quoted string
-=== END ===
-
-Testing parse errors.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: bad]
-action = "file_write"
-path = "/tmp/t_listener_parse/test.txt"
-content = "missing closing quote
-#!END_SHAM_bad
-```
-````
-
-#### Expected Output File
-````sh
-📋 Copied to clipboard at 10:30:00
-
-=== CLADA RESULTS ===
-bad ❌ file_write - Unclosed quoted string
-=== END ===
-
-=== OUTPUTS ===
-=== END ===
-````
-
-### no-reexecution-on-same-content
-
-#### Initial Content
-````sh
-Testing hash-based execution.
-````
-
-#### New Content
-````sh
-Testing hash-based execution.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: nc1]
-action = "file_write"
-path = "/tmp/t_listener_nochange/counter.txt"
-content = "1"
-#!END_SHAM_nc1
-```
-
-Adding a comment outside SHAM blocks.
-````
-
-#### Expected Prepended Results
-````sh
-📋 Copied to clipboard at 10:30:00
-
-=== CLADA RESULTS ===
-nc1 ✅ file_write /tmp/t_listener_nochange/counter.txt
-=== END ===
-
-Testing hash-based execution.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: nc1]
-action = "file_write"
-path = "/tmp/t_listener_nochange/counter.txt"
-content = "1"
-#!END_SHAM_nc1
-```
-
-Adding a comment outside SHAM blocks.
-````
-
-#### Expected Output File
-````sh
-📋 Copied to clipboard at 10:30:00
-
-=== CLADA RESULTS ===
-nc1 ✅ file_write /tmp/t_listener_nochange/counter.txt
-=== END ===
-
-=== OUTPUTS ===
-=== END ===
-````
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/test-data/integration/listener-workflow-v2.cases.md ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/doc/ABSTRACT.md ===
-# File Listener
-
-Watches a file for SHAM blocks, executes them via orchestrator, and prepends results while managing output to clipboard and separate file.
-
-## Overview
-
-The listener component provides continuous monitoring of a designated input file for SHAM action blocks. When file content changes (excluding any prepended results section), it executes all SHAM blocks through the orchestrator component and manages the output flow. Results are formatted as a summary prepended to the input file, with full output written to a companion file and copied to clipboard.
-
-The component handles the complete lifecycle: detecting changes via file system events, parsing content to extract SHAM blocks, determining which blocks are new based on content hashing, executing actions in order, formatting results into summary and detailed views, and coordinating the three output destinations (input file prepend, output file, clipboard). It includes debouncing to handle rapid file saves and provides clear visual feedback when operations complete.
-
-The design prioritizes developer experience with clear status indicators, handles common failure modes gracefully (permission errors, clipboard failures), and maintains a simple state model tracking only the hash of previously executed blocks.
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/doc/ABSTRACT.md ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/doc/API.md ===
-# Component: listener
-
-## Component Type
-standard
-
-## Dependencies
-[Provisional - updated via STOP protocol when implementation reveals actual needs]
-
-```yaml
-dependencies:
-  proj/comp/orch:                                          # [IMPLEMENTED]
-    functions: [execute]
-    types: [OrchestratorResult]
-  
-  node:fs/promises:
-    functions: [readFile, writeFile]
-  
-  node:fs:
-    functions: [watchFile, unwatchFile]
-    types: [Stats]
-  
-  node:path:
-    functions: [dirname, join]
-  
-  node:crypto:
-    functions: [createHash]
-  
-  external/clipboardy:
-    functions: [write as writeToClipboard]
-```
-
-## Exports
-
-```yaml
-exports:
-  functions: [startListener, stopListener]
-  types: [ListenerConfig, ListenerHandle, ListenerState]
-  classes:
-    ListenerError:
-      extends: Error
-```
-
-### startListener
-- **Signature**: `startListener(config: ListenerConfig) -> Promise<ListenerHandle>`
-- **Purpose**: Begin watching file for SHAM blocks and executing them.
-- **Throws**: `ListenerError` when file doesn't exist or can't be accessed
-- **Test-data**: `test-data/startListener.json` [PLANNED]
-
-### stopListener
-- **Signature**: `stopListener(handle: ListenerHandle) -> Promise<void>`
-- **Purpose**: Stop watching file and clean up resources.
-- **Test-data**: `test-data/stopListener.json` [PLANNED]
-
-## Types
-
-### ListenerConfig
-```typescript
-{
-  filePath: string           // Absolute path to watch
-  debounceMs?: number        // Milliseconds to wait before processing (default: 500)
-  outputFilename?: string    // Name for output file (default: ".clada-output-latest.txt")
-}
-```
-
-### ListenerHandle
-```typescript
-{
-  id: string                 // Unique listener instance ID
-  filePath: string           // Path being watched
-  stop: () => Promise<void>  // Method to stop this listener
-}
-```
-
-### ListenerState
-```typescript
-{
-  lastExecutedHash: string   // SHA-256 of previously executed SHAM content
-  isProcessing: boolean      // Currently executing actions
-  outputPath: string         // Full path to output file
-}
-```
-
-### ListenerError
-```typescript
-class ListenerError extends Error {
-  code: 'FILE_NOT_FOUND' | 'ACCESS_DENIED' | 'ALREADY_WATCHING'
-  path: string
-}
-```
-
-## Internal Functions
-[To be discovered during implementation]
-
-### processFileChange
-- **Signature**: `processFileChange(filePath: string, state: ListenerState) -> Promise<void>`
-- **Purpose**: Read file, hash content after summary, execute if changed.
-
-### stripSummarySection
-- **Signature**: `stripSummarySection(content: string) -> string`
-- **Purpose**: Remove prepended results section if present.
-
-### computeContentHash
-- **Signature**: `computeContentHash(content: string) -> string`
-- **Purpose**: Generate SHA-256 hash of content for comparison.
-
-### formatSummary
-- **Signature**: `formatSummary(results: OrchestratorResult, timestamp: Date) -> string`
-- **Purpose**: Create the summary text block for prepending.
-
-### formatFullOutput
-- **Signature**: `formatFullOutput(results: OrchestratorResult) -> string`
-- **Purpose**: Create detailed output including action outputs.
-
-### updateFileWithClipboardStatus
-- **Signature**: `updateFileWithClipboardStatus(filePath: string, timestamp: Date) -> Promise<void>`
-- **Purpose**: Replace first line with clipboard success indicator.
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/doc/API.md ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/doc/ARCH.md ===
-# Listener Architecture
-
-## Design Philosophy
-
-**Minimal State, Maximum Reliability**: Track only what's necessary (content hash), handle failures gracefully, provide clear feedback. No complex state machines or recovery logic.
-
-## Key Design Decisions
-
-### File Watching Strategy
-- Use `fs.watchFile` with polling (more reliable than fs.watch)
-- Poll interval: 500ms default
-- Stat-based change detection
-- Single watcher per file (error if duplicate)
-
-**Rationale**: fs.watch has platform inconsistencies. Polling is battery-hungry but reliable for single-file monitoring.
-
-### Content Hashing
-- Hash file content after stripping any prepended summary section
-- Use SHA-256 of content after first "=== END ===" line
-- If no summary section, hash entire content
-- Hash comparison determines execution
-
-**Note**: Parse errors won't trigger re-execution when fixed (content unchanged).
-
-### Debouncing
-- File change starts debounce timer
-- Subsequent changes reset timer
-- Only process after quiet period
-- Default: 500ms
-
-**Rationale**: Editors often write multiple times. Prevents redundant execution during typing.
-
-### Output Coordination
-
-**Three destinations, specific order**:
-1. Write `.clada-output-latest.txt` (same directory)
-2. Prepend summary to input file (with blank first line)
-3. Copy full output to clipboard
-4. Update first line with clipboard status
-
-**Failure handling**:
-- Output file fails: Continue, log error
-- Prepend fails: Abort (can't update user's file)
-- Clipboard fails: Note in first line
-- All operations independent
-
-### Summary Format
-```
-[blank line for clipboard status]
-=== CLADA RESULTS ===
-{id} ✅ {action} {primary_param}
-{id} ❌ {action} {primary_param} - {error_summary}
-=== END ===
-```
-
-example after copy:
-
-```
-📋 Copied to clipboard at 10:32:45
-=== CLADA RESULTS ===
-c8i ✅ file_write /path/to/file.md
-qb2 ❌ file_write /path/to/other.rs - Permission denied
-v84 ✅ exec javascript - 17 lines
-=== END ===
-```
-
-### Full Output Format
-```
-=== CLADA RESULTS ===
-[same as summary]
-=== OUTPUTS ===
-[{id}] {action} {primary_param}:
-{output content}
-
-[{id}] {action} {primary_param}:
-{output content}
-=== END ===
-```
-
-### Output Display Rules
-Read from unified-design.yaml per action:
-- `output_display: always` - Include in OUTPUTS section
-- `output_display: never` - Summary only
-- `output_display: conditional` - Check return_output parameter
-
-### Truncation
-- 50KB limit per action output
-- UTF-8 aware truncation
-- Show first 25KB + last 25KB
-- Clear truncation message
-
-### Race Condition Acceptance
-**Problem**: User edits during processing
-**Solution**: Document-only. No locking or conflict resolution.
-**Rationale**: Toy project, complex solutions not warranted.
-
-### Process Lifecycle
-1. **Watch** - fs.watchFile on config.filePath
-2. **Detect** - mtime change triggers debounced handler
-3. **Read** - Load file content
-4. **Strip** - Remove prepended summary section if present
-5. **Hash** - Compute hash of remaining content
-6. **Compare** - Skip if hash matches lastExecutedHash
-7. **Execute** - Call orchestrator.execute() with full file
-8. **Format** - Generate summary and full output from results
-9. **Write** - Output file, prepend summary, clipboard
-10. **Update** - Store new hash
-
-## Error Messages
-
-Formatted for developer clarity:
-- "listener: File not found '{path}'"
-- "listener: Already watching '{path}'"
-- "listener: Permission denied writing output '{path}'"
-- "listener: Clipboard write failed"
-
-
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/doc/ARCH.md ===
-
-=== START FILE: /Users/stuart/repos/clada/package.json ===
-{
-  "name": "clada",
-  "version": "0.1.0",
-  "description": "Common LLM Actions Desktop Actuator",
-  "type": "module",
-  "engines": {
-    "node": ">=20.0.0"
-  },
-  "scripts": {
-    "build": "tsc --noEmit",
-    "dev": "tsx watch proj/src/index.ts",
-    "start": "tsx proj/src/index.ts",
-    "test": "vitest run",
-    "test:watch": "vitest watch",
-    "test:run": "vitest run",
-    "test:debug": "vitest run --reporter=verbose --no-coverage",
-    "test:handles": "node --expose-gc ./node_modules/.bin/vitest run --reporter=verbose --no-coverage",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint proj/**/*.ts",
-    "lint:fix": "eslint proj/**/*.ts --fix"
-  },
-  "dependencies": {
-    "clipboardy": "^4.0.0",
-    "js-yaml": "^4.1.0",
-    "marked": "^12.0.0",
-    "nesl-js": "github:nesl-lang/nesl-js"
-  },
-  "devDependencies": {
-    "@types/js-yaml": "^4.0.9",
-    "@types/node": "^20.19.9",
-    "@typescript-eslint/eslint-plugin": "^7.0.0",
-    "@typescript-eslint/parser": "^7.0.0",
-    "eslint": "^8.56.0",
-    "ts-node": "^10.9.2",
-    "tsx": "^4.7.0",
-    "typescript": "^5.8.3",
-    "vitest": "^1.2.0"
-  },
-  "keywords": [
-    "llm",
-    "actions",
-    "filesystem",
-    "sham"
-  ],
-  "author": "",
-  "license": "MIT"
-}
-
-=== END FILE: /Users/stuart/repos/clada/package.json ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/orch/doc/API.md ===
-# Component: clada
-
-## Component Type
-standard
-
-## Dependencies
-
-```yaml
-dependencies:
-  proj/comp/sham-action-parser:  # [IMPLEMENTED]
-    functions: [parseShamResponse]
-    types: [ParseResult, CladaAction, ParseError, ValidationResult, TransformError]
-  
-  proj/comp/fs-ops:              # [PARTIALLY IMPLEMENTED]
-    functions: [executeFileOperation]
-    types: [FileOpResult]
-    classes:
-      FileOpError:
-        extends: Error
-  
-  proj/comp/exec:                # [PLANNED]
-    functions: [executeCommand]
-    types: [ExecResult]
-  
-  proj/comp/git-tx:              # [PLANNED - v1.2]
-    functions: [ensureCleanRepo, commitChanges]
-    types: [GitError]
-  
-  proj/comp/context:             # [PLANNED]
-    functions: [addPath, removePath, listPaths, clearContext]
-    types: [ContextError]
-  
-  external/nesl-js:
-    functions: [parseSham]
-    types: [Block, ParseResult, ParseError]
-```
-
-## Exports
-
-```yaml
-exports:
-  classes:
-    Clada:
-      constructor: [options?: CladaOptions]
-      methods: [execute]
-  types: 
-    - ExecutionResult
-    - ActionResult  
-    - CladaOptions
-  # Note: ParseError is re-exported from sham-action-parser
-```
-
-### Clada (class)
-- **Purpose**: Main orchestrator executing SHAM blocks from LLM output
-- **Constructor**: `new Clada(options?: CladaOptions)`
-- **State**: Maintains working directory and context set across execute() calls
-
-### execute
-- **Signature**: `async execute(llmOutput: string): Promise<ExecutionResult>`
-- **Purpose**: Parse and execute all SHAM blocks in LLM output, commit results
-- **Process**: 
-  1. Parse SHAM blocks
-  2. Convert to actions
-  3. Execute all valid actions
-  4. (v1.2: Git commit with summary)
-- **Throws**: Never - all errors captured in ExecutionResult
-- **Test-data**: `test-data/execute/basic-operations.md` [IMPLEMENTED]
-
-### ExecutionResult (type)
-```typescript
-interface ExecutionResult {
-  success: boolean              // False if any action failed
-  totalBlocks: number          // Count of SHAM blocks found
-  executedActions: number      // Count of actions attempted
-  results: ActionResult[]      // All execution results
-  parseErrors: ParseError[]    // SHAM parsing errors
-  fatalError?: string         // System failure (v1.2: will include git errors)
-}
-```
-
-### ActionResult (type)
-```typescript
-interface ActionResult {
-  seq: number                  // Execution order
-  blockId: string             // SHAM block ID
-  action: string              // Action type
-  params: Record<string, any> // Input parameters
-  success: boolean
-  error?: string              // Error message if failed
-  data?: any                  // Action-specific output
-}
-```
-
-### ParseError (type)
-```typescript
-interface ParseError {
-  blockId?: string            // If error is block-specific
-  error: ShamError            // From parser
-}
-```
-
-### CladaOptions (type)
-```typescript
-interface CladaOptions {
-  repoPath?: string           // Default: process.cwd()
-  gitCommit?: boolean         // v1.2 feature - Default: true
-}
-```
-
-## Internal Architecture
-
-### Execution Flow
-```
-execute(llmOutput)
-  → parseSHAM(llmOutput) → ShamParseResult
-  → for each valid block:
-    → convertToActions(block) → CladaAction[]
-    → for each action:
-      → route to appropriate executor
-      → capture result
-  → commitChanges(results)
-  → return ExecutionResult
-```
-
-### Action Routing
-- file_* → fs-ops
-- dir_* → fs-ops
-- exec → exec
-- context_* → context
-- ls, grep, glob → fs-ops (read operations)
-
-### Error Handling
-- Parser errors: Skip block, record error
-- Conversion errors: Skip action, record error
-- Execution errors: Continue execution, record error
-- Git errors: Fatal, abort with fatalError
-=== END FILE: /Users/stuart/repos/clada/proj/comp/orch/doc/API.md ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/orch/doc/ARCH.md ===
-# Clada Architecture
-
-
-IMPORTANT TOOL TESTING NOTES:
-
-- for test specific clada tools, each tool must get its own test case file, for easy visibility into which tools have been implemented and tested yet.
-- aka `proj/comp/fs-ops/test-data/integration/file_delete.cases.md`
-
-## Core Design Decisions
-
-### Transaction Model
-- **No automatic rollback** - All operations commit, including failures
-- **Failures are data** - LLM needs failure feedback for next steps
-- **Forward-only progress** - Cheaper than regenerating responses
-- **Manual rollback only** - Human-initiated via git commands
-- **Boundary**: One git commit per `execute()` call
-- **API**: Explicit transaction management (details TBD)
-
-### SHAM Processing Pipeline
-1. SHAM parser (external npm) → AST
-2. AST → Action objects (sham-ast-converter)
-3. Actions → Execution → Results
-
-### SHAM AST Structure
-```typescript
-interface ShamParseResult {
-  blocks: ShamBlock[]
-  errors: ShamError[]
-}
-
-interface ShamBlock {
-  id: string           // 3-char SHA-256
-  properties: {
-    action: string     // Maps to tool name (e.g., "file_write")
-    [key: string]: any // Tool-specific parameters
-  }
-  startLine: number
-  endLine: number
-}
-
-interface ShamError {
-  code: string         // e.g., "DUPLICATE_KEY"
-  line: number
-  column: number
-  length: number
-  blockId: string
-  content: string
-  context: string
-  message: string
-}
-```
-
-### Error Propagation Strategy
-- **Parser errors**: Skip blocks with parser errors, execute valid blocks only
-- **Validation errors**: Skip invalid actions, execute valid ones
-- **Execution errors**: Continue with remaining actions
-- **Result**: Complete execution log with successes and failures
-
-### Action Mapping
-- SHAM `action` property maps directly to tool names from unified-design.yaml
-- Use canonical names: `file_write`, `exec`, etc.
-
-### Context Management
-- **V1**: Simple `Set<string>` of file paths
-- **Storage**: In-memory only, no persistence across sessions
-- **V2 Future**: Sub-file references (lines, functions, sections)
-
-### Execution Model
-- **Synchronous**: All operations block until complete
-- **CWD Management**: Session-based working directory
-  - Default: Repository root
-  - Each exec can override with `cwd` parameter
-  - CWD persists within session, not across transactions
-- **Results Format**: Flat array with sequence numbers
-```typescript
-interface ActionResult {
-  seq: number          // Execution order
-  blockId: string      // SHAM block ID
-  action: string       // Action type
-  params: any          // Input parameters
-  success: boolean
-  error?: string       // Error message if failed
-  data?: any           // Action-specific output (stdout, content, etc.)
-}
-```
-
-### Security Model (V1)
-- **None**: Full filesystem access
-- **No validation**: Any path allowed
-- **No sandboxing**: Direct execution
-- **V2 Future**: Path allowlisting per unified-design.yaml. FOR THIS REASON all fs stuff should immediately be implemented using our fs wrapper functions so this whitelisting/blacklisting is easy to implment in the future.
-
-## Component Structure
-```
-clada/
-├── proj/
-│   ├── comp/
-│   │   ├── sham-ast-converter/  # AST → Actions
-│   │   ├── fs-ops/              # File/directory operations
-│   │   ├── exec/                # Command execution
-│   │   ├── git-tx/              # Git transaction management
-│   │   └── context/             # Working set management
-│   └── doc/
-│       ├── API.md               # Main orchestrator API
-│       ├── ARCH.md              # This document
-│       └── ABSTRACT.md          # Project overview
-```
-
-## Implementation Priorities
-1. `sham-ast-converter` - Cannot test without this
-2. `fs-ops` - Core functionality
-3. `exec` - Command execution
-4. `git-tx` - Transaction wrapper
-5. `context` - Working set (may be simple enough to inline)
-
-## Open Questions
-
-### Critical
-1. **SHAM parser package**: `nesl-js` from `github:nesl-lang/nesl-js`
-   - Import: `const { parseSHAM } = require('nesl-js')`
-2. **Transaction API**: Single `execute()` method processes SHAM block array
-
-### Design
-1. **Parser error handling**: Execute blocks with parser errors or skip?
-2. **Git conflict handling**: How to handle conflicts during manual rollback?
-3. **Concurrent access**: Multiple clada instances on same repo?
-4. **Partial failure behavior**: Continue executing after first failure or abort?
-
-### Future
-1. **Context references**: Syntax for line ranges and functions
-2. **Execution isolation**: Container/VM strategy for V2
-3. **Streaming results**: Return results as actions complete or batch at end?
-
-## Design Rationale
-
-### Why No Automatic Rollback
-Traditional transaction systems rollback on failure to maintain consistency. Clada explicitly rejects this because:
-1. **LLM responses are expensive** - Regenerating costs time and money
-2. **Partial success is informative** - LLM learns from failures
-3. **Git preserves history** - Can always manually revert
-4. **Forward progress over perfection** - Incremental improvement model
-
-### Why Synchronous Execution
-1. **Deterministic results** - LLM needs to know exact outcomes
-2. **Sequential dependencies** - Later actions may depend on earlier ones
-3. **Simpler implementation** - No async state management
-4. **Git compatibility** - Git operations are inherently synchronous
-
-### Why In-Memory Context
-1. **Session isolation** - Each LLM conversation is independent
-2. **No persistence complexity** - No file format versioning
-3. **Git is the source of truth** - Files on disk matter, not context
-4. **Quick reset** - New session = clean slate
-=== END FILE: /Users/stuart/repos/clada/proj/comp/orch/doc/ARCH.md ===
-
 === START FILE: /Users/stuart/repos/clada/replacer/replacer_llm_instructions.md ===
 coding style guide:  TDD.  self documenting code.  every api  function name should make it super obvious who is doing what and why
 
@@ -1334,4 +100,1936 @@ IMPORTANT EDIT INSTRUCTIONS NOTE:
 
 
 === END FILE: /Users/stuart/repos/clada/replacer/replacer_llm_instructions.md ===
+
+=== START FILE: /Users/stuart/repos/clada/xd5_ref.md ===
+# XD5 LLM Quick Reference
+
+## Core Principle
+Documentation maintains dependency graphs for deterministic context assembly. Initial dependencies are hypotheses - implementation discovers reality. The STOP protocol ensures documentation evolves to match actual dependencies.
+
+## File Structure
+```
+<repo>/
+└── proj/
+    ├── doc/
+    │   ├── API.md        # ⚠️ CRITICAL: All dependencies + exports
+    │   ├── ABSTRACT.md   # 60-word purpose + 300-word overview
+    │   └── ARCH.md       # Technical decisions, constraints
+    ├── test-data/        # Test cases as JSON/MD files
+    │   ├── unit/         # Unit test data
+    │   └── integration/  # Integration test data
+    ├── test/             # Minimal harnesses loading test-data
+    │   ├── unit/         # Unit test harnesses
+    │   └── integration/  # Integration test harnesses
+    ├── test-intn/        # Integration tests for dependencies
+    ├── src/              # Implementation
+    └── comp/             # Sub-components (recursive) - do not need 'proj' dirs
+```
+
+## API.md Template
+```markdown
+# Component: {name}
+
+## Component Type
+standard | types-only
+
+## Dependencies
+[Provisional - updated via STOP protocol when implementation reveals actual needs]
+
+Mark internal component status: [PLANNED], [IN-PROGRESS], or [IMPLEMENTED]
+External dependencies do not need status markers.
+
+```yaml
+dependencies:
+  # Initial hypothesis based on design
+  proj/comp/payment:                                       # [PLANNED]
+    functions: [validateCard, processRefund] # may change 
+    types: [PaymentResult, CardType]
+    errors: [PaymentError]
+  
+  proj/comp/auth:                                          # [IMPLEMENTED]
+    functions: [checkPermission, validateToken]
+    types: [User, TokenPayload]
+  
+  proj/comp/logger:                                        # [IN-PROGRESS]
+    functions: [logTransaction]  # Audit requirement
+  
+  proj/comp/payment-types: "*"  # Wildcard for types-only  # [IMPLEMENTED] 
+  
+  external/lodash:
+    functions: [groupBy, mapValues]
+  
+  external/@stripe/stripe-js:
+    types: [Stripe, PaymentIntent]
+    functions: [loadStripe]
+```
+
+## Exports
+[Structured YAML for dependency graph tooling, then prose descriptions]
+
+```yaml
+exports:
+  functions: [functionName1, functionName2]
+  types: [Type1, Type2, Type3]
+  classes:
+    ClassName:
+      methods: [method1, method2]
+  errors: [CustomError1, CustomError2]
+```
+
+### {functionName}
+- **Signature**: `{functionName}(param: Type) -> ReturnType`
+- **Purpose**: Single sentence.
+- **Throws**: `{ErrorType}` when {condition}
+- **Test-data**: `test-data/{path}/{functionName}.json` [PLANNED|IMPLEMENTED]
+
+
+
+## Workflow
+
+### Core Flow: Design → Test → Implement
+
+1. **Write docs**: ABSTRACT.md → ARCH.md → API.md (provisional)
+2. **Design tests**: E2E hypothesis → Decompose → Unit tests  
+3. **Implement**: Discover real dependencies → Update docs → Complete code
+
+### Test Authority & Evolution
+
+**Tests Are Source of Truth (But Not Infallible)**
+- Tests define what code SHOULD do
+- During debug: ALWAYS fix code to match tests first
+- Test errors discovered? Ask human: "I believe test X is incorrect because Y. Should I update it?"
+- NEVER auto-modify tests while debugging
+- Each test change needs explicit approval
+
+### Detailed Flow
+
+1. **E2E Test Hypothesis** - Write component test-data (expect evolution)
+2. **Pseudocode** - Rough implementation to discover structure
+3. **Extract Functions** - Identify & extract all pure functions
+4. **Unit Tests** - Write test-data for each function
+5. **Implement Functions** - Red/green/debug (fix code, not tests)
+6. **Revise E2E Tests** - Align with discovered behavior (ask human)
+7. **Wire Component** - Connect tested functions
+8. **Debug E2E** - Fix code until green
+
+**Debug Protocol**: Test fails? → Try fixing code → Still failing? → Consider test error → Request human approval for any test change
+
+**If docs are wrong**: STOP → Update docs → Update tests → Continue
+
+
+
+### Critical Implementation Rules
+
+**Initial Docs Are Hypotheses**: 
+- First API.md contains best guesses
+- Dependencies WILL be wrong
+- This is expected and healthy
+- Discovery through implementation is the goal
+
+**🛑 STOP Protocol**: When implementation reveals doc errors:
+1. STOP immediately
+2. Update API.md/ARCH.md
+3. Continue with correct docs
+
+**Test Immutability**: 
+- Test harnesses = frozen after creation
+- Test data = only change with human approval
+- Fix code, not tests (unless explicitly approved)
+
+**Dependency Updates**:
+- Add to API.md as discovered
+- Include transitive deps if needed for understanding
+- External deps must be explicit
+
+## Test Data Format
+```json
+{
+  "cases": [
+    {
+      "name": "descriptive name",
+      "input": [arg1, arg2],
+      "expected": {result},
+      "throws": "ErrorType"  // optional
+    }
+  ]
+}
+```
+
+## Quick Checks
+
+Before implementing:
+- [ ] API.md declares all exports?
+- [ ] Dependencies section updated?
+- [ ] Test data files created?
+
+During implementation:
+- [ ] Tests fail first (red phase)?
+- [ ] Docs match reality? (if not → STOP)
+- [ ] All imports declared in API.md?
+
+## Common Patterns
+
+**Extract pure functions during pseudocode**:
+```javascript
+// Pseudocode reveals:
+// extractedFn: validateInput(x) -> bool
+// extractedFn: processData(data) -> result
+```
+
+**Types-only components**: No test/ or src/, only doc/
+
+**Path conventions**: All relative to `<repo>/`
+- Component: `proj/comp/{name}`
+- Nested: `proj/comp/{parent}/comp/{child}`
+
+
+# update 
+
+- need to update this so that we save our pseudocde in some sort of documetnation, maybe temp documentation.  so if we implement the fucntiosn to unit test, we dont get confused later about how theyre supposed to be used.
+
+- ideally, each extracted function unit-testable function would be in its own file.  for parallelism with the unit test files
+
+- TESTING PATHS
+
+dont save files directly to `/tmp/`.  save them to a dir in the tmp dir taht is named with the name of the test preceedd by 't_', eg `/tmp/t_move-nonexistent-file`
+
+like: 
+
+
+### 003-move-nonexistent-file
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mnf]
+action = "file_move"
+old_path = "/tmp/t_move-nonexistent-file/ghost.txt"
+new_path = "/tmp/t_move-nonexistent-file/nowhere.txt"
+#!END_SHAM_mnf
+```
+
+```json
+{
+  "success": false,
+  "error": "file_move: Source file not found '/tmp/t_move-nonexistent-file/ghost.txt' (ENOENT)"
+}
+```
+
+=== END FILE: /Users/stuart/repos/clada/xd5_ref.md ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test-data/integration/file_read_numbered.cases.md ===
+# file_read_numbered Integration Tests
+
+## file_read_numbered
+
+### 001-read-single-line
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rs1]
+action = "file_write"
+path = "/tmp/t_read-single-line/numbered.txt"
+content = <<'EOT_SHAM_rs1'
+Line 1
+Line 2
+Line 3
+Line 4
+Line 5
+EOT_SHAM_rs1
+#!END_SHAM_rs1
+
+#!SHAM [@three-char-SHA-256: rs2]
+action = "file_read_numbered"
+path = "/tmp/t_read-single-line/numbered.txt"
+lines = "3"
+#!END_SHAM_rs2
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/t_read-single-line/numbered.txt",
+    "content": "     3: Line 3"
+  }
+}
+```
+
+### 002-read-line-range
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rr1]
+action = "file_write"
+path = "/tmp/t_read-line-range/numbered.txt"
+content = <<'EOT_SHAM_rr1'
+First line
+Second line
+Third line
+Fourth line
+Fifth line
+Sixth line
+Seventh line
+EOT_SHAM_rr1
+#!END_SHAM_rr1
+
+#!SHAM [@three-char-SHA-256: rr2]
+action = "file_read_numbered"
+path = "/tmp/t_read-line-range/numbered.txt"
+lines = "3-5"
+#!END_SHAM_rr2
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/t_read-line-range/numbered.txt",
+    "content": "     3: Third line\n     4: Fourth line\n     5: Fifth line"
+  }
+}
+```
+
+### 003-read-with-custom-delimiter
+
+```sh sham
+#!SHAM [@three-char-SHA-256: cd1]
+action = "file_write"
+path = "/tmp/t_read-with-custom-delimiter/numbered.txt"
+content = <<'EOT_SHAM_cd1'
+import os
+import sys
+
+def main():
+    print("Hello, World!")
+    
+if __name__ == "__main__":
+    main()
+EOT_SHAM_cd1
+#!END_SHAM_cd1
+
+#!SHAM [@three-char-SHA-256: cd2]
+action = "file_read_numbered"
+path = "/tmp/t_read-with-custom-delimiter/numbered.txt"
+lines = "4-7"
+delimiter = "    "
+#!END_SHAM_cd2
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/t_read-with-custom-delimiter/numbered.txt",
+    "content": "     4    def main():\n     5        print(\"Hello, World!\")\n     6        \n     7    if __name__ == \"__main__\":"
+  }
+}
+```
+
+### 004-read-with-empty-delimiter
+
+```sh sham
+#!SHAM [@three-char-SHA-256: ed1]
+action = "file_write"
+path = "/tmp/t_read-with-empty-delimiter/numbered.txt"
+content = <<'EOT_SHAM_ed1'
+apple
+banana
+cherry
+date
+EOT_SHAM_ed1
+#!END_SHAM_ed1
+
+#!SHAM [@three-char-SHA-256: ed2]
+action = "file_read_numbered"
+path = "/tmp/t_read-with-empty-delimiter/numbered.txt"
+lines = "2-3"
+delimiter = ""
+#!END_SHAM_ed2
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/t_read-with-empty-delimiter/numbered.txt",
+    "content": "     2banana\n     3cherry"
+  }
+}
+```
+
+### 005-read-out-of-range-lines
+
+```sh sham
+#!SHAM [@three-char-SHA-256: or1]
+action = "file_write"
+path = "/tmp/t_read-out-of-range-lines/numbered.txt"
+content = <<'EOT_SHAM_or1'
+Only
+Three
+Lines
+EOT_SHAM_or1
+#!END_SHAM_or1
+
+#!SHAM [@three-char-SHA-256: or2]
+action = "file_read_numbered"
+path = "/tmp/t_read-out-of-range-lines/numbered.txt"
+lines = "2-10"
+#!END_SHAM_or2
+```
+
+```json
+{
+  "success": false,
+  "error": "file_read_numbered: Requested lines 2-10 but file only has 3 lines",
+  "data": {
+    "path": "/tmp/t_read-out-of-range-lines/numbered.txt",
+    "content": "     2: Three\n     3: Lines"
+  }
+}
+```
+
+### 006-read-single-line-file
+
+```sh sham
+#!SHAM [@three-char-SHA-256: sl1]
+action = "file_write"
+path = "/tmp/t_read-single-line-file/numbered.txt"
+content = "Just one line"
+#!END_SHAM_sl1
+
+#!SHAM [@three-char-SHA-256: sl2]
+action = "file_read_numbered"
+path = "/tmp/t_read-single-line-file/numbered.txt"
+lines = "1"
+#!END_SHAM_sl2
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/t_read-single-line-file/numbered.txt",
+    "content": "     1: Just one line"
+  }
+}
+```
+
+### 007-read-empty-file
+
+```sh sham
+#!SHAM [@three-char-SHA-256: ef1]
+action = "file_write"
+path = "/tmp/t_read-empty-file/numbered.txt"
+content = ""
+#!END_SHAM_ef1
+
+#!SHAM [@three-char-SHA-256: ef2]
+action = "file_read_numbered"
+path = "/tmp/t_read-empty-file/numbered.txt"
+lines = "1"
+#!END_SHAM_ef2
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/t_read-empty-file/numbered.txt",
+    "content": ""
+  }
+}
+```
+
+### 008-invalid-line-format
+
+```sh sham
+#!SHAM [@three-char-SHA-256: if1]
+action = "file_write"
+path = "/tmp/t_invalid-line-format/numbered.txt"
+content = "Some content"
+#!END_SHAM_if1
+
+#!SHAM [@three-char-SHA-256: if2]
+action = "file_read_numbered"
+path = "/tmp/t_invalid-line-format/numbered.txt"
+lines = "abc"
+#!END_SHAM_if2
+```
+
+```json
+{
+  "success": false,
+  "error": "file_read_numbered: Invalid line specification 'abc'"
+}
+```
+
+### 009-invalid-line-range
+
+```sh sham
+#!SHAM [@three-char-SHA-256: ir1]
+action = "file_write"
+path = "/tmp/t_invalid-line-range/numbered.txt"
+content = "Some content"
+#!END_SHAM_ir1
+
+#!SHAM [@three-char-SHA-256: ir2]
+action = "file_read_numbered"
+path = "/tmp/t_invalid-line-range/numbered.txt"
+lines = "5-3"
+#!END_SHAM_ir2
+```
+
+```json
+{
+  "success": false,
+  "error": "file_read_numbered: Invalid line range '5-3' (start must be <= end)"
+}
+```
+
+### 010-read-nonexistent-file
+
+```sh sham
+#!SHAM [@three-char-SHA-256: nf1]
+action = "file_read_numbered"
+path = "/tmp/t_read-nonexistent-file/does-not-exist.txt"
+lines = "1-5"
+#!END_SHAM_nf1
+```
+
+```json
+{
+  "success": false,
+  "error": "ENOENT: no such file or directory, open '/tmp/t_read-nonexistent-file/does-not-exist.txt'"
+}
+```
+
+### 011-read-completely-out-of-range
+
+```sh sham
+#!SHAM [@three-char-SHA-256: co1]
+action = "file_write"
+path = "/tmp/t_read-completely-out-of-range/numbered.txt"
+content = <<'EOT_SHAM_co1'
+Line 1
+Line 2
+EOT_SHAM_co1
+#!END_SHAM_co1
+
+#!SHAM [@three-char-SHA-256: co2]
+action = "file_read_numbered"
+path = "/tmp/t_read-completely-out-of-range/numbered.txt"
+lines = "5-10"
+#!END_SHAM_co2
+```
+
+```json
+{
+  "success": false,
+  "error": "file_read_numbered: Requested lines 5-10 but file only has 2 lines",
+  "data": {
+    "path": "/tmp/t_read-completely-out-of-range/numbered.txt",
+    "content": ""
+  }
+}
+```
+
+### 012-read-all-lines-missing-parameter
+
+```sh sham
+#!SHAM [@three-char-SHA-256: al1]
+action = "file_write"
+path = "/tmp/t_read-all-lines-missing-parameter/numbered.txt"
+content = <<'EOT_SHAM_al1'
+First line
+Second line
+Third line
+Fourth line
+Fifth line
+EOT_SHAM_al1
+#!END_SHAM_al1
+
+#!SHAM [@three-char-SHA-256: al2]
+action = "file_read_numbered"
+path = "/tmp/t_read-all-lines-missing-parameter/numbered.txt"
+#!END_SHAM_al2
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/t_read-all-lines-missing-parameter/numbered.txt",
+    "content": "     1: First line\n     2: Second line\n     3: Third line\n     4: Fourth line\n     5: Fifth line"
+  }
+}
+```
+
+### 013-read-large-line-numbers
+
+```sh sham
+#!SHAM [@three-char-SHA-256: ll1]
+action = "file_write"
+path = "/tmp/t_read-large-line-numbers/numbered.txt"
+content = <<'EOT_SHAM_ll1'
+Line 1
+Line 2
+Line 3
+Line 4
+Line 5
+Line 6
+Line 7
+Line 8
+Line 9
+Line 10
+Line 11
+Line 12
+EOT_SHAM_ll1
+#!END_SHAM_ll1
+
+#!SHAM [@three-char-SHA-256: ll2]
+action = "file_read_numbered"
+path = "/tmp/t_read-large-line-numbers/numbered.txt"
+lines = "9-11"
+#!END_SHAM_ll2
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/tmp/t_read-large-line-numbers/numbered.txt",
+    "content": "     9: Line 9\n    10: Line 10\n    11: Line 11"
+  }
+}
+```
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test-data/integration/file_read_numbered.cases.md ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test/unit/extractNumberedLines.test.ts ===
+import { describe, it, expect } from 'vitest';
+import { extractNumberedLines } from '../../src/extractNumberedLines';
+import { cases } from '../../test-data/unit/extractNumberedLines.cases';
+
+describe('extractNumberedLines', () => {
+  cases.forEach(({ name, input, expected, throws }) => {
+    it(name, () => {
+      if (throws) {
+        expect(() => extractNumberedLines(...input)).toThrow(throws);
+      } else {
+        const result = extractNumberedLines(...input);
+        expect(result).toEqual(expected);
+      }
+    });
+  });
+});
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test/unit/extractNumberedLines.test.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test/unit/formatNodeError.test.ts ===
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { formatNodeError } from '../../src/formatNodeError.js';
+
+const testData = JSON.parse(
+  readFileSync(join(__dirname, '../../test-data/unit/formatNodeError.cases.json'), 'utf8')
+);
+
+describe('formatNodeError', () => {
+  testData.cases.forEach(({ name, input, expected }) => {
+    it(name, () => {
+      const result = formatNodeError(input[0], input[1], input[2], input[3]);
+      expect(result).toEqual(expected);
+    });
+  });
+});
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test/unit/formatNodeError.test.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test/unit/replaceText.test.ts ===
+import { describe, it, expect } from 'vitest';
+import { replaceText } from '../../src/replaceText';
+import { cases } from '../../test-data/unit/replaceText.cases';
+
+describe('replaceText', () => {
+  cases.forEach(({ name, input, expected, throws }) => {
+    it(name, () => {
+      if (throws) {
+        expect(() => replaceText(...input)).toThrow(throws);
+      } else {
+        const result = replaceText(...input);
+        expect(result).toEqual(expected);
+      }
+    });
+  });
+});
+
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test/unit/replaceText.test.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test/integration/integration.test.ts ===
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { readFileSync, rmSync, existsSync, writeFileSync, mkdirSync, readdirSync } from 'fs';
+import { join } from 'path';
+import { marked, Token } from 'marked';
+import { parseShamResponse } from '../../../sham-action-parser/src/index.js';
+import { executeFileOperation } from '../../src/index.js';
+
+interface TestCase {
+  name: string;
+  shamBlock: string;
+  expectedBlock: string;
+}
+
+interface TestGroup {
+  name: string;
+  tests: TestCase[];
+}
+
+// Read all test case files
+const testDir = join(__dirname, '../../test-data/integration');
+const testFiles = readdirSync(testDir)
+  .filter(f => f.endsWith('.cases.md'))
+  .sort();
+
+// Extract test structure from all markdown files
+const testGroups: TestGroup[] = [];
+
+testFiles.forEach(filename => {
+  const testPath = join(testDir, filename);
+  const mdContent = readFileSync(testPath, 'utf8');
+  
+  let currentGroup: TestGroup | null = null;
+  let currentTest: Partial<TestCase> | null = null;
+  
+  // Parse markdown to extract test cases with hierarchy
+  const tokens: Token[] = marked.lexer(mdContent);
+  
+  tokens.forEach(token => {
+    if (token.type === 'heading' && 'depth' in token) {
+      if (token.depth === 2) {
+        // New test group (e.g., "file_write")
+        currentGroup = {
+          name: (token as any).text,
+          tests: []
+        };
+        testGroups.push(currentGroup);
+      } else if (token.depth === 3 && currentGroup) {
+        // New test case
+        currentTest = {
+          name: (token as any).text
+        };
+      }
+    } else if (token.type === 'code' && currentTest && currentGroup) {
+      const codeBlock = token as Token & {type: 'code', text: string};
+      if (!currentTest.shamBlock) {
+        currentTest.shamBlock = codeBlock.text;
+      } else if (!currentTest.expectedBlock) {
+        currentTest.expectedBlock = codeBlock.text;
+        // Test case complete
+        currentGroup.tests.push(currentTest as TestCase);
+        currentTest = null;
+      }
+    }
+  });
+});
+
+// Test cleanup paths
+const testPaths = [
+  '/tmp/test.txt',
+  '/tmp/deeply',
+  '/tmp/existing.txt',
+  '/tmp/multiline.txt',
+  '/tmp/to-delete.txt',
+  '/tmp/does-not-exist.txt',
+  '/tmp/source.txt',
+  '/tmp/destination.txt',
+  '/tmp/original.txt',
+  '/tmp/new-dir',
+  '/tmp/ghost.txt',
+  '/tmp/nowhere.txt',
+  '/tmp/source-exists.txt',
+  '/tmp/dest-exists.txt',
+  '/tmp/moveable.txt',
+  '/tmp/replace-test.txt',
+  '/tmp/multi-replace.txt',
+  '/tmp/no-match.txt',
+  '/tmp/does-not-exist-replace.txt',
+  '/tmp/multiline-replace.txt',
+  '/tmp/empty-search.txt',
+  '/tmp/readable.txt',
+  '/tmp/not-there.txt',
+  '/tmp/multiple-occurrences.txt',
+  '/tmp/replace-all.txt',
+  '/tmp/count-mismatch.txt',
+  '/tmp/special-chars.txt',
+  '/tmp/numbered.txt'
+];
+
+describe('fs-ops integration tests', () => {
+  let createdPaths: Set<string>;
+
+  beforeEach(() => {
+    createdPaths = new Set<string>(); // Fresh set per test
+
+    // Clean up any existing test files
+    for (const path of testPaths) {
+      try {
+        if (existsSync(path)) {
+          rmSync(path, { recursive: true, force: true });
+        }
+      } catch (err) {
+        // Silently continue
+      }
+    }
+  });
+
+  afterEach(() => {
+    for (const path of createdPaths) {
+      rmSync(path, { recursive: true, force: true });
+    }
+    // Clean up after tests
+    for (const path of testPaths) {
+      try {
+        if (existsSync(path)) {
+          rmSync(path, { recursive: true, force: true });
+        }
+      } catch (err) {
+        // Silently continue
+      }
+    }
+  });
+
+
+  // Helper function to create test files and track paths
+  const createTestFile = (testName: string, filename: string, content: string): void => {
+    const testDir = `/tmp/t_${testName}`;
+    mkdirSync(testDir, { recursive: true });
+    writeFileSync(join(testDir, filename), content);
+    createdPaths.add(testDir);
+  };
+
+
+  testGroups.forEach(group => {
+    describe(group.name, () => {
+      group.tests.forEach(test => {
+        it(test.name, async () => {
+          const expectedOutput = JSON.parse(test.expectedBlock);
+          
+          // Extract test name without number prefix
+          const tn = test.name.replace(/^\d{3}-/, '');
+          
+
+
+
+          // Set up test preconditions based on group and test name
+          if (group.name === 'file_delete' && tn === 'delete-existing-file') {
+            createTestFile('delete-existing-file', 'to-delete.txt', 'This file will be deleted');
+          } else if (group.name === 'file_move' && tn === 'move-file-simple') {
+            createTestFile('move-file-simple', 'source.txt', 'Content to move');
+          } else if (group.name === 'file_move' && tn === 'move-file-to-new-directory') {
+            createTestFile('move-file-to-new-directory', 'original.txt', 'Moving to new directory');
+          } else if (group.name === 'file_move' && tn === 'move-to-existing-file') {
+            createTestFile('move-to-existing-file', 'source-exists.txt', 'Source content');
+            createTestFile('move-to-existing-file', 'dest-exists.txt', 'Will be overwritten');
+          } else if (group.name === 'file_replace_text' && tn === 'simple-text-replacement') {
+            createTestFile('simple-text-replacement', 'replace-test.txt', 'Hello World');
+          } else if (group.name === 'file_replace_text' && tn === 'replace-with-count-limit') {
+            createTestFile('replace-with-count-limit', 'multi-replace.txt', 'foo bar foo baz foo qux foo');
+          } else if (group.name === 'file_replace_text' && tn === 'replace-text-not-found') {
+            createTestFile('replace-text-not-found', 'no-match.txt', 'This file has no matches');
+          } else if (group.name === 'file_replace_text' && tn === 'multiline-replacement') {
+            createTestFile('multiline-replacement', 'multiline-replace.txt', `export function oldName() {
+  console.log('oldName');
+  return oldName;
+}
+
+function oldName() {
+  return oldName;
+}
+
+const x = oldName();`);
+          } else if (group.name === 'file_replace_text' && tn === 'empty-old-text-error') {
+            createTestFile('empty-old-text-error', 'empty-search.txt', 'Some content here');
+          } else if (group.name === 'file_replace_text' && tn === 'file-replace-text-multiple-occurrences') {
+            createTestFile('file-replace-text-multiple-occurrences', 'multiple-occurrences.txt', 'duplicate text with duplicate word and duplicate again');
+          } else if (group.name === 'file_replace_text' && tn === 'file-replace-all-text-no-count') {
+            createTestFile('file-replace-all-text-no-count', 'replace-all.txt', 'foo bar foo baz foo');
+          } else if (group.name === 'file_replace_text' && tn === 'file-replace-all-text-count-mismatch') {
+            createTestFile('file-replace-all-text-count-mismatch', 'count-mismatch.txt', 'test this test case');
+          } else if (group.name === 'file_read' && tn === 'read-existing-file') {
+            createTestFile('read-existing-file', 'readable.txt', 'This is readable content');
+          }
+
+
+
+
+
+
+
+
+
+
+          // Parse SHAM to get actions
+          let parseResult;
+          try {
+            parseResult = await parseShamResponse(test.shamBlock);
+            // Force a minimal action to test downstream code
+            if (parseResult.actions.length === 0 && test.shamBlock.includes('action =')) {
+              console.log('WARNING: Parser returned no actions, check parser implementation');
+            }
+          } catch (error) {
+            console.log('Parse error:', error);
+            throw error;
+          }
+          
+          // Should have at least one action
+          expect(parseResult.actions.length).toBeGreaterThan(0);
+          expect(parseResult.errors).toHaveLength(0);
+          
+          // Execute all actions in sequence, capturing the last result
+          let result;
+          for (const action of parseResult.actions) {
+            result = await executeFileOperation(action);
+          }
+          
+          // Compare result
+          expect(result).toEqual(expectedOutput);
+        }, 30000);
+      });
+    });
+  });
+});
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/test/integration/integration.test.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/extractNumberedLines.ts ===
+/**
+ * Extract and number specific lines from content
+ * @param content - Full file content
+ * @param lineSpec - Line specification ("4" for single line, "23-43" for range)
+ * @param delimiter - Delimiter between line number and content
+ * @returns Object with numbered lines and total line count
+ * @throws Error for invalid line specifications
+ */
+export function extractNumberedLines(
+  content: string,
+  lineSpec: string | undefined,
+  delimiter: string = ": "
+): { result: string; lineCount: number; outOfRange?: { requested: string; actual: number } } {
+  // Handle empty content
+  if (content === '') {
+    return { result: '', lineCount: 0 };
+  }
+
+  // Split content into lines
+  const lines = content.split('\n');
+  const totalLines = lines.length;
+
+  // Parse line specification
+  let startLine: number;
+  let endLine: number;
+  let requestedSpec: string;
+
+  // If no lineSpec provided, read all lines
+  if (!lineSpec) {
+    startLine = 1;
+    endLine = totalLines;
+    requestedSpec = `1-${totalLines}`;
+  } else {
+    requestedSpec = lineSpec;
+
+    if (lineSpec.includes('-')) {
+      // Range format: "23-43"
+      const parts = lineSpec.split('-');
+      if (parts.length !== 2) {
+        throw new Error(`Invalid line specification '${lineSpec}'`);
+      }
+
+      startLine = parseInt(parts[0], 10);
+      endLine = parseInt(parts[1], 10);
+
+      if (isNaN(startLine) || isNaN(endLine)) {
+        throw new Error(`Invalid line specification '${lineSpec}'`);
+      }
+
+      if (startLine < 1 || endLine < 1) {
+        throw new Error(`Invalid line specification '${lineSpec}' (line numbers must be positive)`);
+      }
+
+      if (startLine > endLine) {
+        throw new Error(`Invalid line range '${lineSpec}' (start must be <= end)`);
+      }
+    } else {
+      // Single line format: "4"
+      startLine = parseInt(lineSpec, 10);
+      if (isNaN(startLine) || startLine < 1) {
+        throw new Error(`Invalid line specification '${lineSpec}'`);
+      }
+      endLine = startLine;
+    }
+  }
+
+  // Check if request is out of range
+  const originalStartLine = startLine;
+  const originalEndLine = endLine;
+  const isOutOfRange = startLine > totalLines || endLine > totalLines;
+
+  // If start line is beyond file, return empty
+  if (startLine > totalLines) {
+    const result = {
+      result: '',
+      lineCount: totalLines
+    };
+    
+    if (isOutOfRange) {
+      result.outOfRange = {
+        requested: requestedSpec,
+        actual: totalLines
+      };
+    }
+    
+    return result;
+  }
+
+  // Clamp end line to available lines
+  endLine = Math.min(endLine, totalLines);
+
+  // Extract lines and format with numbers
+  const numberedLines: string[] = [];
+  const maxLineNum = Math.min(originalEndLine, totalLines);
+  const numWidth = maxLineNum.toString().length;
+
+  for (let i = startLine; i <= endLine && i <= totalLines; i++) {
+    const lineNum = i.toString().padStart(numWidth + 5, ' ');
+    numberedLines.push(`${lineNum}${delimiter}${lines[i - 1]}`);
+  }
+
+  const result = {
+    result: numberedLines.join('\n'),
+    lineCount: totalLines
+  };
+
+  if (isOutOfRange) {
+    result.outOfRange = {
+      requested: requestedSpec,
+      actual: totalLines
+    };
+  }
+
+  return result;
+}
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/extractNumberedLines.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/fileSystemUtils.ts ===
+import { stat } from 'fs/promises';
+
+/**
+ * Check if a file or directory exists
+ * @param path - File or directory path to check
+ * @returns true if exists, false otherwise
+ */
+export async function fileExists(path: string): Promise<boolean> {
+  try {
+    await stat(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/fileSystemUtils.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/formatNodeError.ts ===
+/**
+ * Format Node.js filesystem errors into consistent error messages
+ * @param error - The error object from Node.js
+ * @param path - The file path involved in the operation
+ * @param operation - The operation that was attempted
+ * @returns Formatted error message string
+ */
+export function formatNodeError(error: any, path: string, operation: string, dest?: string): string {
+  // Node.js errors have a code property
+  if (error.code) {
+    switch (error.code) {
+      case 'ENOENT':
+        if (operation === 'rename' && dest) {
+          return `ENOENT: no such file or directory, rename '${path}' -> '${dest}'`;
+        }
+        return `ENOENT: no such file or directory, ${operation} '${path}'`;
+      case 'EEXIST':
+        return `EEXIST: file already exists, ${operation} '${path}'`;
+      case 'EACCES':
+        if (operation === 'rename' && dest) {
+          return `EACCES: permission denied, rename '${path}' -> '${dest}'`;
+        }
+        return `EACCES: permission denied, ${operation} '${path}'`;
+      case 'EISDIR':
+        return `EISDIR: illegal operation on a directory, ${operation} '${path}'`;
+      case 'ENOTDIR':
+        return `ENOTDIR: not a directory, ${operation} '${path}'`;
+      case 'ENOTEMPTY':
+        return `ENOTEMPTY: directory not empty, ${operation} '${path}'`;
+      default:
+        return `${error.code}: ${error.message}`;
+    }
+  }
+  
+  // Fallback for non-Node errors
+  return error.message || `Unknown error during ${operation} on '${path}'`;
+}
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/formatNodeError.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts ===
+/**
+ * fs-ops - File system operations executor for clada
+ * 
+ * Handles all file and directory operations from parsed SHAM actions
+ */
+
+import type { CladaAction } from '../../sham-action-parser/src/index.js';
+import { writeFile, mkdir, unlink, rename, readFile } from 'fs/promises';
+import { dirname } from 'path';
+import { formatNodeError } from './formatNodeError.js';
+import { fileExists } from './fileSystemUtils.js';
+import { replaceText } from './replaceText.js';
+import { extractNumberedLines } from './extractNumberedLines.js';
+
+export interface FileOpResult {
+  success: boolean;
+  data?: any;
+  error?: string;
+}
+
+export class FileOpError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public path?: string,
+    public operation?: string
+  ) {
+    super(message);
+    this.name = 'FileOpError';
+  }
+}
+
+/**
+ * Execute a file system operation from a parsed SHAM action
+ * Never throws - all errors returned in result
+ */
+export async function executeFileOperation(action: CladaAction): Promise<FileOpResult> {
+  try {
+    const handler = actionHandlers[action.action];
+    
+ 
+    
+    if (!handler) {
+      return {
+        success: false,
+        error: `Unknown action: ${action.action}`
+      };
+    }
+    
+    const result = await handler(action);
+    return result;
+    
+  } catch (error: any) {
+    // This should never happen - handlers should catch their own errors
+    return {
+      success: false,
+      error: `Unexpected error in executeFileOperation: ${error.message}`
+    };
+  }
+}
+
+/**
+ * Handle file_move action - moves/renames a file
+ * Creates parent directories for destination if needed
+ * Overwrites destination if it exists
+ */
+async function handleFileMove(action: CladaAction): Promise<FileOpResult> {
+  const { old_path, new_path } = action.parameters;
+  
+  try {
+    // Pre-flight check for better error messages
+    const sourceExists = await fileExists(old_path);
+    if (!sourceExists) {
+      return {
+        success: false,
+        error: `file_move: Source file not found '${old_path}' (ENOENT)`
+      };
+    }
+    
+    // Check if destination exists (for overwrote flag)
+    const destExists = await fileExists(new_path);
+    
+    // Create parent directories for destination
+    const parentDir = dirname(new_path);
+    await mkdir(parentDir, { recursive: true });
+    
+    // Move the file
+    await rename(old_path, new_path);
+    
+    const result: FileOpResult = {
+      success: true,
+      data: {
+        old_path,
+        new_path
+      }
+    };
+    
+    if (destExists) {
+      result.data.overwrote = true;
+    }
+    
+    return result;
+    
+  } catch (error: any) {
+    return {
+      success: false,
+      error: formatNodeError(error, old_path, 'rename', new_path)
+    };
+  }
+}
+
+/**
+ * Handle file_delete action - removes a file
+ */
+async function handleFileDelete(action: CladaAction): Promise<FileOpResult> {
+  const { path } = action.parameters;
+  
+  try {
+    await unlink(path);
+    
+    return {
+      success: true,
+      data: {
+        path
+      }
+    };
+    
+  } catch (error: any) {
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'unlink')
+    };
+  }
+}
+
+/**
+ * Handle file_write action - writes/creates/overwrites a file with content
+ * Automatically creates parent directories if needed
+ */
+async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
+  const { path, content } = action.parameters;
+  
+  try {
+    // Create parent directories if needed
+    const parentDir = dirname(path);
+    await mkdir(parentDir, { recursive: true });
+    
+    // Write file
+    await writeFile(path, content, 'utf8');
+    const bytesWritten = Buffer.byteLength(content, 'utf8');
+    
+    return {
+      success: true,
+      data: {
+        path,
+        bytesWritten
+      }
+    };
+    
+  } catch (error: any) {
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'open')
+    };
+  }
+}
+
+/**
+ * Handle file_read action - reads file content
+ */
+async function handleFileRead(action: CladaAction): Promise<FileOpResult> {
+  const { path } = action.parameters;
+  
+  try {
+    const content = await readFile(path, 'utf8');
+    
+    return {
+      success: true,
+      data: {
+        path,
+        content
+      }
+    };
+    
+  } catch (error: any) {
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'open')
+    };
+  }
+}
+
+/**
+ * Handle file_read_numbered action - reads file content with line numbers
+ * Returns specified lines with line numbers prepended
+ * If lines parameter is missing, reads all lines
+ * If some lines are out of range, returns available content with error
+ */
+async function handleFileReadNumbered(action: CladaAction): Promise<FileOpResult> {
+  const { path, lines, delimiter = ": " } = action.parameters;
+  
+  try {
+    const content = await readFile(path, 'utf8');
+    
+    // Extract and number the requested lines
+    const { result, outOfRange } = extractNumberedLines(content, lines, delimiter);
+    
+    // If out of range, return error with partial content
+    if (outOfRange) {
+      return {
+        success: false,
+        error: `file_read_numbered: Requested lines ${outOfRange.requested} but file only has ${outOfRange.actual} lines`,
+        data: {
+          path,
+          content: result
+        }
+      };
+    }
+    
+    return {
+      success: true,
+      data: {
+        path,
+        content: result
+      }
+    };
+    
+  } catch (error: any) {
+    // Check if it's our custom validation error
+    if (error.message && error.message.startsWith('Invalid line')) {
+      return {
+        success: false,
+        error: `file_read_numbered: ${error.message}`
+      };
+    }
+    
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'open')
+    };
+  }
+}
+
+/**
+ * Handle files_read action - reads multiple files and concatenates with delimiters
+ * Parses multi-line paths parameter, one absolute path per line
+ * Returns concatenated content with === /path/to/file === delimiters
+ */
+async function handleFilesRead(action: CladaAction): Promise<FileOpResult> {
+  const { paths } = action.parameters;
+  
+  // Parse the multi-line paths string
+  const pathList = paths
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0);  // Remove empty lines
+  
+  if (pathList.length === 0) {
+    return {
+      success: false,
+      error: 'files_read: No paths provided'
+    };
+  }
+  
+  // Read all files, collecting content and errors
+  const results: Array<{ path: string; content?: string; error?: string }> = [];
+  
+  for (const filePath of pathList) {
+    try {
+      const content = await readFile(filePath, 'utf8');
+      results.push({ path: filePath, content });
+    } catch (error: any) {
+      // Collect error for this file
+      const errorMsg = formatNodeError(error, filePath, 'open');
+      results.push({ path: filePath, error: errorMsg });
+    }
+  }
+  
+  // Check if any files failed to read
+  const failedFiles = results.filter(r => r.error);
+  if (failedFiles.length > 0) {
+    // Return error listing all failed files
+    const errorDetails = failedFiles
+      .map(f => `  ${f.path}: ${f.error}`)
+      .join('\n');
+    return {
+      success: false,
+      error: `files_read: Failed to read ${failedFiles.length} file(s):\n${errorDetails}`
+    };
+  }
+  
+  // All files read successfully - concatenate with delimiters
+  const concatenated = results
+    .map(r => {
+      const header = `=== ${r.path} ===`;
+      return `${header}\n${r.content}`;
+    })
+    .join('\n\n');
+  
+  return {
+    success: true,
+    data: {
+      paths: pathList,
+      content: concatenated
+    }
+  };
+}
+
+/**
+ * Handle file_replace_text action - replaces EXACTLY ONE occurrence
+ * Fails if old_text appears 0 or 2+ times
+ */
+async function handleFileReplaceText(action: CladaAction): Promise<FileOpResult> {
+  const { path, old_text, new_text } = action.parameters;
+  
+  // Validate old_text is not empty
+  if (!old_text || old_text.length === 0) {
+    return {
+      success: false,
+      error: 'file_replace_text: old_text cannot be empty'
+    };
+  }
+  
+  try {
+    // Read existing file content
+    const content = await readFile(path, 'utf8');
+    
+    // Count occurrences first
+    let count = 0;
+    let searchIndex = 0;
+    while (true) {
+      const index = content.indexOf(old_text, searchIndex);
+      if (index === -1) break;
+      count++;
+      searchIndex = index + 1;
+    }
+    
+    // Validate exactly one occurrence
+    if (count === 0) {
+      return {
+        success: false,
+        error: `file_replace_text: old_text not found in file`
+      };
+    }
+    if (count > 1) {
+      return {
+        success: false,
+        error: `file_replace_text: old_text appears ${count} times, must appear exactly once`
+      };
+    }
+    
+    // Replace the single occurrence
+    const { result, replacements } = replaceText(content, old_text, new_text, 1);
+    
+    // Write updated content back
+    await writeFile(path, result, 'utf8');
+    
+    return {
+      success: true,
+      data: {
+        path,
+        replacements
+      }
+    };
+    
+  } catch (error: any) {
+    // Special case for empty old_text validation error
+    if (error.message === 'old_text cannot be empty') {
+      return {
+        success: false,
+        error: 'file_replace_text: old_text cannot be empty'
+      };
+    }
+    
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'open')
+    };
+  }
+}
+
+/**
+ * Handle file_replace_all_text action - replaces all occurrences
+ * If count provided, validates exact match
+ */
+async function handleFileReplaceAllText(action: CladaAction): Promise<FileOpResult> {
+  const { path, old_text, new_text, count } = action.parameters;
+  
+  // Validate old_text is not empty
+  if (!old_text || old_text.length === 0) {
+    return {
+      success: false,
+      error: 'file_replace_all_text: old_text cannot be empty'
+    };
+  }
+  
+  try {
+    // Read existing file content
+    const content = await readFile(path, 'utf8');
+    
+    // If count specified, validate it matches actual occurrences
+    if (count !== undefined) {
+      // Count actual occurrences
+      let actualCount = 0;
+      let searchIndex = 0;
+      while (true) {
+        const index = content.indexOf(old_text, searchIndex);
+        if (index === -1) break;
+        actualCount++;
+        searchIndex = index + 1;
+      }
+      
+      if (actualCount !== count) {
+        return {
+          success: false,
+          error: `file_replace_all_text: expected ${count} occurrences but found ${actualCount}`
+        };
+      }
+    }
+    
+    // Replace all occurrences
+    const { result, replacements } = replaceText(content, old_text, new_text);
+    
+    // Write updated content back
+    await writeFile(path, result, 'utf8');
+    
+    return {
+      success: true,
+      data: {
+        path,
+        replacements
+      }
+    };
+    
+  } catch (error: any) {
+    // Special case for empty old_text validation error
+    if (error.message === 'old_text cannot be empty') {
+      return {
+        success: false,
+        error: 'file_replace_all_text: old_text cannot be empty'
+      };
+    }
+    
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'open')
+    };
+  }
+}
+
+// Internal function stubs for each operation
+
+async function createFile(path: string, content: string): Promise<void> {
+  throw new Error('Not implemented');
+}
+
+ 
+
+async function replaceTextInFile(path: string, oldText: string, newText: string, count?: number): Promise<number> {
+  throw new Error('Not implemented');
+}
+
+async function deleteFile(path: string): Promise<void> {
+  throw new Error('Not implemented');
+}
+
+async function moveFile(oldPath: string, newPath: string): Promise<void> {
+  throw new Error('Not implemented');
+}
+
+async function readFileContent(path: string): Promise<string> {
+  throw new Error('Not implemented');
+}
+
+async function createDirectory(path: string): Promise<void> {
+  throw new Error('Not implemented');
+}
+
+async function deleteDirectory(path: string): Promise<void> {
+  throw new Error('Not implemented');
+}
+
+interface DirEntry {
+  name: string;
+  type: 'file' | 'directory';
+  size: number;
+  modified: Date;
+}
+
+async function listDirectory(path: string): Promise<DirEntry[]> {
+  throw new Error('Not implemented');
+}
+
+interface GrepResult {
+  file: string;
+  line_number: number;
+  line: string;
+}
+
+async function searchFiles(pattern: string, path: string, include?: string): Promise<GrepResult[]> {
+  throw new Error('Not implemented');
+}
+
+async function globFiles(pattern: string, basePath: string): Promise<string[]> {
+  throw new Error('Not implemented');
+}
+
+// Action handler mapping
+const actionHandlers: Record<string, (action: CladaAction) => Promise<FileOpResult>> = {
+  'file_write': handleFileWrite,
+  'file_replace_text': handleFileReplaceText,
+  'file_replace_all_text': handleFileReplaceAllText,
+  'file_delete': handleFileDelete,
+  'file_move': handleFileMove,
+  'file_read': handleFileRead,
+  'files_read': handleFilesRead,
+  'file_read_numbered': handleFileReadNumbered,
+  'dir_create': async (action) => {
+    return { success: false, error: 'Not implemented' };
+  },
+  'dir_delete': async (action) => {
+    return { success: false, error: 'Not implemented' };
+  },
+  'ls': async (action) => {
+    return { success: false, error: 'Action not implemented: ls' };
+  },
+  'grep': async (action) => {
+    return { success: false, error: 'Not implemented' };
+  },
+  'glob': async (action) => {
+    return { success: false, error: 'Not implemented' };
+  }
+};
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/replaceText.ts ===
+/**
+ * Replace occurrences of text in content with optional count limit
+ * @param content - Original content
+ * @param oldText - Text to find and replace
+ * @param newText - Replacement text
+ * @param count - Maximum replacements (default: replace all)
+ * @returns Object with result string and number of replacements made
+ */
+export function replaceText(
+  content: string, 
+  oldText: string, 
+  newText: string, 
+  count?: number
+): { result: string; replacements: number } {
+  if (oldText === '') {
+    throw new Error('old_text cannot be empty');
+  }
+
+  let result = content;
+  let replacements = 0;
+  let startIndex = 0;
+
+  while (true) {
+    const index = result.indexOf(oldText, startIndex);
+    if (index === -1) break;
+    
+    if (count !== undefined && replacements >= count) break;
+    
+    result = result.slice(0, index) + newText + result.slice(index + oldText.length);
+    startIndex = index + newText.length;
+    replacements++;
+  }
+
+  return { result, replacements };
+}
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/replaceText.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/ABSTRACT.md ===
+# File System Operations
+
+Executes file and directory operations from parsed SHAM actions, providing consistent error handling and operation results for LLM feedback.
+
+## Overview
+
+The fs-ops component is the primary executor for file system operations in clada. It receives parsed CladaAction objects from the sham-action-parser and performs the requested file system operations, returning standardized results that include success status, operation-specific data, and detailed error information when operations fail.
+
+The component handles all file-related SHAM actions including file creation, editing, deletion, and reading, as well as directory operations and search functionality. It automatically handles common scenarios like creating parent directories for new files and provides detailed error messages that help the LLM understand why operations failed.
+
+Each operation is designed to be atomic and independent, with no shared state between operations. This ensures predictable behavior and makes it easy for the LLM to reason about the effects of each action.
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/ABSTRACT.md ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md ===
+# Component: fs-ops
+
+## Component Type
+standard
+
+## Status
+[IMPLEMENTED] - All file operations (write, read, delete, move, replace_text, replace_all_text, files_read)
+[NOT IMPLEMENTED] - Directory operations (dir_create, dir_delete, ls), search operations (grep, glob)
+
+## Documentation Debt
+- [ ] Integration test format is preliminary [IMPLEMENTED]
+- [ ] Error handling strategy needs refinement
+- [ ] Consider batching operations for efficiency
+
+## Dependencies
+
+[Updated via STOP protocol - initial hypothesis proved mostly correct]
+
+```yaml
+dependencies:
+  node:fs/promises:
+    functions: [writeFile, unlink, mkdir, rename, stat, readFile]
+    
+  node:path:
+    functions: [dirname]
+    # Note: removed unused - resolve, join (not yet needed)
+    
+  # Removed node:util - not used
+  # Removed node:child_process - grep not yet implemented
+```
+
+## Exports
+
+```yaml
+exports:
+  functions: [executeFileOperation]
+  types: [FileOpResult]
+  classes:
+    FileOpError:
+      extends: Error
+```
+
+### executeFileOperation
+- **Signature**: `executeFileOperation(action: CladaAction) -> Promise<FileOpResult>`
+- **Purpose**: Execute file system operations from parsed SHAM actions
+- **Throws**: Never - all errors captured in FileOpResult
+- **Test-data**: `test-data/integration/*.cases.md` [IMPLEMENTED]
+
+### FileOpResult (type)
+```typescript
+interface FileOpResult {
+  success: boolean
+  data?: any           // Operation-specific return data
+  error?: string       // Error message if failed
+}
+```
+
+### FileOpError (type)
+```typescript
+interface FileOpError extends Error {
+  code: string         // e.g., 'ENOENT', 'EACCES'
+  path?: string        // File path involved
+  operation: string    // Which operation failed
+}
+```
+
+## Internal Functions
+
+### createFile
+- **Signature**: `createFile(path: string, content: string) -> Promise<void>`
+- **Purpose**: Create new file with content, creating parent directories as needed
+
+### writeFile  
+- **Signature**: `writeFile(path: string, content: string) -> Promise<void>`
+- **Purpose**: Overwrite existing file content
+
+### replaceText
+- **Signature**: `replaceText(content: string, oldText: string, newText: string, count?: number) -> {result: string, replacements: number}`
+- **Purpose**: Pure function to replace text occurrences in string content
+- **Throws**: Error when oldText is empty string
+- **Behavior**: Replaces up to `count` occurrences (all if count undefined)
+
+### deleteFile
+- **Signature**: `deleteFile(path: string) -> Promise<void>`
+- **Purpose**: Remove file
+
+### moveFile
+- **Signature**: `moveFile(oldPath: string, newPath: string) -> Promise<void>`
+- **Purpose**: Move or rename file
+
+### readFileContent
+- **Signature**: `readFileContent(path: string) -> Promise<string>`
+- **Purpose**: Read file content as UTF-8 string
+
+### createDirectory
+- **Signature**: `createDirectory(path: string) -> Promise<void>`
+- **Purpose**: Create directory, including parent directories
+
+### deleteDirectory
+- **Signature**: `deleteDirectory(path: string) -> Promise<void>`
+- **Purpose**: Remove directory (must be empty)
+
+### listDirectory
+- **Signature**: `listDirectory(path: string) -> Promise<DirEntry[]>`
+- **Purpose**: List directory contents with metadata
+
+### searchFiles
+- **Signature**: `searchFiles(pattern: string, path: string, include?: string) -> Promise<GrepResult[]>`
+- **Purpose**: Search for pattern in files (grep-like)
+
+### globFiles
+- **Signature**: `globFiles(pattern: string, basePath: string) -> Promise<string[]>`
+- **Purpose**: Find files matching glob pattern
+
+### extractNumberedLines
+- **Signature**: `extractNumberedLines(content: string, lineSpec: string, delimiter: string) -> { result: string, lineCount: number }`
+- **Purpose**: Pure function to extract and number specific lines from content
+- **Parameters**:
+  - `content`: Full file content
+  - `lineSpec`: Line specification ("4" for single line, "23-43" for range)
+  - `delimiter`: Delimiter between line number and content
+- **Returns**: Object with numbered lines and total line count
+- **Throws**: Error for invalid line specifications
+
+### handleFileReadNumbered
+- **Signature**: `handleFileReadNumbered(action: CladaAction) -> Promise<FileOpResult>`
+- **Purpose**: Read file content with line numbers for specified line range
+- **Parameters**: 
+  - `path`: File path to read
+  - `lines`: Line range string ("23-43") or single line ("4")
+  - `delimiter`: Optional delimiter between line number and content (default: ": ")
+- **Returns**: FileOpResult with numbered content
+- **Test-data**: `test-data/integration/file_read_numbered.cases.md` [IMPLEMENTED]
+
+## Action Mapping
+
+```typescript
+const actionHandlers = {
+  // Implemented
+  'file_write': handleFileWrite,
+  'file_replace_text': handleFileReplaceText,
+  'file_replace_all_text': handleFileReplaceAllText,
+  'file_delete': handleFileDelete,
+  'file_move': handleFileMove,
+  'file_read': handleFileRead,
+  'files_read': handleFilesRead,
+  'file_read_numbered': handleFileReadNumbered,
+  
+  // Not implemented
+  'dir_create': async (action) => ({ success: false, error: 'Not implemented' }),
+  'dir_delete': async (action) => ({ success: false, error: 'Not implemented' }),
+  'ls': async (action) => ({ success: false, error: 'Action not implemented: ls' }),
+  'grep': async (action) => ({ success: false, error: 'Not implemented' }),
+  'glob': async (action) => ({ success: false, error: 'Not implemented' })
+}
+```
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/ARCH.md ===
+# fs-ops Architecture
+
+## Design Philosophy
+
+**Defensive Operations with Clear Errors**: Every operation should handle common failure cases gracefully and return descriptive errors that help the LLM understand what went wrong.
+
+## Key Design Decisions
+
+### Parent Directory Creation
+- `file_write` automatically creates parent directories.  creates parent directory if it doesn't exist
+
+### Text Replacement Strategy  
+- Use exact string matching for both replace actions
+- `file_replace_text`: Must find EXACTLY ONE occurrence (fails if 0 or 2+)
+- `file_replace_all_text`: Replaces all occurrences, validates count if provided
+- Empty old_text validation: Both actions reject empty search strings
+- Return actual number of replacements made
+- No regex support (keep it simple, predictable)
+
+### Error Handling
+- Never throw - return errors in result object
+- Include original error codes (ENOENT, EACCES)
+- Add context about what operation was attempted
+- Preserve stack traces for debugging
+
+### Path Resolution
+- All paths must be absolute (validated by parser)
+- No path traversal validation (security is out of scope for v1)
+- Symlinks followed transparently
+
+### Directory Operations
+- `dir_delete` only removes empty directories
+- No recursive deletion option (safety)
+- `ls` returns flat listing with type info
+
+### Search Operations
+- `grep` uses simple substring matching
+- Include patterns use glob syntax
+- Results include line numbers
+- Large file handling: streaming for files >10MB
+
+## Performance Considerations
+
+- File operations are synchronous from caller perspective
+- No caching of file contents
+- No watch/monitor capabilities
+- Each operation is independent
+
+## Encoding
+
+- All text files assumed UTF-8
+- Binary files not supported in v1
+- Line endings preserved as-is
+
+## Limits
+
+- Max file size: 10MB (from unified-design.yaml)
+- No limit on number of operations
+- No timeout on individual operations
+
+## Test Conventions
+
+- Test files use `/tmp/t_{test-name}/` path pattern for isolation
+- Each test creates its own subdirectory to avoid conflicts
+- Integration tests track created paths for cleanup
+
+## Future Considerations
+
+- Batch operations for efficiency
+- Binary file support
+- File watching/monitoring
+- Atomic write operations (write to temp, rename)
+- Path validation against allowlist
+
+
+# fs-ops ARCH.md - Additional Sections
+
+## File Move Behavior
+
+### Overwrite Semantics
+- `file_move` overwrites existing destination files without warning
+- Matches Unix `mv` behavior and Node.js `rename()` semantics  
+- Rationale: LLM can check first if needed, but overwrite-by-default enables single-shot operations
+- Return data includes `overwrote: true` when destination existed
+
+### Directory Creation
+- `file_move` automatically creates parent directories for destination path
+- Diverges from standard `rename()` which fails with ENOENT
+- Rationale: Reduces LLM round-trips for common "move to new location" pattern
+
+## Error Message Enhancement
+
+### Problem: Ambiguous ENOENT
+Node.js returns ENOENT for multiple distinct failures:
+- Source file doesn't exist
+- Destination directory doesn't exist  
+- Parent directory permissions (sometimes)
+
+### Solution: Pre-flight Checks
+Operations perform checks before system calls to provide specific errors:
+- `file_move`: Check source exists → "Source file not found" vs generic ENOENT
+- `file_write`: Already creates parent dirs, avoiding ambiguity
+- `file_delete`: Pass through Node errors (unambiguous)
+
+### Error Format
+When enhancing errors for LLM clarity:
+```
+{operation}: {specific_issue} '{path}' ({error_code})
+```
+
+Example: `file_move: Source file not found '/tmp/ghost.txt' (ENOENT)`
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/doc/ARCH.md ===
 

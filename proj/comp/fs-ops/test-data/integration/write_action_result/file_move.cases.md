@@ -61,8 +61,6 @@ new_path = "/tmp/t_move-file-to-new-directory/new-dir/moved.txt"
 ### 003-move-nonexistent-file
 
 ```sh sham
-#!SHAM [@three-char-SHA-256: cr2]
-#!END_SHAM_cr2
 ```
 
 ```sh sham
@@ -83,17 +81,17 @@ new_path = "/tmp/t_move-nonexistent-file/nowhere.txt"
 ### 004-move-to-existing-file
 
 ```sh sham
-#!SHAM [@three-char-SHA-256: cr4a]
+#!SHAM [@three-char-SHA-256: cr4]
 action = "file_write"
 path = "/tmp/t_move-to-existing-file/source-exists.txt"
 content = "Source file content"
-#!END_SHAM_cr4a
+#!END_SHAM_cr4
 
-#!SHAM [@three-char-SHA-256: cr4b]
+#!SHAM [@three-char-SHA-256: cr4]
 action = "file_write"
 path = "/tmp/t_move-to-existing-file/dest-exists.txt"
 content = "Destination file to be overwritten"
-#!END_SHAM_cr4b
+#!END_SHAM_cr4
 ```
 
 ```sh sham

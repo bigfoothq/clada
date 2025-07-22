@@ -31,6 +31,9 @@ path = "/tmp/t_delete-existing-file/to-delete.txt"
 ### 002-delete-nonexistent-file
 
 ```sh sham
+```
+
+```sh sham
 #!SHAM [@three-char-SHA-256: dnf]
 action = "file_delete"
 path = "/tmp/t_delete-nonexistent-file/does-not-exist.txt"

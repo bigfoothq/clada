@@ -22,7 +22,9 @@ action = "file_write"
 path = "/tmp/t_read-multiple-files/files-read-test/subdir/file3.txt"
 content = "Content of file 3 in subdirectory"
 #!END_SHAM_rm3
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: rm4]
 action = "files_read"
 paths = <<'EOT_SHAM_rm4'
@@ -61,7 +63,9 @@ action = "file_write"
 path = "/tmp/t_read-with-empty-lines/files-read-empty-lines/second.txt"
 content = "Second file"
 #!END_SHAM_el2
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: el3]
 action = "files_read"
 paths = <<'EOT_SHAM_el3'
@@ -94,7 +98,9 @@ action = "file_write"
 path = "/tmp/t_read-with-missing-file/files-read-missing/exists.txt"
 content = "This file exists"
 #!END_SHAM_mf1
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: mf2]
 action = "files_read"
 paths = <<'EOT_SHAM_mf2'
@@ -113,6 +119,9 @@ EOT_SHAM_mf2
 ```
 
 ### 004-read-empty-paths
+
+```
+```
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: ep1]
@@ -139,7 +148,9 @@ action = "file_write"
 path = "/tmp/t_read-single-file/files-read-single/only.txt"
 content = "Only file content"
 #!END_SHAM_sf1
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: sf2]
 action = "files_read"
 paths = "/tmp/t_read-single-file/files-read-single/only.txt"
@@ -176,7 +187,9 @@ Line 2
 Line 3
 EOT_SHAM_sc2
 #!END_SHAM_sc2
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: sc3]
 action = "files_read"
 paths = <<'EOT_SHAM_sc3'

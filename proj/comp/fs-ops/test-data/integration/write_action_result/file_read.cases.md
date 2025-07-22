@@ -32,6 +32,9 @@ path = "/tmp/t_read-existing-file/readable.txt"
 ### 002-read-nonexistent-file
 
 ```sh sham
+```
+
+```sh sham
 #!SHAM [@three-char-SHA-256: rnx]
 action = "file_read"
 path = "/tmp/t_read-nonexistent-file/not-there.txt"

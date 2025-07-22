@@ -305,7 +305,9 @@ async function startListener(altConfig) {
 }
 EOT_SHAM_cm1
 #!END_SHAM_cm1
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: cm2]
 action = "file_replace_text"
 path = "/tmp/t_complex-multiline-multiple-occurrences/listener.txt"
@@ -440,7 +442,9 @@ export function validateInputWithLogging(data) {
 }
 EOT_SHAM_pm1
 #!END_SHAM_pm1
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: pm2]
 action = "file_replace_text"
 path = "/tmp/t_partial-match-should-not-replace/partial.txt"
@@ -540,7 +544,9 @@ const handler = {
 };
 EOT_SHAM_cb1
 #!END_SHAM_cb1
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: cb2]
 action = "file_replace_all_text"
 path = "/tmp/t_complex-code-block-replacement/complex.txt"

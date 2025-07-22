@@ -173,6 +173,9 @@ Keep this line too
 
 ### 005-replace-nonexistent-file
 
+```
+```
+
 ```sh sham
 #!SHAM [@three-char-SHA-256: ne1]
 action = "file_replace_lines"

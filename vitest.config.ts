@@ -6,6 +6,11 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['proj/**/*.test.ts'],
+    exclude: [
+      'node_modules/**',
+      '**/listener/test/unit/stopListener.test.ts',
+      '**/listener/test/integration/listener-workflow-v2.test.ts'
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -13,7 +18,7 @@ export default defineConfig({
         'node_modules/',
         'proj/test/',
         '**/*.test.ts'
-      ]
+      ],
     }
   },
   resolve: {

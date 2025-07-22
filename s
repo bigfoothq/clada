@@ -13,31 +13,11 @@ fi
 
 file_list=$(cat <<'EOF'
 
-/Users/stuart/repos/clada/proj/comp/fs-ops/doc/ABSTRACT.md
-/Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
-/Users/stuart/repos/clada/proj/comp/fs-ops/doc/ARCH.md
-/Users/stuart/repos/clada/proj/comp/fs-ops/doc/TODO.md
-/Users/stuart/repos/clada/proj/comp/fs-ops/src/extractNumberedLines.ts
-/Users/stuart/repos/clada/proj/comp/fs-ops/src/fileSystemUtils.ts
-/Users/stuart/repos/clada/proj/comp/fs-ops/src/formatNodeError.ts
-/Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts
-/Users/stuart/repos/clada/proj/comp/fs-ops/src/replaceText.ts
-/Users/stuart/repos/clada/proj/comp/fs-ops/test/integration/integration.test.ts
-/Users/stuart/repos/clada/proj/comp/fs-ops/test/unit/replaceText.test.ts
-/Users/stuart/repos/clada/proj/comp/fs-ops/test-data/integration/file_replace_text.cases.md
-/Users/stuart/repos/clada/proj/comp/fs-ops/test-data/unit/extractNumberedLines.cases.ts
-/Users/stuart/repos/clada/proj/comp/fs-ops/test-data/unit/replaceText.cases.ts
-/Users/stuart/repos/clada/proj/comp/fs-ops/test/integration/minimal.test.ts
-/Users/stuart/repos/clada/package.json
-/Users/stuart/repos/clada/proj/comp/orch/doc/API.md
-/Users/stuart/repos/clada/proj/comp/orch/doc/ARCH.md
-/Users/stuart/repos/clada/proj/comp/orch/doc/TODO.md
-/Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/ABSTRACT.md
-/Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/API.md
-/Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/ARCH.md
-/Users/stuart/repos/clada/replacer/replacer_llm_instructions.md
-/Users/stuart/repos/clada/xd5_ref.md
-/Users/stuart/repos/clada/unified-design.yaml
+/Users/stuart/repos/clada/proj/comp/listener/test/integration/listener-workflow-v2.test.ts
+/Users/stuart/repos/clada/proj/comp/listener/test-data/integration/listener-workflow-v2.cases.md
+/Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
+/Users/stuart/repos/clada/proj/comp/sham-action-parser/src/index.ts
+
 
 EOF
 )

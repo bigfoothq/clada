@@ -33,11 +33,28 @@ export async function parseShamResponse(shamText: string): Promise<ParseResult> 
   const actions: CladaAction[] = [];
   const errors: ParseError[] = [];
 
+  // Debug logging for specific test cases
+  // const isDebugging = shamText.includes('move-to-existing-file');
+  // if (isDebugging) {
+  //   console.log('DEBUG parseShamResponse: Input text length:', shamText.length);
+  //   console.log('DEBUG parseShamResponse: Contains SHAM blocks:', shamText.includes('#!SHAM'));
+  //   console.log('DEBUG parseShamResponse: Number of #!SHAM occurrences:', (shamText.match(/#!SHAM/g) || []).length);
+  //   console.log('DEBUG parseShamResponse: Number of #!END_SHAM occurrences:', (shamText.match(/#!END_SHAM/g) || []).length);
+  // }
+
   // Parse SHAM blocks using nesl-js
   let parseResult: NeslParseResult;
   try {
    
     parseResult = parseSham(shamText);
+    
+    // if (isDebugging) {
+    //   console.log('DEBUG parseShamResponse: parseSham returned:', parseResult);
+    //   if (parseResult) {
+    //     console.log('DEBUG parseShamResponse: blocks:', parseResult.blocks?.length || 0);
+    //     console.log('DEBUG parseShamResponse: errors:', parseResult.errors?.length || 0);
+    //   }
+    // }
     
     // Handle case where parseSham returns undefined or null
     if (!parseResult) {

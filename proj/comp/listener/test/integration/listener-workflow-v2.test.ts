@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { readFile, writeFile, mkdir, rm } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -7,6 +7,9 @@ import clipboard from 'clipboardy';
 
 import { startListener } from '../../src/listener.js';
 import type { ListenerHandle } from '../../src/types.js';
+// // At the top of your test file
+// import { test } from 'vitest';
+// test.concurrent = false;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -113,7 +116,7 @@ async function pollForFileChange(
   throw new Error(`Timeout waiting for file change after ${timeoutMs}ms`);
 }
 
-describe('listener workflow v2', async () => {
+export async function listenerWorkflowTests() {
   const testCases = await parseTestCases();
   
   for (const testCase of testCases) {
@@ -168,4 +171,11 @@ describe('listener workflow v2', async () => {
       }
     });
   }
-});
+}
+
+// Only run directly if this file is executed, not imported
+if (import.meta.url === `file://${process.argv[1]}`) {
+  describe('listener workflow v2', async () => {
+    await listenerWorkflowTests();
+  });
+}

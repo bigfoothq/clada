@@ -68,17 +68,8 @@ async function handleFileMove(action: CladaAction): Promise<FileOpResult> {
   const { old_path, new_path } = action.parameters;
   
   try {
-    // Temporary debug for test 004
-    if (old_path.includes('move-to-existing-file')) {
-      console.log(`DEBUG: Attempting to move ${old_path} to ${new_path}`);
-    }
-    
     // Pre-flight check for better error messages
     const sourceExists = await fileExists(old_path);
-    
-    if (old_path.includes('move-to-existing-file')) {
-      console.log(`DEBUG: Source exists: ${sourceExists}`);
-    }
     
     if (!sourceExists) {
       return {
@@ -161,9 +152,9 @@ async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
     
     // Temporary debug for test 004
     if (path.includes('move-to-existing-file')) {
-      console.log(`DEBUG: Wrote file ${path}`);
+      // console.log(`DEBUG: Wrote file ${path}`);
       const exists = await fileExists(path);
-      console.log(`DEBUG: File exists after write: ${exists}`);
+      // console.log(`DEBUG: File exists after write: ${exists}`);
     }
     
     return {

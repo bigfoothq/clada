@@ -16,7 +16,9 @@ Line 4
 Line 5
 EOT_SHAM_rs1
 #!END_SHAM_rs1
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: rs2]
 action = "file_read_numbered"
 path = "/tmp/t_read-single-line/numbered.txt"
@@ -50,7 +52,9 @@ Sixth line
 Seventh line
 EOT_SHAM_rr1
 #!END_SHAM_rr1
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: rr2]
 action = "file_read_numbered"
 path = "/tmp/t_read-line-range/numbered.txt"
@@ -85,7 +89,9 @@ if __name__ == "__main__":
     main()
 EOT_SHAM_cd1
 #!END_SHAM_cd1
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: cd2]
 action = "file_read_numbered"
 path = "/tmp/t_read-with-custom-delimiter/numbered.txt"
@@ -117,7 +123,9 @@ cherry
 date
 EOT_SHAM_ed1
 #!END_SHAM_ed1
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: ed2]
 action = "file_read_numbered"
 path = "/tmp/t_read-with-empty-delimiter/numbered.txt"
@@ -148,7 +156,9 @@ Three
 Lines
 EOT_SHAM_or1
 #!END_SHAM_or1
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: or2]
 action = "file_read_numbered"
 path = "/tmp/t_read-out-of-range-lines/numbered.txt"
@@ -175,7 +185,9 @@ action = "file_write"
 path = "/tmp/t_read-single-line-file/numbered.txt"
 content = "Just one line"
 #!END_SHAM_sl1
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: sl2]
 action = "file_read_numbered"
 path = "/tmp/t_read-single-line-file/numbered.txt"
@@ -201,7 +213,9 @@ action = "file_write"
 path = "/tmp/t_read-empty-file/numbered.txt"
 content = ""
 #!END_SHAM_ef1
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: ef2]
 action = "file_read_numbered"
 path = "/tmp/t_read-empty-file/numbered.txt"
@@ -227,7 +241,9 @@ action = "file_write"
 path = "/tmp/t_invalid-line-format/numbered.txt"
 content = "Some content"
 #!END_SHAM_if1
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: if2]
 action = "file_read_numbered"
 path = "/tmp/t_invalid-line-format/numbered.txt"
@@ -250,7 +266,9 @@ action = "file_write"
 path = "/tmp/t_invalid-line-range/numbered.txt"
 content = "Some content"
 #!END_SHAM_ir1
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: ir2]
 action = "file_read_numbered"
 path = "/tmp/t_invalid-line-range/numbered.txt"
@@ -266,6 +284,9 @@ lines = "5-3"
 ```
 
 ### 010-read-nonexistent-file
+
+```sh sham
+```
 
 ```sh sham
 #!SHAM [@three-char-SHA-256: nf1]
@@ -293,7 +314,9 @@ Line 1
 Line 2
 EOT_SHAM_co1
 #!END_SHAM_co1
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: co2]
 action = "file_read_numbered"
 path = "/tmp/t_read-completely-out-of-range/numbered.txt"
@@ -326,7 +349,9 @@ Fourth line
 Fifth line
 EOT_SHAM_al1
 #!END_SHAM_al1
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: al2]
 action = "file_read_numbered"
 path = "/tmp/t_read-all-lines-missing-parameter/numbered.txt"
@@ -364,7 +389,9 @@ Line 11
 Line 12
 EOT_SHAM_ll1
 #!END_SHAM_ll1
+```
 
+```sh sham
 #!SHAM [@three-char-SHA-256: ll2]
 action = "file_read_numbered"
 path = "/tmp/t_read-large-line-numbers/numbered.txt"

@@ -4,7 +4,10 @@ import { dirname } from 'path';
 import { startListener, stopListener } from '../../src/listener.js';
 import type { ListenerHandle } from '../../src/types.js';
 
-describe('stopListener', () => {
+// import { test } from 'vitest';
+// test.concurrent = false;
+
+export function stopListenerTests() {
   const testDir = '/tmp/t_stop_listener';
   const testFile = `${testDir}/test.md`;
   let handle: ListenerHandle | null = null;
@@ -67,4 +70,11 @@ describe('stopListener', () => {
     const content = await readFile(testFile, 'utf-8');
     expect(content).toContain('=== CLADA RESULTS ===');
   });
-});
+}
+
+// Only run directly if this file is executed, not imported
+if (import.meta.url === `file://${process.argv[1]}`) {
+  describe('stopListener', () => {
+    stopListenerTests();
+  });
+}

@@ -118,14 +118,31 @@ describe('fs-ops integration tests', () => {
     describe(group.name, () => {
       group.tests.forEach(test => {
         it(test.name, async () => {
+          // Debug for test 004
+          if (test.name === '004-move-to-existing-file') {
+            console.log(`DEBUG: Test 004 has ${test.codeBlocks.length} code blocks`);
+            test.codeBlocks.forEach((block, i) => {
+              console.log(`DEBUG: Block ${i} (first 100 chars): ${block.substring(0, 100).replace(/\n/g, '\\n')}`);
+            });
+          }
+          
           // Determine which blocks are SHAM vs expected output
           const shamBlocks: string[] = [];
           let jsonResultBlock: string | null = null;
           let fileContentBlock: string | null = null;
           
           // Parse blocks - SHAM blocks contain "action =", JSON blocks start with {
-          test.codeBlocks.forEach(block => {
+          test.codeBlocks.forEach((block, i) => {
             const trimmed = block.trim();
+            
+            // Debug for test 004
+            if (test.name === '004-move-to-existing-file') {
+              console.log(`DEBUG: Checking block ${i}:`);
+              console.log(`  - includes 'action ='? ${trimmed.includes('action =')}`);
+              console.log(`  - includes '#!SHAM'? ${trimmed.includes('#!SHAM')}`);
+              console.log(`  - starts with '{'? ${trimmed.startsWith('{')}`);
+            }
+            
             if (trimmed.includes('action =') || trimmed.includes('#!SHAM')) {
               shamBlocks.push(block);
             } else if (trimmed.startsWith('{')) {
@@ -135,6 +152,11 @@ describe('fs-ops integration tests', () => {
               fileContentBlock = block;
             }
           });
+          
+          // Debug for test 004
+          if (test.name === '004-move-to-existing-file') {
+            console.log(`DEBUG: Found ${shamBlocks.length} SHAM blocks`);
+          }
           
           // Must have at least one SHAM block and a JSON result
           expect(shamBlocks.length).toBeGreaterThan(0);
@@ -146,7 +168,15 @@ describe('fs-ops integration tests', () => {
           let lastResult;
           let targetFilePath: string | null = null;
           
-          for (const shamBlock of shamBlocks) {
+          for (let i = 0; i < shamBlocks.length; i++) {
+            const shamBlock = shamBlocks[i];
+            
+            // Debug for test 004
+            if (test.name === '004-move-to-existing-file') {
+              console.log(`DEBUG: Processing SHAM block ${i + 1} of ${shamBlocks.length}`);
+              console.log(`DEBUG: Block content (first 100 chars): ${shamBlock.substring(0, 100).replace(/\n/g, '\\n')}`);
+            }
+            
             const parseResult = await parseShamResponse(shamBlock);
             
             if (parseResult.errors.length > 0) {
@@ -156,7 +186,19 @@ describe('fs-ops integration tests', () => {
             
             // Execute all actions in this SHAM block
             for (const action of parseResult.actions) {
+              // Debug logging for test 004
+              if (action.parameters?.path?.includes('move-to-existing-file') || 
+                  action.parameters?.old_path?.includes('move-to-existing-file')) {
+                console.log(`DEBUG: Executing action ${action.action} with params:`, action.parameters);
+              }
+              
               lastResult = await executeFileOperation(action);
+              
+              // Debug result for test 004
+              if (action.parameters?.path?.includes('move-to-existing-file') || 
+                  action.parameters?.old_path?.includes('move-to-existing-file')) {
+                console.log(`DEBUG: Action result:`, lastResult);
+              }
               
               // Track the file path for content verification
               if (action.parameters?.path) {

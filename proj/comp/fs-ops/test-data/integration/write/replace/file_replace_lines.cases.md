@@ -393,6 +393,7 @@ new_content = "New Line 2"
 Line 1
 New Line 2
 Line 3
+
 ```
 
 ### 012-empty-file

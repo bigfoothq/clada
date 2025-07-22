@@ -61,6 +61,11 @@ new_path = "/tmp/t_move-file-to-new-directory/new-dir/moved.txt"
 ### 003-move-nonexistent-file
 
 ```sh sham
+#!SHAM [@three-char-SHA-256: cr2]
+#!END_SHAM_cr2
+```
+
+```sh sham
 #!SHAM [@three-char-SHA-256: mnf]
 action = "file_move"
 old_path = "/tmp/t_move-nonexistent-file/ghost.txt"
@@ -83,9 +88,7 @@ action = "file_write"
 path = "/tmp/t_move-to-existing-file/source-exists.txt"
 content = "Source file content"
 #!END_SHAM_cr4a
-```
 
-```sh sham
 #!SHAM [@three-char-SHA-256: cr4b]
 action = "file_write"
 path = "/tmp/t_move-to-existing-file/dest-exists.txt"

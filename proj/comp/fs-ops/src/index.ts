@@ -68,8 +68,18 @@ async function handleFileMove(action: CladaAction): Promise<FileOpResult> {
   const { old_path, new_path } = action.parameters;
   
   try {
+    // Temporary debug for test 004
+    if (old_path.includes('move-to-existing-file')) {
+      console.log(`DEBUG: Attempting to move ${old_path} to ${new_path}`);
+    }
+    
     // Pre-flight check for better error messages
     const sourceExists = await fileExists(old_path);
+    
+    if (old_path.includes('move-to-existing-file')) {
+      console.log(`DEBUG: Source exists: ${sourceExists}`);
+    }
+    
     if (!sourceExists) {
       return {
         success: false,
@@ -148,6 +158,13 @@ async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
     // Write file
     await writeFile(path, content, 'utf8');
     const bytesWritten = Buffer.byteLength(content, 'utf8');
+    
+    // Temporary debug for test 004
+    if (path.includes('move-to-existing-file')) {
+      console.log(`DEBUG: Wrote file ${path}`);
+      const exists = await fileExists(path);
+      console.log(`DEBUG: File exists after write: ${exists}`);
+    }
     
     return {
       success: true,
@@ -253,10 +270,26 @@ async function handleFileReplaceLines(action: CladaAction): Promise<FileOpResult
     // Read existing file content
     const content = await readFile(path, 'utf8');
     
+    // Handle empty file edge case
+    if (content === '') {
+      return {
+        success: false,
+        error: `file_replace_lines: Line range ${lines} is out of bounds (file has 0 lines)`
+      };
+    }
+    
     // Split into lines, preserving empty lines
+    // Check if content ends with a newline
+    const endsWithNewline = content.match(/\r?\n$/);
     const fileLines = content.split(/\r?\n|\r/);
-    // Handle edge case: empty file returns [''] which is 1 line, but should be 0
-    const totalLines = content === '' ? 0 : fileLines.length;
+    
+    // If the file ends with a newline, split gives us an extra empty element
+    // Remove it for line counting, but remember it existed
+    if (endsWithNewline && fileLines[fileLines.length - 1] === '') {
+      fileLines.pop();
+    }
+    
+    const totalLines = fileLines.length;
     
     // Parse line specification
     let startLine: number;
@@ -314,13 +347,7 @@ async function handleFileReplaceLines(action: CladaAction): Promise<FileOpResult
       endLine = startLine;
     }
     
-    // Check bounds - handle empty file
-    if (totalLines === 0) {
-      return {
-        success: false,
-        error: `file_replace_lines: Line range ${lines} is out of bounds (file has 0 lines)`
-      };
-    }
+ 
     
     // Check if lines are out of range
     if (startLine > totalLines || endLine > totalLines) {
@@ -331,7 +358,8 @@ async function handleFileReplaceLines(action: CladaAction): Promise<FileOpResult
     }
     
     // Split new content into lines
-    const newLines = new_content === '' ? [] : new_content.split(/\r?\n|\r/);
+    // Empty content should produce one empty line, not zero lines
+    const newLines = new_content.split(/\r?\n|\r/);
     
     // Reconstruct the file with replaced lines
     const resultLines: string[] = [];
@@ -350,7 +378,12 @@ async function handleFileReplaceLines(action: CladaAction): Promise<FileOpResult
     }
     
     // Join back with newlines
-    const result = resultLines.join('\n');
+    let result = resultLines.join('\n');
+    
+    // If the original file ended with a newline, preserve it
+    if (endsWithNewline) {
+      result += '\n';
+    }
     
     // Write the file back
     await writeFile(path, result, 'utf8');

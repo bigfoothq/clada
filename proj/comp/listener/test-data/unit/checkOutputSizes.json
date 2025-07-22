@@ -229,7 +229,7 @@
       ]],
       "expected": {
         "valid": true,
-        "totalSize": 246,
+        "totalSize": 335,
         "errors": []
       }
     }

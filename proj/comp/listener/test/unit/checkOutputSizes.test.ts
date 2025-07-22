@@ -9,8 +9,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // Helper to expand @REPEAT patterns in test data
 function expandRepeats(obj: any): any {
   if (typeof obj === 'string' && obj.startsWith('@REPEAT:')) {
-    const [, char, count] = obj.match(/@REPEAT:(.):(\d+)/) || [];
-    return char.repeat(parseInt(count));
+    const match = obj.match(/@REPEAT:(.):(\d+)/);
+    if (match) {
+      const [fullMatch, char, count] = match;
+      const repeated = char.repeat(parseInt(count));
+      // Replace just the @REPEAT pattern, keeping any trailing characters
+      return obj.replace(fullMatch, repeated);
+    }
   }
   if (Array.isArray(obj)) {
     return obj.map(expandRepeats);

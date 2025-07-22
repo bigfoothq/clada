@@ -1,0 +1,291 @@
+{
+  "cases": [
+    {
+      "name": "empty results",
+      "input": [
+        {
+          "actions": [],
+          "errors": [],
+          "summary": {"totalBlocks": 0, "successCount": 0, "errorCount": 0}
+        },
+        [],
+        {
+          "file_read": {"output_display": "always", "type": "read", "parameters": {}},
+          "file_write": {"output_display": "never", "type": "write", "parameters": {}},
+          "exec": {"output_display": "conditional", "type": "dynamic", "parameters": {}}
+        }
+      ],
+      "expected": "\n=== CLADA RESULTS ===\n=== END ===\n\n=== OUTPUTS ===\n=== END ==="
+    },
+    {
+      "name": "file_read with always display",
+      "input": [
+        {
+          "actions": [
+            {
+              "action": "file_read",
+              "parameters": {"path": "/tmp/test.txt"},
+              "metadata": {"blockId": "rd1", "startLine": 1, "endLine": 3}
+            }
+          ],
+          "errors": [],
+          "summary": {"totalBlocks": 1, "successCount": 1, "errorCount": 0}
+        },
+        [
+          {
+            "action": {
+              "action": "file_read",
+              "parameters": {"path": "/tmp/test.txt"},
+              "metadata": {"blockId": "rd1", "startLine": 1, "endLine": 3}
+            },
+            "result": {
+              "success": true,
+              "content": "Hello, world!\nThis is a test file.\n"
+            }
+          }
+        ],
+        {
+          "file_read": {"output_display": "always", "type": "read", "parameters": {}}
+        }
+      ],
+      "expected": "\n=== CLADA RESULTS ===\nrd1 ✅ file_read /tmp/test.txt\n=== END ===\n\n=== OUTPUTS ===\n\n[rd1] file_read /tmp/test.txt:\nHello, world!\nThis is a test file.\n\n=== END ==="
+    },
+    {
+      "name": "file_write with never display",
+      "input": [
+        {
+          "actions": [
+            {
+              "action": "file_write",
+              "parameters": {"path": "/tmp/out.txt", "content": "data"},
+              "metadata": {"blockId": "wr1", "startLine": 1, "endLine": 5}
+            }
+          ],
+          "errors": [],
+          "summary": {"totalBlocks": 1, "successCount": 1, "errorCount": 0}
+        },
+        [
+          {
+            "action": {
+              "action": "file_write",
+              "parameters": {"path": "/tmp/out.txt", "content": "data"},
+              "metadata": {"blockId": "wr1", "startLine": 1, "endLine": 5}
+            },
+            "result": {"success": true}
+          }
+        ],
+        {
+          "file_write": {"output_display": "never", "type": "write", "parameters": {}}
+        }
+      ],
+      "expected": "\n=== CLADA RESULTS ===\nwr1 ✅ file_write /tmp/out.txt\n=== END ===\n\n=== OUTPUTS ===\n=== END ==="
+    },
+    {
+      "name": "exec with conditional display - return_output true",
+      "input": [
+        {
+          "actions": [
+            {
+              "action": "exec",
+              "parameters": {"lang": "bash", "code": "echo 'Hello'\necho 'Error' >&2", "return_output": true},
+              "metadata": {"blockId": "ex1", "startLine": 1, "endLine": 3}
+            }
+          ],
+          "errors": [],
+          "summary": {"totalBlocks": 1, "successCount": 1, "errorCount": 0}
+        },
+        [
+          {
+            "action": {
+              "action": "exec",
+              "parameters": {"lang": "bash", "code": "echo 'Hello'\necho 'Error' >&2", "return_output": true},
+              "metadata": {"blockId": "ex1", "startLine": 1, "endLine": 3}
+            },
+            "result": {
+              "success": true,
+              "stdout": "Hello\n",
+              "stderr": "Error\n",
+              "exit_code": 0
+            }
+          }
+        ],
+        {
+          "exec": {"output_display": "conditional", "type": "dynamic", "parameters": {}}
+        }
+      ],
+      "expected": "\n=== CLADA RESULTS ===\nex1 ✅ exec bash\n=== END ===\n\n=== OUTPUTS ===\n\n[ex1] exec bash:\nstdout:\nHello\n\nstderr:\nError\n\n=== END ==="
+    },
+    {
+      "name": "exec with conditional display - return_output false",
+      "input": [
+        {
+          "actions": [
+            {
+              "action": "exec",
+              "parameters": {"lang": "python", "code": "print('test')", "return_output": false},
+              "metadata": {"blockId": "ex2", "startLine": 1, "endLine": 3}
+            }
+          ],
+          "errors": [],
+          "summary": {"totalBlocks": 1, "successCount": 1, "errorCount": 0}
+        },
+        [
+          {
+            "action": {
+              "action": "exec",
+              "parameters": {"lang": "python", "code": "print('test')", "return_output": false},
+              "metadata": {"blockId": "ex2", "startLine": 1, "endLine": 3}
+            },
+            "result": {
+              "success": true,
+              "stdout": "test\n",
+              "stderr": "",
+              "exit_code": 0
+            }
+          }
+        ],
+        {
+          "exec": {"output_display": "conditional", "type": "dynamic", "parameters": {}}
+        }
+      ],
+      "expected": "\n=== CLADA RESULTS ===\nex2 ✅ exec python\n=== END ===\n\n=== OUTPUTS ===\n=== END ==="
+    },
+    {
+      "name": "multiple actions mixed display",
+      "input": [
+        {
+          "actions": [
+            {
+              "action": "file_read",
+              "parameters": {"path": "/tmp/a.txt"},
+              "metadata": {"blockId": "aaa", "startLine": 1, "endLine": 3}
+            },
+            {
+              "action": "file_write",
+              "parameters": {"path": "/tmp/b.txt", "content": "hidden"},
+              "metadata": {"blockId": "bbb", "startLine": 4, "endLine": 8}
+            },
+            {
+              "action": "exec",
+              "parameters": {"lang": "javascript", "code": "console.log(42)"},
+              "metadata": {"blockId": "ccc", "startLine": 9, "endLine": 11}
+            }
+          ],
+          "errors": [],
+          "summary": {"totalBlocks": 3, "successCount": 3, "errorCount": 0}
+        },
+        [
+          {
+            "action": {
+              "action": "file_read",
+              "parameters": {"path": "/tmp/a.txt"},
+              "metadata": {"blockId": "aaa", "startLine": 1, "endLine": 3}
+            },
+            "result": {"success": true, "content": "Content A"}
+          },
+          {
+            "action": {
+              "action": "file_write",
+              "parameters": {"path": "/tmp/b.txt", "content": "hidden"},
+              "metadata": {"blockId": "bbb", "startLine": 4, "endLine": 8}
+            },
+            "result": {"success": true}
+          },
+          {
+            "action": {
+              "action": "exec",
+              "parameters": {"lang": "javascript", "code": "console.log(42)"},
+              "metadata": {"blockId": "ccc", "startLine": 9, "endLine": 11}
+            },
+            "result": {"success": true, "stdout": "42\n", "stderr": "", "exit_code": 0}
+          }
+        ],
+        {
+          "file_read": {"output_display": "always", "type": "read", "parameters": {}},
+          "file_write": {"output_display": "never", "type": "write", "parameters": {}},
+          "exec": {"output_display": "conditional", "type": "dynamic", "parameters": {}}
+        }
+      ],
+      "expected": "\n=== CLADA RESULTS ===\naaa ✅ file_read /tmp/a.txt\nbbb ✅ file_write /tmp/b.txt\nccc ✅ exec javascript\n=== END ===\n\n=== OUTPUTS ===\n\n[aaa] file_read /tmp/a.txt:\nContent A\n\n[ccc] exec javascript:\nstdout:\n42\n\n=== END ==="
+    },
+    {
+      "name": "failed actions not shown in outputs",
+      "input": [
+        {
+          "actions": [
+            {
+              "action": "file_read",
+              "parameters": {"path": "/tmp/exists.txt"},
+              "metadata": {"blockId": "ok1", "startLine": 1, "endLine": 3}
+            },
+            {
+              "action": "file_read",
+              "parameters": {"path": "/tmp/missing.txt"},
+              "metadata": {"blockId": "err", "startLine": 4, "endLine": 6}
+            }
+          ],
+          "errors": [],
+          "summary": {"totalBlocks": 2, "successCount": 1, "errorCount": 1}
+        },
+        [
+          {
+            "action": {
+              "action": "file_read",
+              "parameters": {"path": "/tmp/exists.txt"},
+              "metadata": {"blockId": "ok1", "startLine": 1, "endLine": 3}
+            },
+            "result": {"success": true, "content": "Found content"}
+          },
+          {
+            "action": {
+              "action": "file_read",
+              "parameters": {"path": "/tmp/missing.txt"},
+              "metadata": {"blockId": "err", "startLine": 4, "endLine": 6}
+            },
+            "result": {"success": false, "error": "File not found"}
+          }
+        ],
+        {
+          "file_read": {"output_display": "always", "type": "read", "parameters": {}}
+        }
+      ],
+      "expected": "\n=== CLADA RESULTS ===\nok1 ✅ file_read /tmp/exists.txt\nerr ❌ file_read /tmp/missing.txt - File not found\n=== END ===\n\n=== OUTPUTS ===\n\n[ok1] file_read /tmp/exists.txt:\nFound content\n\n=== END ==="
+    },
+    {
+      "name": "ls with data field",
+      "input": [
+        {
+          "actions": [
+            {
+              "action": "ls",
+              "parameters": {"path": "/tmp"},
+              "metadata": {"blockId": "ls1", "startLine": 1, "endLine": 3}
+            }
+          ],
+          "errors": [],
+          "summary": {"totalBlocks": 1, "successCount": 1, "errorCount": 0}
+        },
+        [
+          {
+            "action": {
+              "action": "ls",
+              "parameters": {"path": "/tmp"},
+              "metadata": {"blockId": "ls1", "startLine": 1, "endLine": 3}
+            },
+            "result": {
+              "success": true,
+              "data": [
+                {"name": "file1.txt", "type": "file", "size": 1024, "modified": "2024-01-01T00:00:00Z"},
+                {"name": "dir1", "type": "directory", "size": 4096, "modified": "2024-01-01T00:00:00Z"}
+              ]
+            }
+          }
+        ],
+        {
+          "ls": {"output_display": "always", "type": "read", "parameters": {}}
+        }
+      ],
+      "expected": "\n=== CLADA RESULTS ===\nls1 ✅ ls /tmp\n=== END ===\n\n=== OUTPUTS ===\n\n[ls1] ls /tmp:\n[\n  {\n    \"name\": \"file1.txt\",\n    \"type\": \"file\",\n    \"size\": 1024,\n    \"modified\": \"2024-01-01T00:00:00Z\"\n  },\n  {\n    \"name\": \"dir1\",\n    \"type\": \"directory\",\n    \"size\": 4096,\n    \"modified\": \"2024-01-01T00:00:00Z\"\n  }\n]\n\n=== END ==="
+    }
+  ]
+}

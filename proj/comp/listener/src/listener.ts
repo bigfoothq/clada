@@ -1,42 +1,43 @@
 import { watchFile, unwatchFile, Stats } from 'fs';
 import { readFile, writeFile, access, constants } from 'fs/promises';
 import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
-import { load as loadYaml } from 'js-yaml';
 import { write as writeToClipboard } from 'clipboardy';
 
-import type { ListenerConfig, ListenerHandle, ListenerState, ActionDefinition } from './types.js';
+import type { ListenerConfig, ListenerHandle, ListenerState } from './types.js';
 import { ListenerError } from './errors.js';
-import { parseShamResponse } from '../../sham-action-parser/src/index.js';
-import { execute } from '../../orch/src/index.js';
+import { Clada } from '../../orch/src/index.js';
 import { formatSummary, formatFullOutput } from './formatters.js';
-import { computeContentHash, checkOutputSizes } from './utils.js';
+import { computeContentHash } from './utils.js';
 
 // Module-level state for tracking active listeners
 const activeListeners = new Map<string, ListenerHandle>();
-
-// Load action schema from unified-design.yaml
-async function loadActionSchema(): Promise<Map<string, ActionDefinition>> {
-  const __dirname = dirname(fileURLToPath(import.meta.url));
-  const schemaPath = join(__dirname, '../../../../unified-design.yaml');
+// Strip prepended summary section if present
+function stripSummarySection(content: string): string {
+  const startMarker = '=== CLADA RESULTS ===';
+  const endMarker = '=== END ===';
   
-  // Add timeout to schema loading
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error('Schema loading timeout after 5s')), 5000);
-  });
+  // Check if content starts with a CLADA results section
+  const startIndex = content.indexOf(startMarker);
+  if (startIndex === -1 || startIndex > 100) {
+    // No CLADA section at the beginning of file
+    return content;
+  }
   
-  const loadPromise = (async () => {
-    const content = await readFile(schemaPath, 'utf-8');
-    const parsed = loadYaml(content) as any;
-    
-    const schema = new Map<string, ActionDefinition>();
-    for (const [name, def] of Object.entries(parsed.tools)) {
-      schema.set(name, def as ActionDefinition);
-    }
-    return schema;
-  })();
+  // Find the corresponding END marker
+  const endIndex = content.indexOf(endMarker, startIndex);
+  if (endIndex === -1) {
+    return content; // Malformed section, keep content as-is
+  }
   
-  return Promise.race([loadPromise, timeoutPromise]);
+  // Find the newline after the end marker
+  const afterEndIndex = content.indexOf('\n', endIndex + endMarker.length);
+  if (afterEndIndex === -1) {
+    return ''; // File ends with summary
+  }
+  
+  // Skip one more newline if present (blank line after summary)
+  const contentStart = content[afterEndIndex + 1] === '\n' ? afterEndIndex + 2 : afterEndIndex + 1;
+  return content.substring(contentStart);
 }
 
 // Debounce utility
@@ -87,56 +88,47 @@ async function processFileChange(filePath: string, state: ListenerState): Promis
     state.isProcessing = true;
     
     // Read file
-    const content = await readFile(filePath, 'utf-8');
+    const fullContent = await readFile(filePath, 'utf-8');
     
-    // Parse SHAM blocks
-    const parseResult = await parseShamResponse(content);
+    // Strip summary section for hashing
+    const contentForHash = stripSummarySection(fullContent);
     
-    // Compute hash of entire parse result (actions + errors)
-    const currentHash = computeContentHash(parseResult);
+    // Compute hash of content (excluding summary)
+    const currentHash = computeContentHash(contentForHash);
     
     // Skip if unchanged
     if (currentHash === state.lastExecutedHash) {
       return;
     }
     
-    // Execute via orchestrator (only valid actions)
-    const execResults = await execute(parseResult.actions);
-    
-    // Check output sizes
-    const sizeCheckResult = checkOutputSizes(execResults);
-    if (!sizeCheckResult.valid) {
-      // Add size errors to results
-      execResults.push(...sizeCheckResult.errors);
-    }
+    // Execute via orchestrator with full file content
+    const clada = new Clada({ gitCommit: false });
+    const orchResult = await clada.execute(fullContent);
     
     // Format outputs
     const timestamp = new Date();
-    const summary = formatSummary(parseResult, execResults, timestamp);
-    const fullOutput = sizeCheckResult.valid ? 
-      formatFullOutput(parseResult, execResults, state.actionSchema) : 
-      summary + '\n\n[Full output too large for clipboard]';
+    const summary = formatSummary(orchResult, timestamp);
+    const fullOutput = formatFullOutput(orchResult);
     
-    // Write output file
-    await writeFile(state.outputPath, fullOutput);
-    
-    // Copy to clipboard (full output or just summary)
-    const clipboardContent = sizeCheckResult.valid ? fullOutput : summary;
+    // Copy to clipboard
     let clipboardSuccess = false;
     try {
-      await writeToClipboard(clipboardContent);
+      await writeToClipboard(fullOutput);
       clipboardSuccess = true;
     } catch (error) {
       console.error('listener: Clipboard write failed:', error);
     }
     
-    // Prepend to input file with clipboard status
+    // Format clipboard status
     const clipboardStatus = formatClipboardStatus(clipboardSuccess, timestamp);
-    const prepend = `${clipboardStatus}\n${summary}`;
     
-    // Read current content and prepend
-    const originalContent = await readFile(filePath, 'utf-8');
-    const updatedContent = prepend + '\n' + originalContent;
+    // Write output file with clipboard status
+    const outputContent = clipboardStatus + '\n' + fullOutput;
+    await writeFile(state.outputPath, outputContent);
+    
+    // Prepend to input file with clipboard status
+    const prepend = clipboardStatus + '\n' + summary;
+    const updatedContent = prepend + '\n' + fullContent;
     await writeFile(filePath, updatedContent);
     
     // Update state
@@ -174,16 +166,12 @@ export async function startListener(config: ListenerConfig): Promise<ListenerHan
     throw new ListenerError('ALREADY_WATCHING', config.filePath);
   }
   
-  // Load action schema once at startup
-  const actionSchema = await loadActionSchema();
-  
   // Initialize state
   const state: ListenerState = {
     lastExecutedHash: '',
     isProcessing: false,
     outputPath: join(dirname(config.filePath), config.outputFilename || '.clada-output-latest.txt'),
-    lastExecutionTime: 0,
-    actionSchema: actionSchema
+    lastExecutionTime: 0
   };
   
   // Set up debounced handler
@@ -198,6 +186,9 @@ export async function startListener(config: ListenerConfig): Promise<ListenerHan
       debouncedProcess();
     }
   });
+  
+  // Process initial content
+  debouncedProcess();
   
   // Create handle
   const handle: ListenerHandle = {

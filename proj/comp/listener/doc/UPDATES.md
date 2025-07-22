@@ -10,15 +10,14 @@
 - Rationale: Truncation confuses LLMs. Better to error clearly.
 
 ### Hash Computation
-- Hash the entire parse result (actions + errors) as JSON
-- Parse errors create new hashes → re-execution on fix
-- This is intentional: LLM gets feedback about what went wrong
+- Hash the file content after stripping prepended summary section
+- Look for "=== END ===" to identify summary boundary
+- Parse errors won't trigger re-execution (content unchanged)
 
 ### Output Display Rules
-- Listener loads unified-design.yaml at startup
-- Checks each action's output_display rule (always/never/conditional)
-- For conditional: Check action.parameters.return_output (default true)
-- Orchestrator returns everything; listener curates for LLM
+- Orchestrator returns formatted results
+- Listener passes through orchestrator's summary and output sections
+- No need to load unified-design.yaml (orchestrator handles display rules)
 
 ### Error State Management
 - Wrap all processing in try/finally to ensure isProcessing resets
@@ -30,9 +29,9 @@
 - Check: `if (Date.now() - state.lastExecutionTime < 2000) return;`
 
 ### Component Dependencies
-- Listener directly loads unified-design.yaml (circular deps are fine)
-- No need for separate action-registry component
-- Both sham-action-parser and listener load schema independently
+- Listener only depends on orchestrator for execution
+- No direct schema or parser dependencies
+- Clean separation of concerns
 
 ### Clipboard Behavior
 - Copy full output if under MAX_TOTAL_OUTPUT

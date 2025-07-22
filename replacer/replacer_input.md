@@ -1,358 +1,147 @@
-=== PROCESSED: 2025-07-21 21:09:46 ===
-SUCCESS Block 1: Updated /Users/stuart/repos/clada/proj/comp/orch/src/index.ts
-SUCCESS Block 2: Updated /Users/stuart/repos/clada/proj/comp/orch/src/index.ts
-SUCCESS Block 3: Updated /Users/stuart/repos/clada/proj/comp/orch/src/index.ts
-SUCCESS Block 4: Updated /Users/stuart/repos/clada/proj/comp/orch/src/index.ts
-SUCCESS Block 5: Updated /Users/stuart/repos/clada/proj/comp/orch/src/index.ts
-SUCCESS Block 6: Updated /Users/stuart/repos/clada/proj/comp/orch/src/index.ts
-SUCCESS Block 7: Updated /Users/stuart/repos/clada/proj/comp/orch/src/index.ts
-SUCCESS Block 8: Updated /Users/stuart/repos/clada/proj/comp/orch/src/index.ts
-SUCCESS Block 9: Updated /Users/stuart/repos/clada/proj/comp/orch/src/index.ts
+=== PROCESSED: 2025-07-21 21:45:58 ===
+🚨🚨🚨 ERROR Block 1: 2 matches found in /Users/stuart/repos/clada/proj/comp/listener/src/listener.ts - ABORTING 🚨🚨🚨
+SUCCESS Block 2: Updated /Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
+SUCCESS Block 3: Updated /Users/stuart/repos/clada/proj/comp/listener/test/unit/stripSummarySection.test.ts
 ===
 
-The issue is that `orch/src/index.ts` exports a `Clada` class with an `execute` method, not a direct `execute` function. The listener is trying to import `{ execute }` but that doesn't exist.
+Looking at the test failures, I see several issues:
 
-Let me check what the orch component is supposed to export according to its API.md:
+1. **Duplicate `generateId` function** in `listener.ts` - causing compilation error
+2. **Empty test files** that were marked obsolete but still exist
+3. **Logic error** in `stripSummarySection` - it's finding the first `=== END ===` when it should only strip if it's part of a CLADA results section
 
-Looking at the orch component's structure, I need to create the missing `execute` function that the listener expects. The orch component has a `Clada` class but needs a simpler interface for the listener.
+Let me fix these:
 
 <<<EXPLANATION>>>
-Add the execute function export that listener expects, wrapping the Clada class
+Remove duplicate generateId function definition in listener.ts (lines 61-64)
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/orch/src/index.ts
+/Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
 <<<SEARCH>>>
-export interface ExecutionResult {
-  success: boolean;
-  totalBlocks: number;
-  executedActions: number;
-  results: ActionResult[];
-  parseErrors: ParseError[];
-  fatalError?: string;
+// Generate unique ID for listener instance
+function generateId(): string {
+  return `listener-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
-
-export interface ActionResult {
-  seq: number;
-  blockId: string;
-  action: string;
-  params: Record<string, any>;
-  success: boolean;
-  error?: string;
-  data?: any;
-}
-
-export interface CladaOptions {
-  repoPath?: string;
-  gitCommit?: boolean;
-}
-
-export class Clada {
 <<<REPLACE>>>
-export interface ExecutionResult {
-  action: CladaAction;
-  result: {
-    success: boolean;
-    content?: string;
-    stdout?: string;
-    stderr?: string;
-    exit_code?: number;
-    data?: any;
-    error?: string;
-  };
-}
+ 
+<<<END>>>
 
-// Keep old interfaces for Clada class compatibility
-interface CladaExecutionResult {
-  success: boolean;
-  totalBlocks: number;
-  executedActions: number;
-  results: ActionResult[];
-  parseErrors: ParseError[];
-  fatalError?: string;
-}
-
-export interface ActionResult {
-  seq: number;
-  blockId: string;
-  action: string;
-  params: Record<string, any>;
-  success: boolean;
-  error?: string;
-  data?: any;
-}
-
-export interface CladaOptions {
-  repoPath?: string;
-  gitCommit?: boolean;
-}
-
-/**
- * Execute actions for listener component
- * Returns array of ExecutionResult matching listener's expected format
- */
-export async function execute(actions: CladaAction[]): Promise<ExecutionResult[]> {
-  const clada = new Clada({ gitCommit: false });
-  const results: ExecutionResult[] = [];
+<<<EXPLANATION>>>
+Fix stripSummarySection to only strip CLADA results sections, not any occurrence of === END ===
+<<<FILE>>>
+/Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
+<<<SEARCH>>>
+// Strip prepended summary section if present
+function stripSummarySection(content: string): string {
+  const endMarker = '=== END ===';
+  const endIndex = content.indexOf(endMarker);
   
-  // Initialize executors
-  await clada.initializeExecutors();
-  
-  for (const action of actions) {
-    const actionResult = await clada.executeAction(action, 0);
-    
-    // Transform to listener's expected format
-    const result: ExecutionResult = {
-      action,
-      result: {
-        success: actionResult.success,
-        ...(actionResult.error && { error: actionResult.error }),
-        ...(actionResult.data && { 
-          // Map fs-ops data to listener format
-          content: actionResult.data.content,
-          data: actionResult.data 
-        })
-      }
-    };
-    
-    results.push(result);
+  if (endIndex === -1) {
+    return content; // No summary section
   }
   
-  return results;
+  // Find the newline after the end marker
+  const afterEndIndex = content.indexOf('\n', endIndex + endMarker.length);
+  if (afterEndIndex === -1) {
+    return ''; // File ends with summary
+  }
+  
+  // Skip one more newline if present (blank line after summary)
+  const startIndex = content[afterEndIndex + 1] === '\n' ? afterEndIndex + 2 : afterEndIndex + 1;
+  return content.substring(startIndex);
 }
-
-export class Clada {
+<<<REPLACE>>>
+// Strip prepended summary section if present
+function stripSummarySection(content: string): string {
+  const startMarker = '=== CLADA RESULTS ===';
+  const endMarker = '=== END ===';
+  
+  // Check if content starts with a CLADA results section
+  const startIndex = content.indexOf(startMarker);
+  if (startIndex === -1 || startIndex > 100) {
+    // No CLADA section at the beginning of file
+    return content;
+  }
+  
+  // Find the corresponding END marker
+  const endIndex = content.indexOf(endMarker, startIndex);
+  if (endIndex === -1) {
+    return content; // Malformed section, keep content as-is
+  }
+  
+  // Find the newline after the end marker
+  const afterEndIndex = content.indexOf('\n', endIndex + endMarker.length);
+  if (afterEndIndex === -1) {
+    return ''; // File ends with summary
+  }
+  
+  // Skip one more newline if present (blank line after summary)
+  const contentStart = content[afterEndIndex + 1] === '\n' ? afterEndIndex + 2 : afterEndIndex + 1;
+  return content.substring(contentStart);
+}
 <<<END>>>
 
 <<<EXPLANATION>>>
-Make initializeExecutors and executeAction public so the execute function can use them
+Fix the stripSummarySection test helper to match the actual implementation
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/orch/src/index.ts
+/Users/stuart/repos/clada/proj/comp/listener/test/unit/stripSummarySection.test.ts
 <<<SEARCH>>>
-  /**
-   * Initialize action executors with dynamic imports
-   * Loads routing from unified-design.yaml
-   */
-  private async initializeExecutors(): Promise<void> {
+  // Create a simple version for testing
+  return (content: string): string => {
+    const endMarker = '=== END ===';
+    const endIndex = content.indexOf(endMarker);
+    
+    if (endIndex === -1) {
+      return content; // No summary section
+    }
+    
+    // Find the newline after the end marker
+    const afterEndIndex = content.indexOf('\n', endIndex + endMarker.length);
+    if (afterEndIndex === -1) {
+      return ''; // File ends with summary
+    }
+    
+    // Skip one more newline if present (blank line after summary)
+    const startIndex = content[afterEndIndex + 1] === '\n' ? afterEndIndex + 2 : afterEndIndex + 1;
+    return content.substring(startIndex);
+  };
 <<<REPLACE>>>
-  /**
-   * Initialize action executors with dynamic imports
-   * Loads routing from unified-design.yaml
-   */
-  public async initializeExecutors(): Promise<void> {
+  // Create a simple version for testing
+  return (content: string): string => {
+    const startMarker = '=== CLADA RESULTS ===';
+    const endMarker = '=== END ===';
+    
+    // Check if content starts with a CLADA results section
+    const startIndex = content.indexOf(startMarker);
+    if (startIndex === -1 || startIndex > 100) {
+      // No CLADA section at the beginning of file
+      return content;
+    }
+    
+    // Find the corresponding END marker
+    const endIndex = content.indexOf(endMarker, startIndex);
+    if (endIndex === -1) {
+      return content; // Malformed section, keep content as-is
+    }
+    
+    // Find the newline after the end marker
+    const afterEndIndex = content.indexOf('\n', endIndex + endMarker.length);
+    if (afterEndIndex === -1) {
+      return ''; // File ends with summary
+    }
+    
+    // Skip one more newline if present (blank line after summary)
+    const contentStart = content[afterEndIndex + 1] === '\n' ? afterEndIndex + 2 : afterEndIndex + 1;
+    return content.substring(contentStart);
+  };
 <<<END>>>
 
-<<<EXPLANATION>>>
-Make executeAction public
-<<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/orch/src/index.ts
-<<<SEARCH>>>
-  /**
-   * Execute a single action and format the result
-   * Never throws - all errors returned in ActionResult
-   */
-  private async executeAction(action: CladaAction, seq: number): Promise<ActionResult> {
-<<<REPLACE>>>
-  /**
-   * Execute a single action and format the result
-   * Never throws - all errors returned in ActionResult
-   */
-  public async executeAction(action: CladaAction, seq: number): Promise<ActionResult> {
-<<<END>>>
+To delete the obsolete test files, run these commands:
 
-<<<EXPLANATION>>>
-Update Clada.execute to use CladaExecutionResult type
-<<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/orch/src/index.ts
-<<<SEARCH>>>
-  async execute(llmOutput: string): Promise<ExecutionResult> {
-<<<REPLACE>>>
-  async execute(llmOutput: string): Promise<CladaExecutionResult> {
-<<<END>>>
+```bash
+rm /Users/stuart/repos/clada/proj/comp/listener/test/unit/checkOutputSizes.test.ts
+rm /Users/stuart/repos/clada/proj/comp/listener/test/unit/formatFullOutput.test.ts
+rm /Users/stuart/repos/clada/proj/comp/listener/test/unit/formatSummary.test.ts
+rm /Users/stuart/repos/clada/proj/comp/listener/test/unit/shouldIncludeOutput.test.ts
+```
 
-<<<EXPLANATION>>>
-Fix the return type references in Clada.execute method
-<<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/orch/src/index.ts
-<<<SEARCH>>>
-        } catch (error) {
-          return {
-            success: false,
-            totalBlocks: parseResult.summary.totalBlocks,
-            executedActions: 0,
-            results: [],
-            parseErrors: parseResult.errors,
-            fatalError: `Failed to initialize executors: ${error instanceof Error ? error.message : String(error)}`
-          };
-        }
-<<<REPLACE>>>
-        } catch (error) {
-          return {
-            success: false,
-            totalBlocks: parseResult.summary.totalBlocks,
-            executedActions: 0,
-            results: [],
-            parseErrors: parseResult.errors,
-            fatalError: `Failed to initialize executors: ${error instanceof Error ? error.message : String(error)}`
-          } as CladaExecutionResult;
-        }
-<<<END>>>
-
-<<<EXPLANATION>>>
-Fix remaining return statements
-<<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/orch/src/index.ts
-<<<SEARCH>>>
-      return {
-        success: allActionsSucceeded && noParseErrors,
-        totalBlocks: parseResult.summary.totalBlocks,
-        executedActions: results.length,
-        results,
-        parseErrors: parseResult.errors
-      };
-
-    } catch (error) {
-      // Only truly unexpected errors should reach here
-      return {
-        success: false,
-        totalBlocks: 0,
-        executedActions: 0,
-        results: [],
-        parseErrors: [],
-        fatalError: `Unexpected error in execute: ${error instanceof Error ? error.message : String(error)}`
-      };
-<<<REPLACE>>>
-      return {
-        success: allActionsSucceeded && noParseErrors,
-        totalBlocks: parseResult.summary.totalBlocks,
-        executedActions: results.length,
-        results,
-        parseErrors: parseResult.errors
-      } as CladaExecutionResult;
-
-    } catch (error) {
-      // Only truly unexpected errors should reach here
-      return {
-        success: false,
-        totalBlocks: 0,
-        executedActions: 0,
-        results: [],
-        parseErrors: [],
-        fatalError: `Unexpected error in execute: ${error instanceof Error ? error.message : String(error)}`
-      } as CladaExecutionResult;
-<<<END>>>
-
-Now I need to handle the exec executor properly. Looking at the orchestrator, it's trying to load exec module but the actual export might be different:
-
-<<<EXPLANATION>>>
-Fix the exec executor import to use executeCommand instead of executeOperation
-<<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/orch/src/index.ts
-<<<SEARCH>>>
-      // Load executor module if not already loaded
-      if (!loadedExecutors[executor]) {
-        if (executor === 'exec') {
-          // Temporary stub for exec
-          loadedExecutors[executor] = async (action) => ({
-            success: false,
-            error: 'Action not implemented: exec'
-          });
-        } else if (executorModules[executor]) {
-          const module = await executorModules[executor]();
-          loadedExecutors[executor] = module.executeFileOperation || module.executeOperation;
-        } else {
-<<<REPLACE>>>
-      // Load executor module if not already loaded
-      if (!loadedExecutors[executor]) {
-        if (executorModules[executor]) {
-          const module = await executorModules[executor]();
-          // Handle different export names
-          if (executor === 'exec') {
-            loadedExecutors[executor] = module.executeCommand;
-          } else {
-            loadedExecutors[executor] = module.executeFileOperation || module.executeOperation;
-          }
-        } else {
-<<<END>>>
-
-Now we need to fix the ExecutionResult format to properly map the exec results:
-
-<<<EXPLANATION>>>
-Update the execute function to properly map exec command results
-<<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/orch/src/index.ts
-<<<SEARCH>>>
-    // Transform to listener's expected format
-    const result: ExecutionResult = {
-      action,
-      result: {
-        success: actionResult.success,
-        ...(actionResult.error && { error: actionResult.error }),
-        ...(actionResult.data && { 
-          // Map fs-ops data to listener format
-          content: actionResult.data.content,
-          data: actionResult.data 
-        })
-      }
-    };
-<<<REPLACE>>>
-    // Transform to listener's expected format
-    const result: ExecutionResult = {
-      action,
-      result: {
-        success: actionResult.success,
-        ...(actionResult.error && { error: actionResult.error }),
-        // Map data based on action type
-        ...(action.action === 'exec' && actionResult.data && {
-          stdout: actionResult.data.stdout,
-          stderr: actionResult.data.stderr,
-          exit_code: actionResult.data.exit_code
-        }),
-        ...(action.action !== 'exec' && actionResult.data && {
-          content: actionResult.data.content,
-          data: actionResult.data
-        })
-      }
-    };
-<<<END>>>
-
-The issue is that the orchestrator is returning wrapped results but exec actions return their data differently. Let me check what the exec module actually returns by examining the enhanced action execution:
-
-<<<EXPLANATION>>>
-Fix how exec results are passed through - the executor already returns the right format
-<<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/orch/src/index.ts
-<<<SEARCH>>>
-      const result = await executor(enhancedAction);
-
-      return {
-        seq,
-        blockId: action.metadata.blockId,
-        action: action.action,
-        params: action.parameters,
-        success: result.success,
-        ...(result.error && { error: result.error }),
-        ...(result.data && { data: result.data })
-      };
-<<<REPLACE>>>
-      const result = await executor(enhancedAction);
-
-      return {
-        seq,
-        blockId: action.metadata.blockId,
-        action: action.action,
-        params: action.parameters,
-        success: result.success,
-        ...(result.error && { error: result.error }),
-        // For exec actions, spread the result properties directly
-        ...(action.action === 'exec' && {
-          data: {
-            stdout: result.stdout,
-            stderr: result.stderr,
-            exit_code: result.exit_code
-          }
-        }),
-        // For other actions, use data as-is
-        ...(action.action !== 'exec' && result.data && { data: result.data })
-      };
-<<<END>>>
-
-Now run the test again to see if it works.
+The key insight here is that `stripSummarySection` should only strip content that's actually a CLADA results section at the beginning of the file, not any arbitrary occurrence of "=== END ===" in the content. This prevents it from incorrectly stripping content that happens to mention these markers.

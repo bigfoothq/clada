@@ -134,15 +134,14 @@ export class Clada {
 
       // Load executor module if not already loaded
       if (!loadedExecutors[executor]) {
-        if (executor === 'exec') {
-          // Temporary stub for exec
-          loadedExecutors[executor] = async (action) => ({
-            success: false,
-            error: 'Action not implemented: exec'
-          });
-        } else if (executorModules[executor]) {
+        if (executorModules[executor]) {
           const module = await executorModules[executor]();
-          loadedExecutors[executor] = module.executeFileOperation || module.executeOperation;
+          // Handle different export names
+          if (executor === 'exec') {
+            loadedExecutors[executor] = module.executeCommand;
+          } else {
+            loadedExecutors[executor] = module.executeFileOperation || module.executeOperation;
+          }
         } else {
           // Skip planned but unimplemented executors silently
           if (!['context', 'git'].includes(executor)) {
@@ -218,7 +217,15 @@ export class Clada {
         params: action.parameters,
         success: result.success,
         ...(result.error && { error: result.error }),
-        ...(result.data && { data: result.data })
+        ...(result.data !== undefined && { data: result.data }),
+        // Include exec-specific fields at top level
+        ...(action.action === 'exec' && {
+          data: {
+            stdout: result.stdout,
+            stderr: result.stderr,
+            exit_code: result.exit_code
+          }
+        })
       };
 
     } catch (error) {

@@ -42,7 +42,7 @@ describe('listener workflow integration', () => {
 
     // Start listener
     handle = await startListener({ filePath: testFile });
-    await waitForProcessing(100); // Let it initialize
+    await waitForProcessing(600); // Let it initialize (must exceed 500ms debounce)
 
     // Add SHAM block
     const withSham = initialContent + `

@@ -61,7 +61,7 @@ content = "Second file"
 
 ```json
 {
-  "success": false,
+  "success": true,
   "totalBlocks": 3,
   "executedActions": 3,
   "results": [{
@@ -83,10 +83,15 @@ content = "Second file"
     "action": "exec",
     "params": {
       "code": "echo 'hello'",
-      "lang": "bash"
+      "lang": "bash",
+      "return_output": true
     },
-    "success": false,
-    "error": "Action not implemented: exec"
+    "success": true,
+    "data": {
+      "stdout": "hello\n",
+      "stderr": "",
+      "exit_code": 0
+    }
   }, {
     "seq": 3,
     "blockId": "fw2",

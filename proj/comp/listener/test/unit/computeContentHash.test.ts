@@ -12,20 +12,26 @@ describe('computeContentHash', async () => {
 
   for (const testCase of testData.cases) {
     it(testCase.name, () => {
-      const [parseResult] = testCase.input;
-      const result = computeContentHash(parseResult);
+      const [content] = testCase.input;
+      const result = computeContentHash(content);
       
       // Verify it's a valid SHA-256 hash (64 hex characters)
       expect(result).toMatch(/^[a-f0-9]{64}$/);
       
       // Verify that same input produces same hash
-      const result2 = computeContentHash(parseResult);
+      const result2 = computeContentHash(content);
       expect(result2).toBe(result);
       
-      // For empty parse result specifically, verify it's consistent
-      if (testCase.name === 'empty parse result') {
-        const emptyHash = computeContentHash({actions: [], errors: []});
-        expect(result).toBe(emptyHash);
+      // For specific expected hashes, verify exact match
+      if (testCase.expected && !testCase.expected.startsWith('verify_')) {
+        expect(result).toBe(testCase.expected);
+      }
+      
+      // For whitespace tests, verify they produce different hashes
+      if (testCase.name === 'whitespace matters') {
+        const otherContent = 'hello  world'; // two spaces
+        const otherHash = computeContentHash(otherContent);
+        expect(result).not.toBe(otherHash);
       }
     });
   }

@@ -1,53 +1,18 @@
-import type { ActionDefinition } from './types.js';
-import type { ParseResult, CladaAction, ParseError } from '../../sham-action-parser/src/types.js';
-import type { ExecutionResult } from '../../orch/src/types.js';
+import type { OrchestratorResult } from '../../orch/src/types.js';
 
-export function shouldIncludeOutput(result: ExecutionResult, actionSchema: Map<string, ActionDefinition>): boolean {
-  const actionDef = actionSchema.get(result.action.action);
-  if (!actionDef) return false;
+export function formatSummary(orchResult: OrchestratorResult, timestamp: Date): string {
+  // Extract summary section from orchestrator's output
+  const output = orchResult.formattedOutput || '';
+  const startIndex = output.indexOf('=== CLADA RESULTS ===');
+  const endIndex = output.indexOf('=== END ===');
   
-  if (actionDef.output_display === 'always') return true;
-  if (actionDef.output_display === 'never') return false;
-  if (actionDef.output_display === 'conditional') {
-    return result.action.parameters.return_output !== false;
-  }
-  return false;
-}
-
-export function formatSummary(parseResult: ParseResult, execResults: ExecutionResult[], timestamp: Date): string {
-  const lines = ['', '=== CLADA RESULTS ==='];
-  
-  // Create a unified list of all results with line numbers for sorting
-  const allResults: Array<{line: number, text: string}> = [];
-  
-  // Add execution results
-  for (const result of execResults) {
-    const line = formatSummaryLine(result);
-    allResults.push({
-      line: result.action.metadata.startLine,
-      text: line
-    });
+  if (startIndex === -1 || endIndex === -1) {
+    return '\n=== CLADA RESULTS ===\n=== END ===\n';
   }
   
-  // Add parse errors
-  for (const error of parseResult.errors) {
-    const line = formatErrorLine(error);
-    allResults.push({
-      line: error.blockStartLine || 0,
-      text: line
-    });
-  }
-  
-  // Sort by line number
-  allResults.sort((a, b) => a.line - b.line);
-  
-  // Add sorted results to output
-  for (const result of allResults) {
-    lines.push(result.text);
-  }
-  
-  lines.push('=== END ===', '');
-  return lines.join('\n');
+  // Extract summary including the markers
+  const summary = output.substring(startIndex - 1, endIndex + '=== END ==='.length + 1);
+  return summary;
 }
 
 function formatSummaryLine(result: ExecutionResult): string {
@@ -89,6 +54,7 @@ function getErrorSummary(error?: string): string {
   
   // Extract key error info
   if (error.includes('File not found')) return 'File not found';
+  if (error.includes('no such file or directory')) return 'File not found';
   if (error.includes('Permission denied')) return 'Permission denied';
   if (error.includes('Output too large')) return error; // Keep full message
   
@@ -99,35 +65,9 @@ function getErrorSummary(error?: string): string {
   return error.split('\n')[0]; // First line only
 }
 
-export function formatFullOutput(parseResult: ParseResult, execResults: ExecutionResult[], actionSchema: Map<string, ActionDefinition>): string {
-  const summarySection = formatSummary(parseResult, execResults, new Date());
-  const outputsSection = formatOutputsSection(execResults, actionSchema);
-  
-  return summarySection + '\n' + outputsSection;
-}
-
-function formatOutputsSection(execResults: ExecutionResult[], actionSchema: Map<string, ActionDefinition>): string {
-  const lines = ['=== OUTPUTS ==='];
-  
-  // Sort by line number for chronological order
-  const sortedResults = [...execResults].sort((a, b) => 
-    a.action.metadata.startLine - b.action.metadata.startLine
-  );
-  
-  for (const result of sortedResults) {
-    if (!shouldIncludeOutput(result, actionSchema)) continue;
-    if (!result.result.success) continue; // Don't show output for failed actions
-    
-    const header = formatOutputHeader(result);
-    const content = formatOutputContent(result);
-    
-    if (content) {
-      lines.push(header, content);
-    }
-  }
-  
-  lines.push('=== END ===');
-  return lines.join('\n');
+export function formatFullOutput(orchResult: OrchestratorResult): string {
+  // Return the full formatted output from orchestrator
+  return orchResult.formattedOutput || '';
 }
 
 function formatOutputHeader(result: ExecutionResult): string {

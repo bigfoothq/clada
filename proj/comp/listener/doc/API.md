@@ -10,11 +10,7 @@ standard
 dependencies:
   proj/comp/orch:                                          # [IMPLEMENTED]
     functions: [execute]
-    types: [ExecutionResult]
-  
-  proj/comp/sham-action-parser:                           # [IMPLEMENTED]
-    functions: [parseShamResponse]
-    types: [ParseResult, CladaAction]
+    types: [OrchestratorResult]
   
   node:fs/promises:
     functions: [readFile, writeFile]
@@ -24,7 +20,7 @@ dependencies:
     types: [Stats]
   
   node:path:
-    functions: [dirname, join, basename]
+    functions: [dirname, join]
   
   node:crypto:
     functions: [createHash]
@@ -97,18 +93,22 @@ class ListenerError extends Error {
 
 ### processFileChange
 - **Signature**: `processFileChange(filePath: string, state: ListenerState) -> Promise<void>`
-- **Purpose**: Read file, hash content, execute new blocks if changed.
+- **Purpose**: Read file, hash content after summary, execute if changed.
+
+### stripSummarySection
+- **Signature**: `stripSummarySection(content: string) -> string`
+- **Purpose**: Remove prepended results section if present.
 
 ### computeContentHash
-- **Signature**: `computeContentHash(actions: CladaAction[]) -> string`
-- **Purpose**: Generate hash from parsed action objects for comparison.
+- **Signature**: `computeContentHash(content: string) -> string`
+- **Purpose**: Generate SHA-256 hash of content for comparison.
 
 ### formatSummary
-- **Signature**: `formatSummary(results: ExecutionResult[], timestamp?: Date) -> string`
+- **Signature**: `formatSummary(results: OrchestratorResult, timestamp: Date) -> string`
 - **Purpose**: Create the summary text block for prepending.
 
 ### formatFullOutput
-- **Signature**: `formatFullOutput(results: ExecutionResult[]) -> string`
+- **Signature**: `formatFullOutput(results: OrchestratorResult) -> string`
 - **Purpose**: Create detailed output including action outputs.
 
 ### updateFileWithClipboardStatus

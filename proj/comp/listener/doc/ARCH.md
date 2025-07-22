@@ -15,12 +15,12 @@
 **Rationale**: fs.watch has platform inconsistencies. Polling is battery-hungry but reliable for single-file monitoring.
 
 ### Content Hashing
-- Hash parsed CladaAction objects after successful parsing
-- Use SHA-256 of JSON.stringify(actions)
-- Empty array hash for parse failures
+- Hash file content after stripping any prepended summary section
+- Use SHA-256 of content after first "=== END ===" line
+- If no summary section, hash entire content
 - Hash comparison determines execution
 
-**Edge case**: Parse errors reset hash, causing re-execution of all blocks on fix.
+**Note**: Parse errors won't trigger re-execution when fixed (content unchanged).
 
 ### Debouncing
 - File change starts debounce timer
@@ -98,13 +98,13 @@ Read from unified-design.yaml per action:
 1. **Watch** - fs.watchFile on config.filePath
 2. **Detect** - mtime change triggers debounced handler
 3. **Read** - Load file content
-4. **Parse** - Extract SHAM blocks via parser
-5. **Hash** - Compute hash of parsed actions
+4. **Strip** - Remove prepended summary section if present
+5. **Hash** - Compute hash of remaining content
 6. **Compare** - Skip if hash matches lastExecutedHash
-7. **Execute** - Call orchestrator.execute()
-8. **Format** - Generate summary and full output
+7. **Execute** - Call orchestrator.execute() with full file
+8. **Format** - Generate summary and full output from results
 9. **Write** - Output file, prepend summary, clipboard
-10. **Update** - First line with clipboard status
+10. **Update** - Store new hash
 
 ## Error Messages
 

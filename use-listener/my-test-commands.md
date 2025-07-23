@@ -1,20 +1,11 @@
 📋 Copied to clipboard
 
 === CLADA RESULTS ===
-unknown ❌ -          ERROR: Block ID must be exactly 3 characters (line 13)
+unknown ❌ -          ERROR: Block ID must be exactly 3 characters (line 4)
 === END ===
 
-📋 Copied to clipboard
 
-=== CLADA RESULTS ===
-unknown ❌ -          ERROR: Block ID must be exactly 3 characters (line 7)
-=== END ===
 
-📋 Copied to clipboard
-
-=== CLADA RESULTS ===
-unknown ❌ -          ERROR: Block ID must be exactly 3 characters (line 1)
-=== END ===
 
 #!SHAM [@three-char-SHA-256: peawefawefawefawefawef]
 action = "exec"

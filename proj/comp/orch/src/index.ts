@@ -53,13 +53,7 @@ export class Clada {
       // Parse SHAM blocks
       const parseResult = await parseShamResponse(llmOutput);
       
-      // console.log('\n=== DEBUG: Orchestrator parseResult ===');
-      // console.log('Actions:', parseResult.actions.length);
-      // console.log('Errors:', parseResult.errors.length);
-      // if (parseResult.errors.length > 0) {
-      //   console.log('Parse errors detail:', JSON.stringify(parseResult.errors, null, 2));
-      // }
-      // console.log('=== END DEBUG ===\n');
+      // Debug info captured in parseResult.debug
 
       // Initialize executors if needed
       if (!this.executors) {
@@ -95,7 +89,10 @@ export class Clada {
         totalBlocks: parseResult.summary.totalBlocks,
         executedActions: results.length,
         results,
-        parseErrors: parseResult.errors
+        parseErrors: parseResult.errors,
+        debug: {
+          parseDebug: parseResult.debug
+        }
       };
 
     } catch (error) {

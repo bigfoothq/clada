@@ -104,6 +104,20 @@ async function processFileChange(filePath: string, state: ListenerState): Promis
       if (orchResult.parseErrors && orchResult.parseErrors.length > 0) {
         console.log('Raw parseErrors:', JSON.stringify(orchResult.parseErrors, null, 2));
       }
+      
+      // Add parse debug info if available
+      if (orchResult.debug?.parseDebug) {
+        const pd = orchResult.debug.parseDebug;
+        console.log('\n--- Parse Debug ---');
+        console.log('Input:', pd.rawInput);
+        console.log('Parse result:', {
+          blocks: pd.rawParseResult?.blocks?.length || 0,
+          errors: pd.rawParseResult?.errors?.length || 0
+        });
+        if (pd.rawParseResult?.errors?.length > 0) {
+          console.log('Nesl-js errors:', JSON.stringify(pd.rawParseResult.errors, null, 2));
+        }
+      }
       console.log('=== END DEBUG ===\n');
     }
     

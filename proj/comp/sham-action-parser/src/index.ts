@@ -44,12 +44,13 @@ export async function parseShamResponse(shamText: string): Promise<ParseResult> 
 
   // Parse SHAM blocks using nesl-js
   let parseResult: NeslParseResult;
+  const debugInfo = {
+    inputLength: shamText.length,
+    containsSHAM: shamText.includes('#!SHAM'),
+    inputPreview: shamText.substring(0, 300)
+  };
+  
   try {
-    // console.log('\n=== DEBUG: parseSham input ===');
-    // console.log('Input length:', shamText.length);
-    // console.log('Contains #!SHAM:', shamText.includes('#!SHAM'));
-    // console.log('Input preview:', shamText.substring(0, 300).replace(/\n/g, '\\n'));
-    
     parseResult = parseSham(shamText);
     
     // console.log('\n=== DEBUG: parseSham output ===');
@@ -202,6 +203,10 @@ export async function parseShamResponse(shamText: string): Promise<ParseResult> 
       totalBlocks: blocks.length,
       successCount: actions.length,
       errorCount: errors.length
+    },
+    debug: {
+      rawInput: debugInfo,
+      rawParseResult: parseResult
     }
   };
   return result;

@@ -1,4 +1,5 @@
 === CLADA RESULTS ===
+unknown ❌ -          ERROR: Block ID must be exactly 3 characters (line 13)
 === END ===
 
 === OUTPUTS ===

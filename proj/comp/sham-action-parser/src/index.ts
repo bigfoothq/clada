@@ -45,8 +45,23 @@ export async function parseShamResponse(shamText: string): Promise<ParseResult> 
   // Parse SHAM blocks using nesl-js
   let parseResult: NeslParseResult;
   try {
-   
+    // console.log('\n=== DEBUG: parseSham input ===');
+    // console.log('Input length:', shamText.length);
+    // console.log('Contains #!SHAM:', shamText.includes('#!SHAM'));
+    // console.log('Input preview:', shamText.substring(0, 300).replace(/\n/g, '\\n'));
+    
     parseResult = parseSham(shamText);
+    
+    // console.log('\n=== DEBUG: parseSham output ===');
+    // console.log('Blocks found:', parseResult?.blocks?.length || 0);
+    // console.log('Errors found:', parseResult?.errors?.length || 0);
+    // if (parseResult?.errors?.length > 0) {
+    //   console.log('Parse errors:', JSON.stringify(parseResult.errors, null, 2));
+    // }
+    // if (parseResult?.blocks?.length > 0) {
+    //   console.log('First block:', JSON.stringify(parseResult.blocks[0], null, 2));
+    // }
+    // console.log('=== END DEBUG ===\n');
     
     // if (isDebugging) {
     //   console.log('DEBUG parseShamResponse: parseSham returned:', parseResult);
@@ -102,15 +117,15 @@ export async function parseShamResponse(shamText: string): Promise<ParseResult> 
   // Process each SHAM block
   const blocks = parseResult.blocks || [];
   
-  // If no blocks found, return empty result
+  // If no blocks found, return with any syntax errors collected
   if (blocks.length === 0) {
     return {
       actions: [],
-      errors: [],
+      errors: errors,  // Keep any syntax errors we collected
       summary: {
         totalBlocks: 0,
         successCount: 0,
-        errorCount: 0
+        errorCount: errors.length
       }
     };
   }

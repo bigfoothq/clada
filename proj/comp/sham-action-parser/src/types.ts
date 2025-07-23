@@ -6,6 +6,10 @@ export interface ParseResult {
     successCount: number;
     errorCount: number;
   };
+  debug?: {
+    rawInput?: string;
+    rawParseResult?: any;
+  };
 }
 
 export interface CladaAction {

@@ -1,188 +1,77 @@
-=== PROCESSED: 2025-07-22 22:07:17 ===
-SUCCESS Block 1: Updated /Users/stuart/repos/clada/proj/comp/listener/src/types.ts
-SUCCESS Block 2: Updated /Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
-SUCCESS Block 3: Updated /Users/stuart/repos/clada/proj/comp/listener/src/types.ts
-SUCCESS Block 4: Updated /Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
-SUCCESS Block 5: Updated /Users/stuart/repos/clada/use-listener/test-listener-live.ts
+=== PROCESSED: 2025-07-22 22:50:38 ===
+SUCCESS Block 1: Updated /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/types.ts
+SUCCESS Block 2: Updated /Users/stuart/repos/clada/proj/comp/orch/src/index.ts
 ===
 
-The issue is that `test-listener-live.ts` only starts the listener - it doesn't have visibility into the orchestrator results or parse errors. The debug logging happens inside the listener/formatter code, but those console.logs might be getting swallowed or you're not seeing them in the terminal.
+Good call. The scattered console.logs pollute test output and make debugging harder. Better approach: pass debug info through the call chain to where it's needed.
 
-Here are two approaches to debug this:
+Options:
 
-<<<EXPLANATION>>>
-Add a debug mode to the listener configuration that enables verbose logging of parse errors and orchestrator results
+1. **Return debug data in results** - Extend `OrchestratorResult` and `ParseResult` to include optional debug info
+2. **Debug callback/logger** - Pass a debug function through the options
+3. **Event emitter pattern** - Emit debug events that test-listener-live can subscribe to
 
-<<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/listener/src/types.ts
-
-<<<SEARCH>>>
-export interface ListenerConfig {
-  filePath: string;
-  debounceMs?: number;
-  outputFilename?: string;
-}
-<<<REPLACE>>>
-export interface ListenerConfig {
-  filePath: string;
-  debounceMs?: number;
-  outputFilename?: string;
-  debug?: boolean;
-}
-<<<END>>>
+Option 1 seems cleanest - the debug data flows with the results:
 
 <<<EXPLANATION>>>
-Pass debug flag through state and use it to control debug output in processFileChange
-
+Add debug info to ParseResult type to flow through the system
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
-
+/Users/stuart/repos/clada/proj/comp/sham-action-parser/src/types.ts
 <<<SEARCH>>>
-export async function startListener(config: ListenerConfig): Promise<ListenerHandle> {
-  // Validate config
-  if (!config.filePath) {
-    throw new Error('listener: filePath is required');
-  }
-  if (!config.filePath.startsWith('/')) {
-    throw new Error('listener: filePath must be absolute');
-  }
-  if (config.debounceMs !== undefined && config.debounceMs < 100) {
-    throw new Error('listener: debounceMs must be at least 100');
-  }
-  
-  // Check file exists
-  try {
-    await access(config.filePath, constants.F_OK);
-  } catch (error) {
-    throw new ListenerError('FILE_NOT_FOUND', config.filePath);
-  }
-  
-  // Check not already watching
-  if (activeListeners.has(config.filePath)) {
-    throw new ListenerError('ALREADY_WATCHING', config.filePath);
-  }
-  
-  // Initialize state
-  const state: ListenerState = {
-    lastExecutedHash: '',
-    isProcessing: false,
-    outputPath: join(dirname(config.filePath), config.outputFilename || '.clada-output-latest.txt')
+export interface ParseResult {
+  actions: CladaAction[];
+  errors: ParseError[];
+  summary: {
+    totalBlocks: number;
+    successCount: number;
+    errorCount: number;
   };
+}
 <<<REPLACE>>>
-export async function startListener(config: ListenerConfig): Promise<ListenerHandle> {
-  // Validate config
-  if (!config.filePath) {
-    throw new Error('listener: filePath is required');
-  }
-  if (!config.filePath.startsWith('/')) {
-    throw new Error('listener: filePath must be absolute');
-  }
-  if (config.debounceMs !== undefined && config.debounceMs < 100) {
-    throw new Error('listener: debounceMs must be at least 100');
-  }
-  
-  // Check file exists
-  try {
-    await access(config.filePath, constants.F_OK);
-  } catch (error) {
-    throw new ListenerError('FILE_NOT_FOUND', config.filePath);
-  }
-  
-  // Check not already watching
-  if (activeListeners.has(config.filePath)) {
-    throw new ListenerError('ALREADY_WATCHING', config.filePath);
-  }
-  
-  // Initialize state
-  const state: ListenerState = {
-    lastExecutedHash: '',
-    isProcessing: false,
-    outputPath: join(dirname(config.filePath), config.outputFilename || '.clada-output-latest.txt'),
-    debug: config.debug || false
+export interface ParseResult {
+  actions: CladaAction[];
+  errors: ParseError[];
+  summary: {
+    totalBlocks: number;
+    successCount: number;
+    errorCount: number;
   };
-<<<END>>>
-
-<<<EXPLANATION>>>
-Add debug flag to ListenerState interface
-
-<<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/listener/src/types.ts
-
-<<<SEARCH>>>
-export interface ListenerState {
-  lastExecutedHash: string;
-  isProcessing: boolean;
-  outputPath: string;
-  actionSchema: Map<string, ActionDefinition>;
-}
-<<<REPLACE>>>
-export interface ListenerState {
-  lastExecutedHash: string;
-  isProcessing: boolean;
-  outputPath: string;
-  actionSchema?: Map<string, ActionDefinition>;
-  debug?: boolean;
+  debug?: {
+    rawInput?: string;
+    rawParseResult?: any;
+  };
 }
 <<<END>>>
 
 <<<EXPLANATION>>>
-Add debug logging in processFileChange to show raw orchestrator results when debug is enabled
-
+Add debug info to OrchestratorResult (ExecutionResult)
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
-
+/Users/stuart/repos/clada/proj/comp/orch/src/index.ts
 <<<SEARCH>>>
-    // Execute via orchestrator with full file content
-    const clada = new Clada({ gitCommit: false });
-    const orchResult = await clada.execute(fullContent);
-    // console.log('Executed', orchResult.executedActions, 'actions');
+export interface ExecutionResult {
+  success: boolean;
+  totalBlocks: number;
+  executedActions: number;
+  results: ActionResult[];
+  parseErrors: ParseError[];
+  fatalError?: string;
+}
 <<<REPLACE>>>
-    // Execute via orchestrator with full file content
-    const clada = new Clada({ gitCommit: false });
-    const orchResult = await clada.execute(fullContent);
-    
-    // Debug logging
-    if (state.debug) {
-      console.log('\n=== DEBUG: Orchestrator Result ===');
-      console.log('Executed actions:', orchResult.executedActions);
-      console.log('Results:', orchResult.results?.length || 0);
-      console.log('Parse errors:', orchResult.parseErrors?.length || 0);
-      if (orchResult.parseErrors && orchResult.parseErrors.length > 0) {
-        console.log('Raw parseErrors:', JSON.stringify(orchResult.parseErrors, null, 2));
-      }
-      console.log('=== END DEBUG ===\n');
-    }
+export interface ExecutionResult {
+  success: boolean;
+  totalBlocks: number;
+  executedActions: number;
+  results: ActionResult[];
+  parseErrors: ParseError[];
+  fatalError?: string;
+  debug?: {
+    parseDebug?: any;
+  };
+}
 <<<END>>>
 
-<<<EXPLANATION>>>
-Enable debug mode in test-listener-live.ts
+Then remove console.logs and populate debug objects instead. test-listener-live can check for debug info and display it.
 
-<<<FILE>>>
-/Users/stuart/repos/clada/use-listener/test-listener-live.ts
+Alternative: Add a `debugMode` flag that's only set by test-listener-live, keeping console.logs but gating them behind the flag. Simpler but less clean.
 
-<<<SEARCH>>>
-  // Start the listener
-  console.log('Starting listener...');
-  const handle = await startListener({
-    filePath: TEST_FILE,
-    debounceMs: 500,
-    outputFilename: '.my-test-output.txt'
-  });
-<<<REPLACE>>>
-  // Start the listener
-  console.log('Starting listener...');
-  const handle = await startListener({
-    filePath: TEST_FILE,
-    debounceMs: 500,
-    outputFilename: '.my-test-output.txt',
-    debug: true
-  });
-<<<END>>>
-
-This will show you exactly what the orchestrator is returning. If you're still not seeing any output, the issue might be:
-
-1. The SHAM blocks aren't being detected at all by the parser
-2. The parser is silently failing before creating parse errors
-3. The content hash check is preventing reprocessing
-
-You could also temporarily add a console.log at the very start of `processFileChange` to confirm it's being called at all.
+Which approach do you prefer?

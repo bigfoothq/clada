@@ -13,6 +13,9 @@ export interface ExecutionResult {
   results: ActionResult[];
   parseErrors: ParseError[];
   fatalError?: string;
+  debug?: {
+    parseDebug?: any;
+  };
 }
 
 export interface ActionResult {
@@ -49,6 +52,14 @@ export class Clada {
     try {
       // Parse SHAM blocks
       const parseResult = await parseShamResponse(llmOutput);
+      
+      // console.log('\n=== DEBUG: Orchestrator parseResult ===');
+      // console.log('Actions:', parseResult.actions.length);
+      // console.log('Errors:', parseResult.errors.length);
+      // if (parseResult.errors.length > 0) {
+      //   console.log('Parse errors detail:', JSON.stringify(parseResult.errors, null, 2));
+      // }
+      // console.log('=== END DEBUG ===\n');
 
       // Initialize executors if needed
       if (!this.executors) {

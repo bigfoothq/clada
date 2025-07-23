@@ -1204,6 +1204,14 @@ lang = "bash"
 code = "echo 'test'" extra stuff
 #!END_SHAM_pe5
 ```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: 1234567890]
+action = "exec"
+lang = "bash"
+code = "echo 'test'"
+#!END_SHAM_1234567890
+```
 ````
 
 #### Expected Prepended Results
@@ -1218,6 +1226,7 @@ pe4 ❌ file_write ERROR: 3 syntax errors (line 25)
                     - Value must be a quoted string or heredoc
                     - Invalid line format in block 'pe4': not a valid key-value assignment or empty line (2 occurrences)
 pe5 ❌ exec       ERROR: Unexpected content after quoted value (line 34)
+unknown ❌ -          ERROR: Block ID must be exactly 3 characters (line 42)
 === END ===
 
 Testing multiple parse error types.
@@ -1259,6 +1268,14 @@ lang = "bash"
 code = "echo 'test'" extra stuff
 #!END_SHAM_pe5
 ```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: 1234567890]
+action = "exec"
+lang = "bash"
+code = "echo 'test'"
+#!END_SHAM_1234567890
+```
 ````
 
 #### Expected Output File
@@ -1271,6 +1288,7 @@ pe4 ❌ file_write ERROR: 3 syntax errors (line 25)
                     - Value must be a quoted string or heredoc
                     - Invalid line format in block 'pe4': not a valid key-value assignment or empty line (2 occurrences)
 pe5 ❌ exec       ERROR: Unexpected content after quoted value (line 34)
+unknown ❌ -          ERROR: Block ID must be exactly 3 characters (line 42)
 === END ===
 
 === OUTPUTS ===
@@ -1287,6 +1305,7 @@ pe4 ❌ file_write ERROR: 3 syntax errors (line 25)
                     - Value must be a quoted string or heredoc
                     - Invalid line format in block 'pe4': not a valid key-value assignment or empty line (2 occurrences)
 pe5 ❌ exec       ERROR: Unexpected content after quoted value (line 34)
+unknown ❌ -          ERROR: Block ID must be exactly 3 characters (line 42)
 === END ===
 
 === OUTPUTS ===

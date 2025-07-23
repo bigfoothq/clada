@@ -1,4 +1,4 @@
-# Component: clada
+# Component: loaf
 
 ## Component Type
 standard
@@ -9,7 +9,7 @@ standard
 dependencies:
   proj/comp/nesl-action-parser:  # [IMPLEMENTED]
     functions: [parseNeslResponse]
-    types: [ParseResult, CladaAction, ParseError, ValidationResult, TransformError]
+    types: [ParseResult, LoafAction, ParseError, ValidationResult, TransformError]
   
   proj/comp/fs-ops:              # [PARTIALLY IMPLEMENTED]
     functions: [executeFileOperation]
@@ -40,19 +40,19 @@ dependencies:
 ```yaml
 exports:
   classes:
-    Clada:
-      constructor: [options?: CladaOptions]
+    Loaf:
+      constructor: [options?: LoafOptions]
       methods: [execute]
   types: 
     - ExecutionResult
     - ActionResult  
-    - CladaOptions
+    - LoafOptions
   # Note: ParseError is re-exported from nesl-action-parser
 ```
 
-### Clada (class)
+### Loaf (class)
 - **Purpose**: Main orchestrator executing NESL blocks from LLM output
-- **Constructor**: `new Clada(options?: CladaOptions)`
+- **Constructor**: `new Loaf(options?: LoafOptions)`
 - **State**: Maintains working directory and context set across execute() calls
 
 ### execute
@@ -99,9 +99,9 @@ interface ParseError {
 }
 ```
 
-### CladaOptions (type)
+### LoafOptions (type)
 ```typescript
-interface CladaOptions {
+interface LoafOptions {
   repoPath?: string           // Default: process.cwd()
   gitCommit?: boolean         // v1.2 feature - Default: true
 }
@@ -114,7 +114,7 @@ interface CladaOptions {
 execute(llmOutput)
   → parseNESL(llmOutput) → NeslParseResult
   → for each valid block:
-    → convertToActions(block) → CladaAction[]
+    → convertToActions(block) → LoafAction[]
     → for each action:
       → route to appropriate executor
       → capture result

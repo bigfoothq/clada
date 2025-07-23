@@ -15,7 +15,7 @@ file_list=$(cat <<'EOF'
 
 use-listener/test-listener-live.ts use-listener/my-test-commands.md proj/comp/listener/src/formatters.ts proj/comp/listener/src/listener.ts replacer/replacer_llm_instructions.md
 
-/Users/stuart/repos/clada/replacer/replacer_llm_instructions.md
+/Users/stuart/repos/loaf/replacer/replacer_llm_instructions.md
 
 EOF
 )
@@ -46,21 +46,21 @@ else
 fi
 
 
-# /Users/stuart/repos/clada/replacer/replacer_llm_instructions.md
-# /Users/stuart/repos/clada/xd5_ref.md
-# /Users/stuart/repos/clada/unified-design.yaml
+# /Users/stuart/repos/loaf/replacer/replacer_llm_instructions.md
+# /Users/stuart/repos/loaf/xd5_ref.md
+# /Users/stuart/repos/loaf/unified-design.yaml
 # # # # # # # # proj/comp/listener/src/errors.ts proj/comp/listener/src/formatters.ts proj/comp/listener/src/index.ts proj/comp/listener/src/listener.ts proj/comp/listener/src/types.ts proj/comp/listener/src/utils.ts proj/comp/listener/doc/ABSTRACT.md proj/comp/listener/doc/API.md proj/comp/listener/doc/ARCH.md proj/comp/listener/test/integration/listener-workflow.test.ts proj/comp/listener/test-data/integration/listener-workflow.md proj/comp/listener/test-data/startListener.json replacer/replacer_llm_instructions.md xd5_ref.md
 
 
 
-# # # # # # # # /Users/stuart/repos/clada/proj/comp/nesl-action-parser/doc/ABSTRACT.md
-# # # # # # # # /Users/stuart/repos/clada/proj/comp/nesl-action-parser/doc/API.md
-# # # # # # # # /Users/stuart/repos/clada/proj/comp/nesl-action-parser/doc/ARCH.md
+# # # # # # # # /Users/stuart/repos/loaf/proj/comp/nesl-action-parser/doc/ABSTRACT.md
+# # # # # # # # /Users/stuart/repos/loaf/proj/comp/nesl-action-parser/doc/API.md
+# # # # # # # # /Users/stuart/repos/loaf/proj/comp/nesl-action-parser/doc/ARCH.md
 
-# # # # # # # # /Users/stuart/repos/clada/proj/comp/fs-ops/doc/ABSTRACT.md
-# # # # # # # # /Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md
-# # # # # # # # /Users/stuart/repos/clada/proj/comp/fs-ops/doc/ARCH.md
+# # # # # # # # /Users/stuart/repos/loaf/proj/comp/fs-ops/doc/ABSTRACT.md
+# # # # # # # # /Users/stuart/repos/loaf/proj/comp/fs-ops/doc/API.md
+# # # # # # # # /Users/stuart/repos/loaf/proj/comp/fs-ops/doc/ARCH.md
 
-# # # # # # # # /Users/stuart/repos/clada/proj/doc/API.md
-# # # # # # # # /Users/stuart/repos/clada/proj/doc/ARCH.md
-# # # # # # # # /Users/stuart/repos/clada/proj/doc/TODO.md
+# # # # # # # # /Users/stuart/repos/loaf/proj/doc/API.md
+# # # # # # # # /Users/stuart/repos/loaf/proj/doc/ARCH.md
+# # # # # # # # /Users/stuart/repos/loaf/proj/doc/TODO.md

@@ -33,7 +33,7 @@
 ### Output Coordination
 
 **Three destinations, specific order**:
-1. Write `.clada-output-latest.txt` (same directory)
+1. Write `.loaf-output-latest.txt` (same directory)
 2. Prepend summary to input file (with blank first line)
 3. Copy full output to clipboard
 4. Update first line with clipboard status
@@ -47,7 +47,7 @@
 ### Summary Format
 ```
 [blank line for clipboard status]
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 {id} ✅ {action} {primary_param}
 {id} ❌ {action} {primary_param} - {error_summary}
 === END ===
@@ -57,7 +57,7 @@ example after copy:
 
 ```
 📋 Copied to clipboard
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 c8i ✅ file_write /path/to/file.md
 qb2 ❌ file_write /path/to/other.rs - Permission denied
 v84 ✅ exec javascript - 17 lines
@@ -66,7 +66,7 @@ v84 ✅ exec javascript - 17 lines
 
 ### Full Output Format
 ```
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 [same as summary]
 === OUTPUTS ===
 [{id}] {action} {primary_param}:

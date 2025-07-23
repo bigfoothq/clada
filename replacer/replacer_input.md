@@ -1,7 +1,13 @@
+=== PROCESSED: 2025-07-23 14:04:59 ===
+ERROR Block 1: File path is outside repository: /Users/stuart/repos/loaf/proj/comp/hooks/doc/API.md
+ERROR Block 2: File path is outside repository: /Users/stuart/repos/loaf/proj/comp/hooks/doc/ARCH.md
+ERROR Block 3: File path is outside repository: /Users/stuart/repos/loaf/proj/comp/hooks/doc/ARCH.md
+===
+
 === PROCESSED: 2025-07-23 12:58:52 ===
-SUCCESS Block 1: Updated /Users/stuart/repos/clada/proj/comp/hooks/doc/API.md
-SUCCESS Block 2: Updated /Users/stuart/repos/clada/proj/comp/hooks/doc/ARCH.md
-SUCCESS Block 3: Updated /Users/stuart/repos/clada/proj/comp/hooks/doc/ARCH.md
+SUCCESS Block 1: Updated /Users/stuart/repos/loaf/proj/comp/hooks/doc/API.md
+SUCCESS Block 2: Updated /Users/stuart/repos/loaf/proj/comp/hooks/doc/ARCH.md
+SUCCESS Block 3: Updated /Users/stuart/repos/loaf/proj/comp/hooks/doc/ARCH.md
 ===
 
 Looking at the hooks component docs, I need to update the dependencies to remove `proj/comp/exec` and reflect that shell execution will be internal. Here are the updates:
@@ -9,7 +15,7 @@ Looking at the hooks component docs, I need to update the dependencies to remove
 <<<EXPLANATION>>>
 Remove dependency on proj/comp/exec since hooks will implement shell execution internally. This better aligns with the component's focused responsibility.
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/hooks/doc/API.md
+/Users/stuart/repos/loaf/proj/comp/hooks/doc/API.md
 <<<SEARCH>>>
 ## Dependencies
 
@@ -47,7 +53,7 @@ dependencies:
 <<<EXPLANATION>>>
 Update architecture doc to reflect internal shell execution implementation and remove references to exec component.
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/hooks/doc/ARCH.md
+/Users/stuart/repos/loaf/proj/comp/hooks/doc/ARCH.md
 <<<SEARCH>>>
 ### Command Execution
 - Uses `proj/comp/exec` for consistency
@@ -64,7 +70,7 @@ Update architecture doc to reflect internal shell execution implementation and r
 <<<EXPLANATION>>>
 Add internal implementation details section to document the shell execution approach.
 <<<FILE>>>
-/Users/stuart/repos/clada/proj/comp/hooks/doc/ARCH.md
+/Users/stuart/repos/loaf/proj/comp/hooks/doc/ARCH.md
 <<<SEARCH>>>
 ## Future Considerations
 - User-level default configuration

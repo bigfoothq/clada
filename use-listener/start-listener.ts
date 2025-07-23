@@ -24,12 +24,12 @@ async function main() {
     const handle = await startListener({
       filePath: testFile,
       debounceMs: 500,  // Half second debounce
-      outputFilename: '.clada-output-latest.txt'
+      outputFilename: '.loaf-output-latest.txt'
     });
 
     console.log(`✅ Listener started!`);
     console.log(`📝 Watching: ${testFile}`);
-    console.log(`📋 Output will be written to: .clada-output-latest.txt`);
+    console.log(`📋 Output will be written to: .loaf-output-latest.txt`);
     console.log(`\nThe listener is now running. Try adding NESL blocks to the file!`);
     console.log('Press Ctrl+C to stop.\n');
 

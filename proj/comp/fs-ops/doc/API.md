@@ -41,7 +41,7 @@ exports:
 ```
 
 ### executeFileOperation
-- **Signature**: `executeFileOperation(action: CladaAction) -> Promise<FileOpResult>`
+- **Signature**: `executeFileOperation(action: LoafAction) -> Promise<FileOpResult>`
 - **Purpose**: Execute file system operations from parsed NESL actions
 - **Throws**: Never - all errors captured in FileOpResult
 - **Test-data**: `test-data/integration/*.cases.md` [IMPLEMENTED]
@@ -123,7 +123,7 @@ interface FileOpError extends Error {
 - **Throws**: Error for invalid line specifications
 
 ### handleFileReadNumbered
-- **Signature**: `handleFileReadNumbered(action: CladaAction) -> Promise<FileOpResult>`
+- **Signature**: `handleFileReadNumbered(action: LoafAction) -> Promise<FileOpResult>`
 - **Purpose**: Read file content with line numbers for specified line range
 - **Parameters**: 
   - `path`: File path to read

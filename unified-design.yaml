@@ -1,6 +1,6 @@
 # AI Coder Tools Schema - Unified Design
 
-# Clada executes filesystem and runtime commands embedded in LLM output using NESL syntax. It provides deterministic filesystem access and shell command execution for LLM coding agents.
+# Loaf executes filesystem and runtime commands embedded in LLM output using NESL syntax. It provides deterministic filesystem access and shell command execution for LLM coding agents.
 
 # NESL syntax example:
 
@@ -296,7 +296,7 @@ tools:
       return_output: {type: boolean, required: false, default: true}
     returns: {success: boolean, stdout?: string, stderr?: string, exit_code?: integer, error?: string}
 
-  # Context Operations -- for much later.  dont do this until clada has been integrated into bigfoot, the ai llm coder
+  # Context Operations -- for much later.  dont do this until loaf has been integrated into bigfoot, the ai llm coder
   context_add:
     type: meta
     description: Add item to working context (persistent)

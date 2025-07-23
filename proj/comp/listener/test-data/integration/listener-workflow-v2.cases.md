@@ -30,7 +30,7 @@ content = "Hello from NESL!"
 ````sh
 📋 Copied to clipboard
 
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 sf1 ✅ file_write /tmp/t_listener_simple/output.txt
 === END ===
 
@@ -48,7 +48,7 @@ content = "Hello from NESL!"
 
 #### output file
 ````sh
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 sf1 ✅ file_write /tmp/t_listener_simple/output.txt
 === END ===
 
@@ -58,7 +58,7 @@ sf1 ✅ file_write /tmp/t_listener_simple/output.txt
 
 #### clipboard
 ````sh
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 sf1 ✅ file_write /tmp/t_listener_simple/output.txt
 === END ===
 
@@ -106,7 +106,7 @@ code = "echo 'Hello from bash'"
 ````sh
 📋 Copied to clipboard
 
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 wr1 ✅ file_write /tmp/t_listener_multi/created.txt
 rd1 ❌ file_read /tmp/t_listener_multi/missing.txt - File not found
 ex1 ✅ exec bash
@@ -140,7 +140,7 @@ code = "echo 'Hello from bash'"
 
 #### output file
 ````sh
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 wr1 ✅ file_write /tmp/t_listener_multi/created.txt
 rd1 ❌ file_read /tmp/t_listener_multi/missing.txt - File not found
 ex1 ✅ exec bash
@@ -156,7 +156,7 @@ Hello from bash
 
 #### clipboard
 ````sh
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 wr1 ✅ file_write /tmp/t_listener_multi/created.txt
 rd1 ❌ file_read /tmp/t_listener_multi/missing.txt - File not found
 ex1 ✅ exec bash
@@ -194,7 +194,7 @@ content = "missing closing quote
 ````sh
 📋 Copied to clipboard
 
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 bad ❌ file_write ERROR: Unclosed quoted string (line 4)
 === END ===
 
@@ -211,7 +211,7 @@ content = "missing closing quote
 
 #### Expected Output File
 ````sh
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 bad ❌ file_write ERROR: Unclosed quoted string (line 4)
 === END ===
 
@@ -221,7 +221,7 @@ bad ❌ file_write ERROR: Unclosed quoted string (line 4)
 
 #### clipboard
 ````sh
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 bad ❌ file_write ERROR: Unclosed quoted string (line 4)
 === END ===
 
@@ -255,7 +255,7 @@ Adding a comment outside NESL blocks.
 ````sh
 📋 Copied to clipboard
 
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 nc1 ✅ file_write /tmp/t_listener_nochange/counter.txt
 === END ===
 
@@ -274,7 +274,7 @@ Adding a comment outside NESL blocks.
 
 #### Expected Output File
 ````sh
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 nc1 ✅ file_write /tmp/t_listener_nochange/counter.txt
 === END ===
 
@@ -284,7 +284,7 @@ nc1 ✅ file_write /tmp/t_listener_nochange/counter.txt
 
 #### clipboard
 ````sh
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 nc1 ✅ file_write /tmp/t_listener_nochange/counter.txt
 === END ===
 
@@ -345,7 +345,7 @@ EOT_NESL_fr2
 ````sh
 📋 Copied to clipboard
 
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 fr1 ✅ file_write /tmp/t_listener_replace/config.yaml
 fr2 ✅ file_replace_text /tmp/t_listener_replace/config.yaml
 === END ===
@@ -392,7 +392,7 @@ EOT_NESL_fr2
 
 #### Expected Output File
 ````sh
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 fr1 ✅ file_write /tmp/t_listener_replace/config.yaml
 fr2 ✅ file_replace_text /tmp/t_listener_replace/config.yaml
 === END ===
@@ -403,7 +403,7 @@ fr2 ✅ file_replace_text /tmp/t_listener_replace/config.yaml
 
 #### clipboard
 ````sh
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 fr1 ✅ file_write /tmp/t_listener_replace/config.yaml
 fr2 ✅ file_replace_text /tmp/t_listener_replace/config.yaml
 === END ===
@@ -466,7 +466,7 @@ EOT_NESL_fm2
 ````sh
 📋 Copied to clipboard
 
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 fm1 ✅ file_write /tmp/t_listener_multi_match/app.js
 fm2 ❌ file_replace_text /tmp/t_listener_multi_match/app.js - old_text appears 2 times, must appear exactly once
 === END ===
@@ -514,7 +514,7 @@ EOT_NESL_fm2
 
 #### Expected Output File
 ````sh
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 fm1 ✅ file_write /tmp/t_listener_multi_match/app.js
 fm2 ❌ file_replace_text /tmp/t_listener_multi_match/app.js - old_text appears 2 times, must appear exactly once
 === END ===
@@ -525,7 +525,7 @@ fm2 ❌ file_replace_text /tmp/t_listener_multi_match/app.js - old_text appears 
 
 #### clipboard
 ````sh
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 fm1 ✅ file_write /tmp/t_listener_multi_match/app.js
 fm2 ❌ file_replace_text /tmp/t_listener_multi_match/app.js - old_text appears 2 times, must appear exactly once
 === END ===
@@ -589,7 +589,7 @@ EOT_NESL_fn2
 ````sh
 📋 Copied to clipboard
 
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 fn1 ✅ file_write /tmp/t_listener_no_match/readme.md
 fn2 ❌ file_replace_text /tmp/t_listener_no_match/readme.md - old_text not found in file
 === END ===
@@ -638,7 +638,7 @@ EOT_NESL_fn2
 
 #### Expected Output File
 ````sh
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 fn1 ✅ file_write /tmp/t_listener_no_match/readme.md
 fn2 ❌ file_replace_text /tmp/t_listener_no_match/readme.md - old_text not found in file
 === END ===
@@ -649,7 +649,7 @@ fn2 ❌ file_replace_text /tmp/t_listener_no_match/readme.md - old_text not foun
 
 #### clipboard
 ````sh
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 fn1 ✅ file_write /tmp/t_listener_no_match/readme.md
 fn2 ❌ file_replace_text /tmp/t_listener_no_match/readme.md - old_text not found in file
 === END ===
@@ -699,7 +699,7 @@ path = "/tmp/t_listener_read/sample.py"
 ````sh
 📋 Copied to clipboard
 
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 rf1 ✅ file_write /tmp/t_listener_read/sample.py
 rf2 ✅ file_read /tmp/t_listener_read/sample.py
 === END ===
@@ -734,7 +734,7 @@ path = "/tmp/t_listener_read/sample.py"
 
 #### Expected Output File
 ````sh
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 rf1 ✅ file_write /tmp/t_listener_read/sample.py
 rf2 ✅ file_read /tmp/t_listener_read/sample.py
 === END ===
@@ -758,7 +758,7 @@ if __name__ == "__main__":
 
 #### clipboard
 ````sh
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 rf1 ✅ file_write /tmp/t_listener_read/sample.py
 rf2 ✅ file_read /tmp/t_listener_read/sample.py
 === END ===
@@ -826,7 +826,7 @@ path = "/tmp/t_listener_read_num/config.yaml"
 ````sh
 📋 Copied to clipboard
 
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 rn1 ✅ file_write /tmp/t_listener_read_num/config.yaml
 rn2 ✅ file_read_numbered /tmp/t_listener_read_num/config.yaml
 === END ===
@@ -866,7 +866,7 @@ path = "/tmp/t_listener_read_num/config.yaml"
 
 #### Expected Output File
 ````sh
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 rn1 ✅ file_write /tmp/t_listener_read_num/config.yaml
 rn2 ✅ file_read_numbered /tmp/t_listener_read_num/config.yaml
 === END ===
@@ -895,7 +895,7 @@ rn2 ✅ file_read_numbered /tmp/t_listener_read_num/config.yaml
 
 #### clipboard
 ````sh
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 rn1 ✅ file_write /tmp/t_listener_read_num/config.yaml
 rn2 ✅ file_read_numbered /tmp/t_listener_read_num/config.yaml
 === END ===
@@ -995,7 +995,7 @@ EOT_NESL_mr4
 ````sh
 📋 Copied to clipboard
 
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 mr1 ✅ file_write /tmp/t_listener_multi_read/README.md
 mr2 ✅ file_write /tmp/t_listener_multi_read/main.py
 mr3 ✅ file_write /tmp/t_listener_multi_read/.gitignore
@@ -1064,7 +1064,7 @@ EOT_NESL_mr4
 
 #### Expected Output File
 ````sh
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 mr1 ✅ file_write /tmp/t_listener_multi_read/README.md
 mr2 ✅ file_write /tmp/t_listener_multi_read/main.py
 mr3 ✅ file_write /tmp/t_listener_multi_read/.gitignore
@@ -1111,7 +1111,7 @@ venv/
 
 #### clipboard
 ````sh
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 mr1 ✅ file_write /tmp/t_listener_multi_read/README.md
 mr2 ✅ file_write /tmp/t_listener_multi_read/main.py
 mr3 ✅ file_write /tmp/t_listener_multi_read/.gitignore
@@ -1218,7 +1218,7 @@ code = "echo 'test'"
 ````sh
 📋 Copied to clipboard
 
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 pe1 ❌ file_write ERROR: Unclosed quoted string (line 4)
 pe2 ❌ -          ERROR: Invalid assignment operator ':=' - only '=' is allowed (line 12)
 pe3 ❌ -          ERROR: Invalid line format in block 'pe3': not a valid key-value assignment or empty line (line 19)
@@ -1280,7 +1280,7 @@ code = "echo 'test'"
 
 #### Expected Output File
 ````sh
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 pe1 ❌ file_write ERROR: Unclosed quoted string (line 4)
 pe2 ❌ -          ERROR: Invalid assignment operator ':=' - only '=' is allowed (line 12)
 pe3 ❌ -          ERROR: Invalid line format in block 'pe3': not a valid key-value assignment or empty line (line 19)
@@ -1297,7 +1297,7 @@ unknown ❌ -          ERROR: Block ID must be exactly 3 characters (line 42)
 
 #### Expected Clipboard
 ````sh
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 pe1 ❌ file_write ERROR: Unclosed quoted string (line 4)
 pe2 ❌ -          ERROR: Invalid assignment operator ':=' - only '=' is allowed (line 12)
 pe3 ❌ -          ERROR: Invalid line format in block 'pe3': not a valid key-value assignment or empty line (line 19)

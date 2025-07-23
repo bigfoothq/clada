@@ -5,7 +5,7 @@ import clipboard from 'clipboardy';
 
 import type { ListenerConfig, ListenerHandle, ListenerState } from './types.js';
 import { ListenerError } from './errors.js';
-import { Clada } from '../../orch/src/index.js';
+import { Loaf } from '../../orch/src/index.js';
 import { formatSummary, formatFullOutput } from './formatters.js';
 import { computeContentHash } from './utils.js';
 
@@ -26,18 +26,18 @@ function debounce<T extends (...args: any[]) => any>(
   wait: number
 ): T & { cancel: () => void } {
   let timeout: NodeJS.Timeout | null = null;
-  
+
   const debounced = (...args: Parameters<T>) => {
     if (timeout) clearTimeout(timeout);
     timeout = setTimeout(() => {
       func(...args);
     }, wait);
   };
-  
+
   debounced.cancel = () => {
     if (timeout) clearTimeout(timeout);
   };
-  
+
   return debounced as T & { cancel: () => void };
 }
 
@@ -58,43 +58,43 @@ function formatClipboardStatus(success: boolean, timestamp: Date): string {
 async function processFileChange(filePath: string, state: ListenerState): Promise<void> {
   // Check not already processing
   if (state.isProcessing) return;
-  
+
   try {
     state.isProcessing = true;
-    
+
     // Read file
     const fullContent = await readFile(filePath, 'utf-8');
-    if (fullContent.trim() == ""){
+    if (fullContent.trim() == "") {
       return;
     }
-    
+
     // Strip summary section for hashing
     const contentForHash = stripSummarySection(fullContent).trim();
-    
+
     // // DIAGNOSTIC: Log stripping results
     // console.log('\n=== STRIP SUMMARY ===');
     // console.log('Original length:', fullContent.length);
     // console.log('Stripped length:', contentForHash.length);
     // console.log('Stripped content preview:', contentForHash.substring(0, 150).replace(/\n/g, '\\n'));
     // console.log('=== END STRIP ===\n');
-    
+
     // Compute hash of content (excluding summary)
     const currentHash = computeContentHash(contentForHash);
-    
+
     // // DIAGNOSTIC: Log hash comparison
     // console.log('Current hash:', currentHash);
     // console.log('Last hash:', state.lastExecutedHash);
-    
+
     // Skip if unchanged
     if (currentHash === state.lastExecutedHash) {
       // console.log('Content unchanged, skipping execution');
       return;
     }
-    
+
     // Execute via orchestrator with full file content
-    const clada = new Clada({ gitCommit: false });
-    const orchResult = await clada.execute(fullContent);
-    
+    const loaf = new Loaf({ gitCommit: false });
+    const orchResult = await loaf.execute(fullContent);
+
     // Debug logging
     if (state.debug) {
       console.log('\n=== DEBUG: Orchestrator Result ===');
@@ -104,7 +104,7 @@ async function processFileChange(filePath: string, state: ListenerState): Promis
       if (orchResult.parseErrors && orchResult.parseErrors.length > 0) {
         console.log('Raw parseErrors:', JSON.stringify(orchResult.parseErrors, null, 2));
       }
-      
+
       // Add parse debug info if available
       if (orchResult.debug?.parseDebug) {
         const pd = orchResult.debug.parseDebug;
@@ -120,12 +120,12 @@ async function processFileChange(filePath: string, state: ListenerState): Promis
       }
       console.log('=== END DEBUG ===\n');
     }
-    
+
     // Format outputs
     const timestamp = new Date();
     const summary = formatSummary(orchResult, timestamp);
     const fullOutput = await formatFullOutput(orchResult);
-    
+
     // Copy to clipboard
     let clipboardSuccess = false;
     try {
@@ -134,21 +134,21 @@ async function processFileChange(filePath: string, state: ListenerState): Promis
     } catch (error) {
       console.error('listener: Clipboard write failed:', error);
     }
-    
+
     // Format clipboard status
     const clipboardStatus = formatClipboardStatus(clipboardSuccess, timestamp);
-    
+
     // Write output file (without clipboard status)
     await writeFile(state.outputPath, fullOutput);
-    
+
     // Prepend to input file with clipboard status
     const prepend = clipboardStatus + '\n' + summary;
     const updatedContent = prepend + '\n' + fullContent;
     await writeFile(filePath, updatedContent);
-    
+
     // Update state
     state.lastExecutedHash = currentHash;
-    
+
   } catch (error) {
     console.error('listener: Error processing file change:', error);
   } finally {
@@ -167,27 +167,27 @@ export async function startListener(config: ListenerConfig): Promise<ListenerHan
   if (config.debounceMs !== undefined && config.debounceMs < 100) {
     throw new Error('listener: debounceMs must be at least 100');
   }
-  
+
   // Check file exists
   try {
     await access(config.filePath, constants.F_OK);
   } catch (error) {
     throw new ListenerError('FILE_NOT_FOUND', config.filePath);
   }
-  
+
   // Check not already watching
   if (activeListeners.has(config.filePath)) {
     throw new ListenerError('ALREADY_WATCHING', config.filePath);
   }
-  
+
   // Initialize state
   const state: ListenerState = {
     lastExecutedHash: '',
     isProcessing: false,
-    outputPath: join(dirname(config.filePath), config.outputFilename || '.clada-output-latest.txt'),
+    outputPath: join(dirname(config.filePath), config.outputFilename || '.loaf-output-latest.txt'),
     debug: config.debug || false
   };
-  
+
   // Set up debounced handler
   const debouncedProcess = debounce(
     () => {
@@ -196,7 +196,7 @@ export async function startListener(config: ListenerConfig): Promise<ListenerHan
     },
     config.debounceMs || 500
   );
-  
+
   // Start watching
   watchFile(config.filePath, { interval: 500 }, (curr: Stats, prev: Stats) => {
     if (curr.mtime !== prev.mtime) {
@@ -204,10 +204,10 @@ export async function startListener(config: ListenerConfig): Promise<ListenerHan
       debouncedProcess();
     }
   });
-  
+
   // Process initial content
   debouncedProcess();
-  
+
   // Create handle
   const handle: ListenerHandle = {
     id: generateId(),
@@ -218,10 +218,10 @@ export async function startListener(config: ListenerConfig): Promise<ListenerHan
       activeListeners.delete(config.filePath);
     }
   };
-  
+
   // Track active listener
   activeListeners.set(config.filePath, handle);
-  
+
   return handle;
 }
 

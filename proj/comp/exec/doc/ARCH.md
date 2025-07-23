@@ -73,7 +73,7 @@ const interpreters = {
 - **No privilege dropping**: Inherit parent permissions
 - **Audit trail**: Log all executions (future feature)
 
-**Rationale**: Matches clada's trust model - LLM is the developer
+**Rationale**: Matches loaf's trust model - LLM is the developer
 
 ### Edge Cases
 

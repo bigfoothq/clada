@@ -1,15 +1,20 @@
 📋 Copied to clipboard
 
-=== CLADA RESULTS ===
+=== LOAF RESULTS ===
 === END ===
 
 📋 Copied to clipboard
 
-=== CLADA RESULTS ===
-h1 ✅ file_replace_lines /Users/stuart/repos/clada/use-listener/test-files/ham.md
-h2 ✅ file_replace_lines /Users/stuart/repos/clada/use-listener/test-files/ham.md
-h3 ✅ file_replace_lines /Users/stuart/repos/clada/use-listener/test-files/ham.md
-h4 ✅ file_replace_lines /Users/stuart/repos/clada/use-listener/test-files/ham.md
+=== LOAF RESULTS ===
+=== END ===
+
+📋 Copied to clipboard
+
+=== LOAF RESULTS ===
+h1 ✅ file_replace_lines /Users/stuart/repos/loaf/use-listener/test-files/ham.md
+h2 ✅ file_replace_lines /Users/stuart/repos/loaf/use-listener/test-files/ham.md
+h3 ✅ file_replace_lines /Users/stuart/repos/loaf/use-listener/test-files/ham.md
+h4 ✅ file_replace_lines /Users/stuart/repos/loaf/use-listener/test-files/ham.md
 === END ===
 
 I'll analyze the ham.md file and create NESL actions to replace each question with expanded dialog. Looking at the file, I can identify these questions:
@@ -24,7 +29,7 @@ Here are the NESL actions to replace each question with expanded dialog:
 ```sh nesl
 #!NESL [@three-char-SHA-256: h1]
 action = "file_replace_lines"
-path = "/Users/stuart/repos/clada/use-listener/test-files/ham.md"
+path = "/Users/stuart/repos/loaf/use-listener/test-files/ham.md"
 lines = "8"
 new_content = <<'EOT_NESL_h1'
 Who's there? Speak, I charge thee!
@@ -37,7 +42,7 @@ EOT_NESL_h1
 ```sh nesl
 #!NESL [@three-char-SHA-256: h2]
 action = "file_replace_lines"
-path = "/Users/stuart/repos/clada/use-listener/test-files/ham.md"
+path = "/Users/stuart/repos/loaf/use-listener/test-files/ham.md"
 lines = "25"
 new_content = <<'EOT_NESL_h2'
 Have you had quiet guard? No stirrings
@@ -50,7 +55,7 @@ EOT_NESL_h2
 ```sh nesl
 #!NESL [@three-char-SHA-256: h3]
 action = "file_replace_lines"
-path = "/Users/stuart/repos/clada/use-listener/test-files/ham.md"
+path = "/Users/stuart/repos/loaf/use-listener/test-files/ham.md"
 lines = "33"
 new_content = <<'EOT_NESL_h3'
 I think I hear them. Stand, ho! Who's there?
@@ -63,7 +68,7 @@ EOT_NESL_h3
 ```sh nesl
 #!NESL [@three-char-SHA-256: h4]
 action = "file_replace_lines"
-path = "/Users/stuart/repos/clada/use-listener/test-files/ham.md"
+path = "/Users/stuart/repos/loaf/use-listener/test-files/ham.md"
 lines = "44"
 new_content = <<'EOT_NESL_h4'
 Who hath relieved you? Tell me true,

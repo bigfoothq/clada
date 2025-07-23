@@ -34,7 +34,7 @@ export function stopListenerTests() {
 
     // Check that initial content was processed
     let content = await readFile(testFile, 'utf-8');
-    expect(content).toContain('=== CLADA RESULTS ===');
+    expect(content).toContain('=== LOAF RESULTS ===');
 
     // Stop the listener
     await stopListener(handle);
@@ -47,7 +47,7 @@ export function stopListenerTests() {
     // File should still have the new content without processing
     content = await readFile(testFile, 'utf-8');
     expect(content).toBe('changed content after stop');
-    expect(content).not.toContain('=== CLADA RESULTS ===');
+    expect(content).not.toContain('=== LOAF RESULTS ===');
   });
 
   it('allows watching again after stop', async () => {
@@ -71,13 +71,13 @@ export function stopListenerTests() {
     let content = '';
     while (Date.now() - startTime < 2000) {
       content = await readFile(testFile, 'utf-8');
-      if (content.includes('=== CLADA RESULTS ===')) {
+      if (content.includes('=== LOAF RESULTS ===')) {
         break;
       }
       await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    expect(content).toContain('=== CLADA RESULTS ===');
+    expect(content).toContain('=== LOAF RESULTS ===');
   });
 }
 

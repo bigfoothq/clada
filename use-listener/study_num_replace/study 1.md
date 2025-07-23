@@ -38,7 +38,7 @@ function oldImplementation() {
 ```
 
 ```
-=== START FILE: [numbered] /Users/stuart/repos/clada/use-listener/test-files/ham.md ===
+=== START FILE: [numbered] /Users/stuart/repos/loaf/use-listener/test-files/ham.md ===
  1: 
  2: The Tragedy of Hamlet, Prince of Denmark
  3: Shakespeare homepage | Hamlet | Entire play
@@ -87,7 +87,7 @@ function oldImplementation() {
 46: Bernardo has my place.
 47: Give you good night.
 48: Exit
-=== END FILE: [numbered] /Users/stuart/repos/clada/use-listener/test-files/ham.md ===
+=== END FILE: [numbered] /Users/stuart/repos/loaf/use-listener/test-files/ham.md ===
 ```
 
 generate nesl action code to replace all the questions in the ham.md file above with a few more lines of dialog expanding on the question a little

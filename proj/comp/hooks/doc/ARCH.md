@@ -13,7 +13,7 @@
 - **Override**: Per-command `continueOnError` flag
 
 ### Configuration Loading
-1. Check `clada.yml` in repository root
+1. Check `loaf.yml` in repository root
 
 ### Command Execution
 - Internal shell execution using child_process.exec

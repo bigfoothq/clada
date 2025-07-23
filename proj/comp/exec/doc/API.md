@@ -33,7 +33,7 @@ exports:
 ```
 
 ### executeCommand
-- **Signature**: `executeCommand(action: CladaAction) -> Promise<ExecResult>`
+- **Signature**: `executeCommand(action: LoafAction) -> Promise<ExecResult>`
 - **Purpose**: Execute code from parsed NESL action in specified language.
 - **Throws**: Never - all errors captured in ExecResult
 - **Test-data**: `test-data/executeCommand.json` [PLANNED]

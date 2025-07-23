@@ -1,10 +1,10 @@
 /**
- * fs-ops - File system operations executor for clada
+ * fs-ops - File system operations executor for loaf
  * 
  * Handles all file and directory operations from parsed NESL actions
  */
 
-import type { CladaAction } from '../../nesl-action-parser/src/index.js';
+import type { LoafAction } from '../../nesl-action-parser/src/index.js';
 import { writeFile, mkdir, unlink, rename, readFile } from 'fs/promises';
 import { dirname } from 'path';
 import { formatNodeError } from './formatNodeError.js';
@@ -34,7 +34,7 @@ export class FileOpError extends Error {
  * Execute a file system operation from a parsed NESL action
  * Never throws - all errors returned in result
  */
-export async function executeFileOperation(action: CladaAction): Promise<FileOpResult> {
+export async function executeFileOperation(action: LoafAction): Promise<FileOpResult> {
   try {
     const handler = actionHandlers[action.action];
 
@@ -64,7 +64,7 @@ export async function executeFileOperation(action: CladaAction): Promise<FileOpR
  * Creates parent directories for destination if needed
  * Overwrites destination if it exists
  */
-async function handleFileMove(action: CladaAction): Promise<FileOpResult> {
+async function handleFileMove(action: LoafAction): Promise<FileOpResult> {
   const { old_path, new_path } = action.parameters;
 
   try {
@@ -113,7 +113,7 @@ async function handleFileMove(action: CladaAction): Promise<FileOpResult> {
 /**
  * Handle file_delete action - removes a file
  */
-async function handleFileDelete(action: CladaAction): Promise<FileOpResult> {
+async function handleFileDelete(action: LoafAction): Promise<FileOpResult> {
   const { path } = action.parameters;
 
   try {
@@ -138,7 +138,7 @@ async function handleFileDelete(action: CladaAction): Promise<FileOpResult> {
  * Handle file_write action - writes/creates/overwrites a file with content
  * Automatically creates parent directories if needed
  */
-async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
+async function handleFileWrite(action: LoafAction): Promise<FileOpResult> {
   const { path, content } = action.parameters;
 
   try {
@@ -176,7 +176,7 @@ async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
 /**
  * Handle file_read action - reads file content
  */
-async function handleFileRead(action: CladaAction): Promise<FileOpResult> {
+async function handleFileRead(action: LoafAction): Promise<FileOpResult> {
   const { path } = action.parameters;
 
   try {
@@ -204,7 +204,7 @@ async function handleFileRead(action: CladaAction): Promise<FileOpResult> {
  * If lines parameter is missing, reads all lines
  * If some lines are out of range, returns available content with error
  */
-async function handleFileReadNumbered(action: CladaAction): Promise<FileOpResult> {
+async function handleFileReadNumbered(action: LoafAction): Promise<FileOpResult> {
   const { path, lines, delimiter = ": " } = action.parameters;
 
   try {
@@ -254,7 +254,7 @@ async function handleFileReadNumbered(action: CladaAction): Promise<FileOpResult
  * Supports single line ("4") or range ("23-43") specifications
  * Preserves line endings and handles edge cases
  */
-async function handleFileReplaceLines(action: CladaAction): Promise<FileOpResult> {
+async function handleFileReplaceLines(action: LoafAction): Promise<FileOpResult> {
   const { path, lines, new_content } = action.parameters;
 
   try {
@@ -402,7 +402,7 @@ async function handleFileReplaceLines(action: CladaAction): Promise<FileOpResult
  * Parses multi-line paths parameter, one absolute path per line
  * Returns an array of file contents in the same order as the paths
  */
-async function handleFilesRead(action: CladaAction): Promise<FileOpResult> {
+async function handleFilesRead(action: LoafAction): Promise<FileOpResult> {
   const { paths } = action.parameters;
 
   // Parse the multi-line paths string
@@ -461,7 +461,7 @@ async function handleFilesRead(action: CladaAction): Promise<FileOpResult> {
  * Handle file_replace_text action - replaces EXACTLY ONE occurrence
  * Fails if old_text appears 0 or 2+ times
  */
-async function handleFileReplaceText(action: CladaAction): Promise<FileOpResult> {
+async function handleFileReplaceText(action: LoafAction): Promise<FileOpResult> {
   const { path, old_text, new_text } = action.parameters;
 
   // Validate old_text is not empty
@@ -534,7 +534,7 @@ async function handleFileReplaceText(action: CladaAction): Promise<FileOpResult>
  * Handle file_replace_all_text action - replaces all occurrences
  * If count provided, validates exact match
  */
-async function handleFileReplaceAllText(action: CladaAction): Promise<FileOpResult> {
+async function handleFileReplaceAllText(action: LoafAction): Promise<FileOpResult> {
   const { path, old_text, new_text, count } = action.parameters;
 
   // Validate old_text is not empty
@@ -657,7 +657,7 @@ async function globFiles(pattern: string, basePath: string): Promise<string[]> {
 }
 
 // Action handler mapping
-const actionHandlers: Record<string, (action: CladaAction) => Promise<FileOpResult>> = {
+const actionHandlers: Record<string, (action: LoafAction) => Promise<FileOpResult>> = {
   'file_write': handleFileWrite,
   'file_replace_text': handleFileReplaceText,
   'file_replace_all_text': handleFileReplaceAllText,

@@ -12,7 +12,7 @@
    - Preserves: Block IDs, line numbers, raw content
 
 2. **Action Validation** (per block)
-   - Validate `action` field exists and matches known clada actions
+   - Validate `action` field exists and matches known loaf actions
    - Check required parameters for specific action type
    - Continue processing even if some blocks fail
 
@@ -54,7 +54,7 @@ All NESL values are strings, requiring conversion:
 
 ## Action Mapping
 
-NESL actions map directly to clada tool names from unified-design.yaml:
+NESL actions map directly to loaf tool names from unified-design.yaml:
 - Must use exact tool names (e.g., `file_write`, not `write_file`)
 - No aliasing or fuzzy matching to avoid ambiguity
 

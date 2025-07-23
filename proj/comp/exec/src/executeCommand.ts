@@ -7,7 +7,7 @@ import { formatExecResult } from './formatExecResult';
 
 /**
  * Executes code from parsed NESL action in specified language
- * @param action - CladaAction with exec action and parameters
+ * @param action - LoafAction with exec action and parameters
  * @returns ExecResult with success status, output, and exit code
  * Never throws - all errors captured in result
  */

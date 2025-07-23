@@ -3,7 +3,7 @@ import { readFileSync, existsSync, rmSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { marked, Token } from 'marked';
-import { Clada } from '../src/index.js';
+import { Loaf } from '../src/index.js';
 import { clearActionSchemaCache } from '../../nesl-action-parser/src/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -48,13 +48,13 @@ const testDirs = [
   '/tmp/018-files-read-with-missing'
 ];
 
-describe('Clada.execute()', () => {
-  let clada: Clada;
+describe('Loaf.execute()', () => {
+  let loaf: Loaf;
 
   beforeEach(() => {
     // Clear the action schema cache to pick up latest definitions
     clearActionSchemaCache();
-    clada = new Clada();
+    loaf = new Loaf();
     // Clean up files
     for (const path of testFiles) {
       try {
@@ -97,7 +97,7 @@ describe('Clada.execute()', () => {
     it(name, async () => {
       const input = codeBlocks[baseIndex].text;
       const expected = JSON.parse(codeBlocks[baseIndex + 1].text);
-      const result = await clada.execute(input);
+      const result = await loaf.execute(input);
 
       // Remove debug field for comparison since test data doesn't include it
       const { debug, ...resultWithoutDebug } = result;

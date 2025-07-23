@@ -1,4 +1,4 @@
-import type { CladaAction, ParseResult, ParseError } from '../../nesl-action-parser/src/index.js';
+import type { LoafAction, ParseResult, ParseError } from '../../nesl-action-parser/src/index.js';
 import { parseNeslResponse } from '../../nesl-action-parser/src/index.js';
 import type { FileOpResult } from '../../fs-ops/src/index.js';
 import { load as loadYaml } from 'js-yaml';
@@ -28,16 +28,16 @@ export interface ActionResult {
   data?: any;
 }
 
-export interface CladaOptions {
+export interface LoafOptions {
   repoPath?: string;
   gitCommit?: boolean;
 }
 
-export class Clada {
-  private options: CladaOptions;
-  private executors: Map<string, (action: CladaAction) => Promise<FileOpResult>> | null = null;
+export class Loaf {
+  private options: LoafOptions;
+  private executors: Map<string, (action: LoafAction) => Promise<FileOpResult>> | null = null;
 
-  constructor(options: CladaOptions = {}) {
+  constructor(options: LoafOptions = {}) {
     this.options = {
       repoPath: options.repoPath || process.cwd(),
       gitCommit: options.gitCommit ?? true
@@ -129,7 +129,7 @@ export class Clada {
     };
 
     // Load executors on demand
-    const loadedExecutors: Record<string, (action: CladaAction) => Promise<FileOpResult>> = {};
+    const loadedExecutors: Record<string, (action: LoafAction) => Promise<FileOpResult>> = {};
 
     // Build routing table from YAML
     for (const [actionName, actionDef] of Object.entries(design.tools)) {
@@ -196,7 +196,7 @@ export class Clada {
    * Execute a single action and format the result
    * Never throws - all errors returned in ActionResult
    */
-  private async executeAction(action: CladaAction, seq: number): Promise<ActionResult> {
+  private async executeAction(action: LoafAction, seq: number): Promise<ActionResult> {
     const executor = this.executors?.get(action.action);
 
     if (!executor) {

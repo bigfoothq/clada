@@ -1,14 +1,14 @@
-import { CladaAction, TransformError, ActionDefinition } from './types.js';
+import { LoafAction, TransformError, ActionDefinition } from './types.js';
 import type { Block } from 'nesl-js';
 
 /**
- * Transform validated NESL block into typed clada action
+ * Transform validated NESL block into typed loaf action
  * Converts string values to proper types based on schema
  */
 export function transformToAction(
   block: Block,
   actionDef: ActionDefinition
-): CladaAction {
+): LoafAction {
   const action = block.properties.action;
   if (!action) {
     throw new TransformError(

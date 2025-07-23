@@ -61,7 +61,7 @@ exports:
 {
   filePath: string           // Absolute path to watch
   debounceMs?: number        // Milliseconds to wait before processing (default: 500)
-  outputFilename?: string    // Name for output file (default: ".clada-output-latest.txt")
+  outputFilename?: string    // Name for output file (default: ".loaf-output-latest.txt")
 }
 ```
 

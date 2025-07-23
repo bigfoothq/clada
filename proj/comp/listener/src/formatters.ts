@@ -1,14 +1,14 @@
 import type { OrchestratorResult } from '../../orch/src/types.js';
 
 // export function formatSummary(orchResult: OrchestratorResult, timestamp: Date): string {
-//   const lines = ['', '=== CLADA RESULTS ==='];
-  
+//   const lines = ['', '=== LOAF RESULTS ==='];
+
 //   // Add execution results
 //   if (orchResult.results) {
 //     for (const result of orchResult.results) {
 //       const icon = result.success ? '✅' : '❌';
 //       const primaryParam = getPrimaryParamFromResult(result);
-      
+
 //       if (result.success) {
 //         lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam}`.trim());
 //       } else {
@@ -16,11 +16,11 @@ import type { OrchestratorResult } from '../../orch/src/types.js';
 //       }
 //     }
 //   }
-  
+
 //   // Add parse errors - group by blockId
 //   if (orchResult.parseErrors) {
 //     const errorsByBlock = new Map<string, any[]>();
-    
+
 //     for (const error of orchResult.parseErrors) {
 //       const blockId = error.blockId || 'unknown';
 //       if (!errorsByBlock.has(blockId)) {
@@ -28,13 +28,13 @@ import type { OrchestratorResult } from '../../orch/src/types.js';
 //       }
 //       errorsByBlock.get(blockId)!.push(error);
 //     }
-    
+
 //     // Format grouped errors
 //     for (const [blockId, errors] of errorsByBlock) {
 //       const firstError = errors[0];
 //       const action = firstError.action || 'parse';
 //       const lineInfo = firstError.blockStartLine ? `, line ${firstError.blockStartLine}` : '';
-      
+
 //       if (errors.length === 1) {
 //         // Single error - simple format
 //         lines.push(`${blockId} ❌ ${action}${lineInfo} - ${firstError.errorType}: ${firstError.message}`);
@@ -46,26 +46,26 @@ import type { OrchestratorResult } from '../../orch/src/types.js';
 //       }
 //     }
 //   }
-  
+
 //   lines.push('=== END ===', '');
 //   return lines.join('\n');
 // }
 
 
 export function formatSummary(orchResult: OrchestratorResult, timestamp: Date): string {
-  const lines = ['', '=== CLADA RESULTS ==='];
-  
+  const lines = ['', '=== LOAF RESULTS ==='];
+
   // DEBUG: Log raw orchestrator result for parse errors
   if (orchResult.parseErrors && orchResult.parseErrors.length > 0) {
     // console.log('DEBUG: Raw parseErrors:', JSON.stringify(orchResult.parseErrors, null, 2));
   }
-  
+
   // Add execution results
   if (orchResult.results) {
     for (const result of orchResult.results) {
       const icon = result.success ? '✅' : '❌';
       const primaryParam = getPrimaryParamFromResult(result);
-      
+
       if (result.success) {
         lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam}`.trim());
       } else {
@@ -73,11 +73,11 @@ export function formatSummary(orchResult: OrchestratorResult, timestamp: Date): 
       }
     }
   }
-  
+
   // Add parse errors - group by blockId
   if (orchResult.parseErrors) {
     const errorsByBlock = new Map<string, any[]>();
-    
+
     // Group errors by blockId
     for (const error of orchResult.parseErrors) {
       const blockId = error.blockId || 'unknown';
@@ -86,16 +86,16 @@ export function formatSummary(orchResult: OrchestratorResult, timestamp: Date): 
       }
       errorsByBlock.get(blockId)!.push(error);
     }
-    
+
     // Format grouped errors
     for (const [blockId, errors] of errorsByBlock) {
       const firstError = errors[0];
       const action = firstError.action || '-';
       const lineInfo = firstError.blockStartLine ? ` (line ${firstError.blockStartLine})` : '';
-      
+
       // Pad action to 10 characters for alignment
       const paddedAction = action.padEnd(10);
-      
+
       if (errors.length === 1) {
         // Single error
         lines.push(`${blockId} ❌ ${paddedAction} ERROR: ${firstError.message}${lineInfo}`);
@@ -106,10 +106,10 @@ export function formatSummary(orchResult: OrchestratorResult, timestamp: Date): 
           const msg = error.message;
           messageCount.set(msg, (messageCount.get(msg) || 0) + 1);
         }
-        
+
         // First line shows total count
         lines.push(`${blockId} ❌ ${paddedAction} ERROR: ${errors.length} syntax errors${lineInfo}`);
-        
+
         // Sub-bullets for each unique error type
         const indent = ' '.repeat(20); // Align with ERROR: column
         for (const [msg, count] of messageCount) {
@@ -122,7 +122,7 @@ export function formatSummary(orchResult: OrchestratorResult, timestamp: Date): 
       }
     }
   }
-  
+
   lines.push('=== END ===', '');
   return lines.join('\n');
 }
@@ -142,17 +142,17 @@ function getPrimaryParamFromResult(result: any): string {
 
 function getErrorSummary(error?: string): string {
   if (!error) return 'Unknown error';
-  
+
   // Extract key error info
   if (error.includes('File not found')) return 'File not found';
   if (error.includes('no such file or directory')) return 'File not found';
   if (error.includes('Permission denied')) return 'Permission denied';
   if (error.includes('Output too large')) return error; // Keep full message
-  
+
   // For other errors, take first part before details
   const match = error.match(/^[^:]+:\s*([^'(]+)/);
   if (match) return match[1].trim();
-  
+
   return error.split('\n')[0]; // First line only
 }
 
@@ -161,7 +161,7 @@ function getErrorSummary(error?: string): string {
  */
 function formatFileReadOutput(result: any): string[] {
   const lines: string[] = [];
-  
+
   if (result.action === 'file_read') {
     // Simple file read - data contains { path, content }
     const path = result.data.path || result.params?.path || 'unknown';
@@ -179,24 +179,24 @@ function formatFileReadOutput(result: any): string[] {
     // Each element in content array corresponds to the file at the same index in paths
     if (result.data.paths && result.data.content) {
       lines.push(`Reading ${result.data.paths.length} files:`);
-      
+
       // List all files first
       for (const path of result.data.paths) {
         lines.push(`- ${path}`);
       }
-      
+
       // Add blank line before file contents
       lines.push('');
-      
+
       // Format each file's content with START/END markers
       for (let i = 0; i < result.data.paths.length; i++) {
         const path = result.data.paths[i];
         const content = result.data.content[i];
-        
+
         lines.push(`=== START FILE: ${path} ===`);
         lines.push(content || '[empty file]');
         lines.push(`=== END FILE: ${path} ===`);
-        
+
         // Add blank line between files (except after the last one)
         if (i < result.data.paths.length - 1) {
           lines.push('');
@@ -207,19 +207,19 @@ function formatFileReadOutput(result: any): string[] {
       lines.push(`Reading 0 files:`);
     }
   }
-  
+
   return lines;
 }
 
 export function formatFullOutput(orchResult: OrchestratorResult): string {
-  const lines = ['=== CLADA RESULTS ==='];
-  
+  const lines = ['=== LOAF RESULTS ==='];
+
   // Add execution results
   if (orchResult.results) {
     for (const result of orchResult.results) {
       const icon = result.success ? '✅' : '❌';
       const primaryParam = getPrimaryParamFromResult(result);
-      
+
       if (result.success) {
         lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam}`.trim());
       } else {
@@ -227,11 +227,11 @@ export function formatFullOutput(orchResult: OrchestratorResult): string {
       }
     }
   }
-  
+
   // Add parse errors - group by blockId
   if (orchResult.parseErrors) {
     const errorsByBlock = new Map<string, any[]>();
-    
+
     // Group errors by blockId
     for (const error of orchResult.parseErrors) {
       const blockId = error.blockId || 'unknown';
@@ -240,16 +240,16 @@ export function formatFullOutput(orchResult: OrchestratorResult): string {
       }
       errorsByBlock.get(blockId)!.push(error);
     }
-    
+
     // Format grouped errors
     for (const [blockId, errors] of errorsByBlock) {
       const firstError = errors[0];
       const action = firstError.action || '-';
       const lineInfo = firstError.blockStartLine ? ` (line ${firstError.blockStartLine})` : '';
-      
+
       // Pad action to 10 characters for alignment
       const paddedAction = action.padEnd(10);
-      
+
       if (errors.length === 1) {
         // Single error
         lines.push(`${blockId} ❌ ${paddedAction} ERROR: ${firstError.message}${lineInfo}`);
@@ -260,10 +260,10 @@ export function formatFullOutput(orchResult: OrchestratorResult): string {
           const msg = error.message;
           messageCount.set(msg, (messageCount.get(msg) || 0) + 1);
         }
-        
+
         // First line shows total count
         lines.push(`${blockId} ❌ ${paddedAction} ERROR: ${errors.length} syntax errors${lineInfo}`);
-        
+
         // Sub-bullets for each unique error type
         const indent = ' '.repeat(20); // Align with ERROR: column
         for (const [msg, count] of messageCount) {
@@ -276,9 +276,9 @@ export function formatFullOutput(orchResult: OrchestratorResult): string {
       }
     }
   }
-  
+
   lines.push('=== END ===', '', '=== OUTPUTS ===');
-  
+
   // Add outputs for successful actions based on output_display rules
   if (orchResult.results) {
     for (const result of orchResult.results) {
@@ -290,7 +290,7 @@ export function formatFullOutput(orchResult: OrchestratorResult): string {
           ? `[${result.blockId}] ${result.action} ${primaryParam}:`
           : `[${result.blockId}] ${result.action}:`;
         lines.push('', header);
-        
+
         // Special formatting for file read operations
         if (['file_read', 'file_read_numbered', 'files_read'].includes(result.action)) {
           const formattedOutput = formatFileReadOutput(result);
@@ -310,7 +310,7 @@ export function formatFullOutput(orchResult: OrchestratorResult): string {
       }
     }
   }
-  
+
   lines.push('=== END ===');
   return lines.join('\n');
 }
@@ -325,21 +325,20 @@ function shouldShowOutput(action: string, params?: any): boolean {
   if (neverShowOutput.includes(action)) {
     return false;
   }
-  
+
   // Actions with output_display: always
   const alwaysShowOutput = ['file_read', 'file_read_numbered', 'files_read', 'ls', 'grep', 'glob'];
   if (alwaysShowOutput.includes(action)) {
     return true;
   }
-  
+
   // Actions with output_display: conditional
   if (action === 'exec') {
     // Check return_output parameter (default is true)
     return params?.return_output !== false;
   }
-  
+
   // Default to showing output for unknown actions
   return true;
 }
 
- 

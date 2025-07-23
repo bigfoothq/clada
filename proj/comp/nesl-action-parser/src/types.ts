@@ -1,5 +1,5 @@
 export interface ParseResult {
-  actions: CladaAction[];
+  actions: LoafAction[];
   errors: ParseError[];
   summary: {
     totalBlocks: number;
@@ -12,7 +12,7 @@ export interface ParseResult {
   };
 }
 
-export interface CladaAction {
+export interface LoafAction {
   action: string;
   parameters: Record<string, any>;
   metadata: {

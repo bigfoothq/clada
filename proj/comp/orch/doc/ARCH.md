@@ -1,9 +1,9 @@
-# Clada Architecture
+# Loaf Architecture
 
 
 IMPORTANT TOOL TESTING NOTES:
 
-- for test specific clada tools, each tool must get its own test case file, for easy visibility into which tools have been implemented and tested yet.
+- for test specific loaf tools, each tool must get its own test case file, for easy visibility into which tools have been implemented and tested yet.
 - aka `proj/comp/fs-ops/test-data/integration/file_delete.cases.md`
 
 ## Core Design Decisions
@@ -92,7 +92,7 @@ interface ActionResult {
 
 ## Component Structure
 ```
-clada/
+loaf/
 ├── proj/
 │   ├── comp/
 │   │   ├── nesl-ast-converter/  # AST → Actions
@@ -123,7 +123,7 @@ clada/
 ### Design
 1. **Parser error handling**: Execute blocks with parser errors or skip?
 2. **Git conflict handling**: How to handle conflicts during manual rollback?
-3. **Concurrent access**: Multiple clada instances on same repo?
+3. **Concurrent access**: Multiple loaf instances on same repo?
 4. **Partial failure behavior**: Continue executing after first failure or abort?
 
 ### Future
@@ -134,7 +134,7 @@ clada/
 ## Design Rationale
 
 ### Why No Automatic Rollback
-Traditional transaction systems rollback on failure to maintain consistency. Clada explicitly rejects this because:
+Traditional transaction systems rollback on failure to maintain consistency. Loaf explicitly rejects this because:
 1. **LLM responses are expensive** - Regenerating costs time and money
 2. **Partial success is informative** - LLM learns from failures
 3. **Git preserves history** - Can always manually revert

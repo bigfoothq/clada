@@ -1,8 +1,8 @@
 /**
- * NESL Action Parser - Parses NESL blocks into validated clada actions
+ * NESL Action Parser - Parses NESL blocks into validated loaf actions
  */
 
-import { ParseResult, CladaAction, ParseError, ValidationResult, TransformError, ActionDefinition } from './types.js';
+import { ParseResult, LoafAction, ParseError, ValidationResult, TransformError, ActionDefinition } from './types.js';
 import { validateNeslBlock } from './validateNeslBlock.js';
 import { transformToAction } from './transformToAction.js';
 import { parseNesl, type Block, type ParseResult as NeslParseResult } from 'nesl-js';
@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 // Re-export types for consumers
-export type { ParseResult, CladaAction, ParseError, ValidationResult, TransformError };
+export type { ParseResult, LoafAction, ParseError, ValidationResult, TransformError };
 
 // Cache for action schema
 let actionSchemaCache: Map<string, ActionDefinition> | null = null;
@@ -26,11 +26,11 @@ export function clearActionSchemaCache(): void {
 }
 
 /**
- * Parse NESL blocks from text into validated clada actions
+ * Parse NESL blocks from text into validated loaf actions
  * Processes all blocks, collecting successes and errors
  */
 export async function parseNeslResponse(neslText: string): Promise<ParseResult> {
-  const actions: CladaAction[] = [];
+  const actions: LoafAction[] = [];
   const errors: ParseError[] = [];
 
   // Debug logging for specific test cases

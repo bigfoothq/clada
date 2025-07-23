@@ -2,27 +2,37 @@
   "cases": [
     {
       "name": "no summary section",
-      "input": ["# My Document\n\nSome content here."],
+      "input": [
+        "# My Document\n\nSome content here."
+      ],
       "expected": "# My Document\n\nSome content here."
     },
     {
       "name": "summary at start with blank line",
-      "input": ["📋 Copied to clipboard\n\n=== CLADA RESULTS ===\nabc ✅ file_write /tmp/test.txt\n=== END ===\n\n# My Document\n\nSome content here."],
+      "input": [
+        "📋 Copied to clipboard\n\n=== LOAF RESULTS ===\nabc ✅ file_write /tmp/test.txt\n=== END ===\n\n# My Document\n\nSome content here."
+      ],
       "expected": "# My Document\n\nSome content here."
     },
     {
       "name": "summary at start no blank line",
-      "input": ["=== CLADA RESULTS ===\nabc ✅ file_write /tmp/test.txt\n=== END ===\n# Document"],
+      "input": [
+        "=== LOAF RESULTS ===\nabc ✅ file_write /tmp/test.txt\n=== END ===\n# Document"
+      ],
       "expected": "# Document"
     },
     {
       "name": "file ends with summary",
-      "input": ["📋 Copied to clipboard\n\n=== CLADA RESULTS ===\nabc ✅ file_write /tmp/test.txt\n=== END ==="],
+      "input": [
+        "📋 Copied to clipboard\n\n=== LOAF RESULTS ===\nabc ✅ file_write /tmp/test.txt\n=== END ==="
+      ],
       "expected": ""
     },
     {
       "name": "END marker in content preserved",
-      "input": ["# Document\n\nThis mentions === END === in text.\n\nMore content."],
+      "input": [
+        "# Document\n\nThis mentions === END === in text.\n\nMore content."
+      ],
       "expected": "# Document\n\nThis mentions === END === in text.\n\nMore content."
     }
   ]

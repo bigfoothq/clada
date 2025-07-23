@@ -36,13 +36,13 @@ dependencies:
 ```yaml
 exports:
   functions: [parseNeslResponse, validateNeslBlock, transformToAction, clearActionSchemaCache]
-  types: [ParseResult, CladaAction, ParseError, ValidationResult, TransformError]
+  types: [ParseResult, LoafAction, ParseError, ValidationResult, TransformError]
   errors: [TransformError]
 ```
 
 ### parseNeslResponse
 - **Signature**: `parseNeslResponse(neslText: string) -> Promise<ParseResult>`
-- **Purpose**: Parse NESL blocks from text into validated clada actions.
+- **Purpose**: Parse NESL blocks from text into validated loaf actions.
 - **Test-data**: `test-data/parseNeslResponse.json`
 
 ### validateNeslBlock
@@ -51,8 +51,8 @@ exports:
 - **Test-data**: `test-data/validateNeslBlock.json`
 
 ### transformToAction
-- **Signature**: `transformToAction(block: NeslBlock, actionDef: ActionDefinition) -> CladaAction`
-- **Purpose**: Transform validated NESL block into typed clada action.
+- **Signature**: `transformToAction(block: NeslBlock, actionDef: ActionDefinition) -> LoafAction`
+- **Purpose**: Transform validated NESL block into typed loaf action.
 - **Throws**: `TransformError` when type conversion fails
 - **Test-data**: `test-data/transformToAction.json`
 
@@ -90,7 +90,7 @@ exports:
 ### ParseResult
 ```typescript
 {
-  actions: CladaAction[]      // Successfully parsed actions
+  actions: LoafAction[]      // Successfully parsed actions
   errors: ParseError[]        // All errors encountered
   summary: {
     totalBlocks: number
@@ -100,7 +100,7 @@ exports:
 }
 ```
 
-### CladaAction
+### LoafAction
 ```typescript
 {
   action: string              // Action name from unified-design

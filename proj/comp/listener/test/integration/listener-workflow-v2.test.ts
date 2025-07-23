@@ -26,35 +26,35 @@ interface TestCase {
 async function parseTestCases(): Promise<TestCase[]> {
   const testDataPath = join(__dirname, '../../test-data/integration/listener-workflow-v2.cases.md');
   const markdown = await readFile(testDataPath, 'utf-8');
-  
+
   const tokens = marked.lexer(markdown);
   const testCases: TestCase[] = [];
   let currentTest: Partial<TestCase> | null = null;
   let codeBlockCount = 0;
-  
+
   for (const token of tokens) {
     // Test case name (h3)
     if (token.type === 'heading' && token.depth === 3) {
       // Save previous test if complete
-      if (currentTest && currentTest.name && 
-          currentTest.initialContent && 
-          currentTest.newContent && 
-          currentTest.expectedPrepended && 
-          currentTest.expectedOutput && 
-          currentTest.expectedClipboard) {
+      if (currentTest && currentTest.name &&
+        currentTest.initialContent &&
+        currentTest.newContent &&
+        currentTest.expectedPrepended &&
+        currentTest.expectedOutput &&
+        currentTest.expectedClipboard) {
         testCases.push(currentTest as TestCase);
       }
-      
+
       // Start new test
       currentTest = { name: token.text };
       codeBlockCount = 0;
     }
-    
+
     // Code blocks - just take them in order, ignoring h4 headers
     if (token.type === 'code' && currentTest) {
       const content = token.text;
       codeBlockCount++;
-      
+
       switch (codeBlockCount) {
         case 1:
           currentTest.initialContent = content;
@@ -74,17 +74,17 @@ async function parseTestCases(): Promise<TestCase[]> {
       }
     }
   }
-  
+
   // Don't forget the last test case
-  if (currentTest && currentTest.name && 
-      currentTest.initialContent && 
-      currentTest.newContent && 
-      currentTest.expectedPrepended && 
-      currentTest.expectedOutput && 
-      currentTest.expectedClipboard) {
+  if (currentTest && currentTest.name &&
+    currentTest.initialContent &&
+    currentTest.newContent &&
+    currentTest.expectedPrepended &&
+    currentTest.expectedOutput &&
+    currentTest.expectedClipboard) {
     testCases.push(currentTest as TestCase);
   }
-  
+
   return testCases;
 }
 
@@ -102,15 +102,15 @@ async function pollForFileChange(
 ): Promise<string> {
   const startTime = Date.now();
   let lastContent = initialContent;
-  
+
   while (Date.now() - startTime < timeoutMs) {
     try {
       const content = await readFile(filePath, 'utf-8');
-      if (content !== lastContent && content.includes('=== CLADA RESULTS ===')) {
+      if (content !== lastContent && content.includes('=== LOAF RESULTS ===')) {
         return content;
       }
       lastContent = content;
-    } catch {}
+    } catch { }
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   throw new Error(`Timeout waiting for file change after ${timeoutMs}ms`);
@@ -123,50 +123,50 @@ const testCasesPromise = parseTestCases();
 export async function listenerWorkflowTests() {
   // Load test cases before defining tests
   const testCases = await testCasesPromise;
-  
+
   // Use it.each to create separate test for each test case
   it.each(testCases)('$name', async (testCase) => {
     let handle: ListenerHandle | null = null;
     const testDir = getTestDir(testCase.name);
     const testFile = join(testDir, 'test.txt');
-    const outputFile = join(testDir, '.clada-output-latest.txt');
-    
+    const outputFile = join(testDir, '.loaf-output-latest.txt');
+
     try {
       // Setup
       await mkdir(testDir, { recursive: true });
       await writeFile(testFile, testCase.initialContent);
-      
+
       // Start listener
-      handle = await startListener({ 
-        filePath: testFile, 
-        debounceMs: 100 
+      handle = await startListener({
+        filePath: testFile,
+        debounceMs: 100
       });
-      
+
       // Wait for initial processing
       await pollForFileChange(testFile, testCase.initialContent);
-      
+
       // Wait for debounce to settle
       await new Promise(resolve => setTimeout(resolve, 200));
-      
+
       // Write new content
       await writeFile(testFile, testCase.newContent);
-      
+
       // Wait for processing to complete
       await pollForFileChange(testFile, testCase.newContent);
-      
+
       // Wait a bit more for clipboard and output file writes
       await new Promise(resolve => setTimeout(resolve, 200));
-      
+
       // Read actual results
       const actualPrepended = await readFile(testFile, 'utf-8');
       const actualOutput = await readFile(outputFile, 'utf-8');
       const actualClipboard = await clipboard.read();
-      
+
       // Compare results (exact match)
       expect(actualPrepended).toBe(testCase.expectedPrepended);
       expect(actualOutput).toBe(testCase.expectedOutput);
       expect(actualClipboard).toBe(testCase.expectedClipboard);
-      
+
     } finally {
       // Cleanup
       if (handle) {

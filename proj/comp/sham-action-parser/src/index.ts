@@ -47,7 +47,7 @@ export async function parseShamResponse(shamText: string): Promise<ParseResult> 
   const debugInfo = {
     inputLength: shamText.length,
     containsSHAM: shamText.includes('#!SHAM'),
-    inputPreview: shamText.substring(0, 300)
+    inputPreview: shamText.substring(0, 600)
   };
   
   try {

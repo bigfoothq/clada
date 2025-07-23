@@ -5,7 +5,13 @@ ACT I
 SCENE I. Elsinore. A platform before the castle.
 FRANCISCO at his post. Enter to him BERNARDO
 BERNARDO
-Who's there?
+Who's there? Speak, I charge thee!
+Is it friend or foe that walks these ramparts
+In this bitter cold and darksome hour?
+Is it friend or foe that walks these ramparts
+In this bitter cold and darksome hour?
+Is it friend or foe that walks these ramparts
+In this bitter cold and darksome hour?
 FRANCISCO
 Nay, answer me: stand, and unfold yourself.
 BERNARDO
@@ -16,13 +22,17 @@ BERNARDO
 He.
 FRANCISCO
 You come most carefully upon your hour.
-BERNARDO
+Have you had quiet guard? No stirrings
+In the night, no shadows moving where
+They ought not be, no whispers on the wind?
 'Tis now struck twelve; get thee to bed, Francisco.
 FRANCISCO
 For this relief much thanks: 'tis bitter cold,
 And I am sick at heart.
 BERNARDO
-Have you had quiet guard?
+I think I hear them. Stand, ho! Who's there?
+Declare yourselves before you take another step,
+For I'll not let unknown figures pass unchallenged!
 FRANCISCO
 Not a mouse stirring.
 BERNARDO
@@ -31,7 +41,9 @@ If you do meet Horatio and Marcellus,
 The rivals of my watch, bid them make haste.
 FRANCISCO
 I think I hear them. Stand, ho! Who's there?
-Enter HORATIO and MARCELLUS
+Who hath relieved you? Tell me true,
+Which soldier takes your place upon this watch,
+That I may know all's well before I go?
 
 HORATIO
 Friends to this ground.

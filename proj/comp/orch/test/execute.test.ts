@@ -98,7 +98,10 @@ describe('Clada.execute()', () => {
       const input = codeBlocks[baseIndex].text;
       const expected = JSON.parse(codeBlocks[baseIndex + 1].text);
       const result = await clada.execute(input);
-      expect(result).toEqual(expected);
+      
+      // Remove debug field for comparison since test data doesn't include it
+      const { debug, ...resultWithoutDebug } = result;
+      expect(resultWithoutDebug).toEqual(expected);
     });
   });
 });

@@ -1,6 +1,33 @@
 === CLADA RESULTS ===
-unknown ❌ -          ERROR: Block ID must be exactly 3 characters (line 4)
+h1 ✅ file_replace_lines /Users/stuart/repos/clada/use-listener/test-files/ham.md
+h2 ✅ file_replace_lines /Users/stuart/repos/clada/use-listener/test-files/ham.md
+h3 ✅ file_replace_lines /Users/stuart/repos/clada/use-listener/test-files/ham.md
+h4 ✅ file_replace_lines /Users/stuart/repos/clada/use-listener/test-files/ham.md
 === END ===
 
 === OUTPUTS ===
+
+[h1] file_replace_lines /Users/stuart/repos/clada/use-listener/test-files/ham.md:
+{
+  "path": "/Users/stuart/repos/clada/use-listener/test-files/ham.md",
+  "lines_replaced": 1
+}
+
+[h2] file_replace_lines /Users/stuart/repos/clada/use-listener/test-files/ham.md:
+{
+  "path": "/Users/stuart/repos/clada/use-listener/test-files/ham.md",
+  "lines_replaced": 1
+}
+
+[h3] file_replace_lines /Users/stuart/repos/clada/use-listener/test-files/ham.md:
+{
+  "path": "/Users/stuart/repos/clada/use-listener/test-files/ham.md",
+  "lines_replaced": 1
+}
+
+[h4] file_replace_lines /Users/stuart/repos/clada/use-listener/test-files/ham.md:
+{
+  "path": "/Users/stuart/repos/clada/use-listener/test-files/ham.md",
+  "lines_replaced": 1
+}
 === END ===

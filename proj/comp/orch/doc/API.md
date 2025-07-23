@@ -7,8 +7,8 @@ standard
 
 ```yaml
 dependencies:
-  proj/comp/sham-action-parser:  # [IMPLEMENTED]
-    functions: [parseShamResponse]
+  proj/comp/nesl-action-parser:  # [IMPLEMENTED]
+    functions: [parseNeslResponse]
     types: [ParseResult, CladaAction, ParseError, ValidationResult, TransformError]
   
   proj/comp/fs-ops:              # [PARTIALLY IMPLEMENTED]
@@ -31,7 +31,7 @@ dependencies:
     types: [ContextError]
   
   external/nesl-js:
-    functions: [parseSham]
+    functions: [parseNesl]
     types: [Block, ParseResult, ParseError]
 ```
 
@@ -47,19 +47,19 @@ exports:
     - ExecutionResult
     - ActionResult  
     - CladaOptions
-  # Note: ParseError is re-exported from sham-action-parser
+  # Note: ParseError is re-exported from nesl-action-parser
 ```
 
 ### Clada (class)
-- **Purpose**: Main orchestrator executing SHAM blocks from LLM output
+- **Purpose**: Main orchestrator executing NESL blocks from LLM output
 - **Constructor**: `new Clada(options?: CladaOptions)`
 - **State**: Maintains working directory and context set across execute() calls
 
 ### execute
 - **Signature**: `async execute(llmOutput: string): Promise<ExecutionResult>`
-- **Purpose**: Parse and execute all SHAM blocks in LLM output, commit results
+- **Purpose**: Parse and execute all NESL blocks in LLM output, commit results
 - **Process**: 
-  1. Parse SHAM blocks
+  1. Parse NESL blocks
   2. Convert to actions
   3. Execute all valid actions
   4. (v1.2: Git commit with summary)
@@ -70,10 +70,10 @@ exports:
 ```typescript
 interface ExecutionResult {
   success: boolean              // False if any action failed
-  totalBlocks: number          // Count of SHAM blocks found
+  totalBlocks: number          // Count of NESL blocks found
   executedActions: number      // Count of actions attempted
   results: ActionResult[]      // All execution results
-  parseErrors: ParseError[]    // SHAM parsing errors
+  parseErrors: ParseError[]    // NESL parsing errors
   fatalError?: string         // System failure (v1.2: will include git errors)
 }
 ```
@@ -82,7 +82,7 @@ interface ExecutionResult {
 ```typescript
 interface ActionResult {
   seq: number                  // Execution order
-  blockId: string             // SHAM block ID
+  blockId: string             // NESL block ID
   action: string              // Action type
   params: Record<string, any> // Input parameters
   success: boolean
@@ -95,7 +95,7 @@ interface ActionResult {
 ```typescript
 interface ParseError {
   blockId?: string            // If error is block-specific
-  error: ShamError            // From parser
+  error: NeslError            // From parser
 }
 ```
 
@@ -112,7 +112,7 @@ interface CladaOptions {
 ### Execution Flow
 ```
 execute(llmOutput)
-  → parseSHAM(llmOutput) → ShamParseResult
+  → parseNESL(llmOutput) → NeslParseResult
   → for each valid block:
     → convertToActions(block) → CladaAction[]
     → for each action:

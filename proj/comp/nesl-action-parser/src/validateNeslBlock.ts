@@ -2,10 +2,10 @@ import { ValidationResult, ActionDefinition } from './types.js';
 import type { Block } from 'nesl-js';
 
 /**
- * Validate a single SHAM block against action schema
+ * Validate a single NESL block against action schema
  * Checks action exists and required params present
  */
-export function validateShamBlock(
+export function validateNeslBlock(
   block: Block,
   actionSchema: ActionDefinition | null
 ): ValidationResult {
@@ -21,7 +21,7 @@ export function validateShamBlock(
   if (!block.properties.action) {
     return {
       valid: false,
-      errors: ['Missing \'action\' field in SHAM block']
+      errors: ['Missing \'action\' field in NESL block']
     };
   }
 
@@ -37,7 +37,7 @@ export function validateShamBlock(
 
   // Check all required parameters are present
   const errors: string[] = [];
-  
+
   if (actionSchema.parameters) {
     for (const [paramName, paramDef] of Object.entries(actionSchema.parameters)) {
       if (paramDef.required && !(paramName in block.properties)) {

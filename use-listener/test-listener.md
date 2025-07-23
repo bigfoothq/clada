@@ -6,9 +6,9 @@ ex1 ✅ exec bash
 
 ### Example 2: Execute some code
 ```markdown
-```sh sham
-#!SHAM [@three-char-SHA-256: ex1]
+```sh nesl
+#!NESL [@three-char-SHA-256: ex1]
 action = "exec"
 lang = "bash"
 code = "echo 'Current time:' && date"
-#!END_SHAM_ex1
+#!END_NESL_ex1

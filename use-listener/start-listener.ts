@@ -10,7 +10,7 @@ const initialContent = `# My Test Document
 
 This is my test file for the listener.
 
-<!-- Add your SHAM blocks below -->
+<!-- Add your NESL blocks below -->
 `;
 
 async function main() {
@@ -30,7 +30,7 @@ async function main() {
     console.log(`✅ Listener started!`);
     console.log(`📝 Watching: ${testFile}`);
     console.log(`📋 Output will be written to: .clada-output-latest.txt`);
-    console.log(`\nThe listener is now running. Try adding SHAM blocks to the file!`);
+    console.log(`\nThe listener is now running. Try adding NESL blocks to the file!`);
     console.log('Press Ctrl+C to stop.\n');
 
     // Handle graceful shutdown

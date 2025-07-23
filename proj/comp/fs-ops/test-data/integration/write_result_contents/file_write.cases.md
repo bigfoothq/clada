@@ -4,12 +4,12 @@
 
 ### 001-simple-file-create
 
-```sh sham
-#!SHAM [@three-char-SHA-256: abc]
+```sh nesl
+#!NESL [@three-char-SHA-256: abc]
 action = "file_write"
 path = "/tmp/t_simple-file-create/test.txt"
 content = "Hello, World!"
-#!END_SHAM_abc
+#!END_NESL_abc
 ```
 
 ```json
@@ -28,12 +28,12 @@ Hello, World!
 
 ### 002-create-with-parent-dirs
 
-```sh sham
-#!SHAM [@three-char-SHA-256: pdr]
+```sh nesl
+#!NESL [@three-char-SHA-256: pdr]
 action = "file_write"
 path = "/tmp/t_create-with-parent-dirs/deeply/nested/dir/file.txt"
 content = "Creates parent directories"
-#!END_SHAM_pdr
+#!END_NESL_pdr
 ```
 
 ```json
@@ -52,12 +52,12 @@ Creates parent directories
 
 ### 003-write-with-special-characters
 
-```sh sham
-#!SHAM [@three-char-SHA-256: spc]
+```sh nesl
+#!NESL [@three-char-SHA-256: spc]
 action = "file_write"
 path = "/tmp/t_write-with-special-characters/special-chars.txt"
 content = "Line with \"quotes\" and 'apostrophes'"
-#!END_SHAM_spc
+#!END_NESL_spc
 ```
 
 ```json
@@ -76,16 +76,16 @@ Line with "quotes" and 'apostrophes'
 
 ### 004-multiline-content
 
-```sh sham
-#!SHAM [@three-char-SHA-256: mlt]
+```sh nesl
+#!NESL [@three-char-SHA-256: mlt]
 action = "file_write"
 path = "/tmp/t_multiline-content/multiline.txt"
-content = <<'EOT_SHAM_mlt'
+content = <<'EOT_NESL_mlt'
 Line 1
 Line 2
 Line 3
-EOT_SHAM_mlt
-#!END_SHAM_mlt
+EOT_NESL_mlt
+#!END_NESL_mlt
 ```
 
 ```json

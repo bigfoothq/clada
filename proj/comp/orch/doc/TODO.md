@@ -2,7 +2,7 @@
 Issues revealed by execute.md test design:
 
 Missing gitCommit field in expected results
-Context operations not tested - are they SHAM actions?
+Context operations not tested - are they NESL actions?
 Git state check not tested - what if dirty repo?
 Directory creation for file operations unclear
 
@@ -18,23 +18,23 @@ Next step: Add executor: fs-ops to all file/dir operations in the YAML when conv
 add malformed sha id error to nesl-js  so it reeturns a good error for:
 
 
-```sh sham
-#!SHAM [@sham-id: 567]
+```sh nesl
+#!NESL [@nesl-id: 567]
 action = "file_replace_text"
 path = "/tmp/replace-test.txt"
 old_text = "Hello"
 new_text = "Hi"
-#!END_SHAM_567
+#!END_NESL_567
 ```
 
 (should be )
 
 
-```sh sham
-#!SHAM [@three-char-SHA-256: 567]
+```sh nesl
+#!NESL [@three-char-SHA-256: 567]
 action = "file_replace_text"
 path = "/tmp/replace-test.txt"
 old_text = "Hello"
 new_text = "Hi"
-#!END_SHAM_567
+#!END_NESL_567
 ```

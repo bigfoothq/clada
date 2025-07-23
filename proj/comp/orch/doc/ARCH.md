@@ -16,19 +16,19 @@ IMPORTANT TOOL TESTING NOTES:
 - **Boundary**: One git commit per `execute()` call
 - **API**: Explicit transaction management (details TBD)
 
-### SHAM Processing Pipeline
-1. SHAM parser (external npm) → AST
-2. AST → Action objects (sham-ast-converter)
+### NESL Processing Pipeline
+1. NESL parser (external npm) → AST
+2. AST → Action objects (nesl-ast-converter)
 3. Actions → Execution → Results
 
-### SHAM AST Structure
+### NESL AST Structure
 ```typescript
-interface ShamParseResult {
-  blocks: ShamBlock[]
-  errors: ShamError[]
+interface NeslParseResult {
+  blocks: NeslBlock[]
+  errors: NeslError[]
 }
 
-interface ShamBlock {
+interface NeslBlock {
   id: string           // 3-char SHA-256
   properties: {
     action: string     // Maps to tool name (e.g., "file_write")
@@ -38,7 +38,7 @@ interface ShamBlock {
   endLine: number
 }
 
-interface ShamError {
+interface NeslError {
   code: string         // e.g., "DUPLICATE_KEY"
   line: number
   column: number
@@ -57,7 +57,7 @@ interface ShamError {
 - **Result**: Complete execution log with successes and failures
 
 ### Action Mapping
-- SHAM `action` property maps directly to tool names from unified-design.yaml
+- NESL `action` property maps directly to tool names from unified-design.yaml
 - Use canonical names: `file_write`, `exec`, etc.
 
 ### Context Management
@@ -75,7 +75,7 @@ interface ShamError {
 ```typescript
 interface ActionResult {
   seq: number          // Execution order
-  blockId: string      // SHAM block ID
+  blockId: string      // NESL block ID
   action: string       // Action type
   params: any          // Input parameters
   success: boolean
@@ -95,7 +95,7 @@ interface ActionResult {
 clada/
 ├── proj/
 │   ├── comp/
-│   │   ├── sham-ast-converter/  # AST → Actions
+│   │   ├── nesl-ast-converter/  # AST → Actions
 │   │   ├── fs-ops/              # File/directory operations
 │   │   ├── exec/                # Command execution
 │   │   ├── git-tx/              # Git transaction management
@@ -107,7 +107,7 @@ clada/
 ```
 
 ## Implementation Priorities
-1. `sham-ast-converter` - Cannot test without this
+1. `nesl-ast-converter` - Cannot test without this
 2. `fs-ops` - Core functionality
 3. `exec` - Command execution
 4. `git-tx` - Transaction wrapper
@@ -116,9 +116,9 @@ clada/
 ## Open Questions
 
 ### Critical
-1. **SHAM parser package**: `nesl-js` from `github:nesl-lang/nesl-js`
-   - Import: `const { parseSHAM } = require('nesl-js')`
-2. **Transaction API**: Single `execute()` method processes SHAM block array
+1. **NESL parser package**: `nesl-js` from `github:nesl-lang/nesl-js`
+   - Import: `const { parseNESL } = require('nesl-js')`
+2. **Transaction API**: Single `execute()` method processes NESL block array
 
 ### Design
 1. **Parser error handling**: Execute blocks with parser errors or skip?

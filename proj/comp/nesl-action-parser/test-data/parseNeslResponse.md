@@ -4,14 +4,14 @@
 
 ### 001-single-valid-file-create-action
 
-```sh sham
-#!SHAM [@three-char-SHA-256: abc]
+```sh nesl
+#!NESL [@three-char-SHA-256: abc]
 action = "file_write"
 path = "/tmp/test.txt"
-content = <<'EOT_SHAM_abc'
+content = <<'EOT_NESL_abc'
 Hello world!
-EOT_SHAM_abc
-#!END_SHAM_abc
+EOT_NESL_abc
+#!END_NESL_abc
 ````
 
 ```json
@@ -41,17 +41,17 @@ EOT_SHAM_abc
 
 ### 002-multiple-blocks-with-one-invalid
 
-```sh sham
-#!SHAM [@three-char-SHA-256: gd1]
+```sh nesl
+#!NESL [@three-char-SHA-256: gd1]
 action = "file_write"
 path = "/tmp/good.txt"
 content = "valid"
-#!END_SHAM_gd1
+#!END_NESL_gd1
 
-#!SHAM [@three-char-SHA-256: bad]
+#!NESL [@three-char-SHA-256: bad]
 action = "unknown_action"
 path = "/tmp/bad.txt"
-#!END_SHAM_bad
+#!END_NESL_bad
 ```
 
 ```json
@@ -74,7 +74,7 @@ path = "/tmp/bad.txt"
     "errorType": "validation",
     "message": "Unknown action: unknown_action",
     "blockStartLine": 7,
-    "shamContent": "#!SHAM [@three-char-SHA-256: bad]\naction = \"unknown_action\"\npath = \"/tmp/bad.txt\"\n#!END_SHAM_bad"
+    "neslContent": "#!NESL [@three-char-SHA-256: bad]\naction = \"unknown_action\"\npath = \"/tmp/bad.txt\"\n#!END_NESL_bad"
   }],
   "summary": {
     "totalBlocks": 2,
@@ -88,11 +88,11 @@ path = "/tmp/bad.txt"
 
 ### 003-missing-required-parameter
 
-```sh sham
-#!SHAM [@three-char-SHA-256: mis]
+```sh nesl
+#!NESL [@three-char-SHA-256: mis]
 action = "file_write"
 content = "missing path"
-#!END_SHAM_mis
+#!END_NESL_mis
 ```
 
 ```json
@@ -104,7 +104,7 @@ content = "missing path"
     "errorType": "validation",
     "message": "Missing required parameter: path",
     "blockStartLine": 1,
-    "shamContent": "#!SHAM [@three-char-SHA-256: mis]\naction = \"file_write\"\ncontent = \"missing path\"\n#!END_SHAM_mis"
+    "neslContent": "#!NESL [@three-char-SHA-256: mis]\naction = \"file_write\"\ncontent = \"missing path\"\n#!END_NESL_mis"
   }],
   "summary": {
     "totalBlocks": 1,
@@ -118,13 +118,13 @@ content = "missing path"
 
 ### 004-type-conversion-with-boolean-and-integer
 
-```sh sham
-#!SHAM [@three-char-SHA-256: typ]
+```sh nesl
+#!NESL [@three-char-SHA-256: typ]
 action = "exec"
 code = "print('hi')"
 lang = "python"
 cwd = "/tmp"
-#!END_SHAM_typ
+#!END_NESL_typ
 ```
 
 ```json

@@ -5,12 +5,12 @@ const testContent = `# My Document
 
 Some content here.
 
-\`\`\`sh sham
-#!SHAM [@three-char-SHA-256: abc]
+\`\`\`sh nesl
+#!NESL [@three-char-SHA-256: abc]
 action = "file_write"
 path = "/tmp/debug_orch/output.txt"
 content = "Hello from listener!"
-#!END_SHAM_abc
+#!END_NESL_abc
 \`\`\`
 `;
 

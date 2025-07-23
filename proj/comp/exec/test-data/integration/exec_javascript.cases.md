@@ -1,12 +1,12 @@
 # JavaScript Execution Test Cases
 
 ## Basic console.log
-```sh sham
-#!SHAM [@three-char-SHA-256: j1s]
+```sh nesl
+#!NESL [@three-char-SHA-256: j1s]
 action = "exec"
 lang = "javascript"
 code = "console.log('Hello from Node.js')"
-#!END_SHAM_j1s
+#!END_NESL_j1s
 ```
 
 ```json
@@ -19,17 +19,17 @@ code = "console.log('Hello from Node.js')"
 ```
 
 ## Multi-line with variables
-```sh sham
-#!SHAM [@three-char-SHA-256: j2s]
+```sh nesl
+#!NESL [@three-char-SHA-256: j2s]
 action = "exec"
 lang = "javascript"
-code = <<'EOT_SHAM_j2s'
+code = <<'EOT_NESL_j2s'
 const numbers = [1, 2, 3];
 numbers.forEach(n => {
   console.log(`Number: ${n}`);
 });
-EOT_SHAM_j2s
-#!END_SHAM_j2s
+EOT_NESL_j2s
+#!END_NESL_j2s
 ```
 
 ```json
@@ -42,12 +42,12 @@ EOT_SHAM_j2s
 ```
 
 ## Syntax error
-```sh sham
-#!SHAM [@three-char-SHA-256: j3s]
+```sh nesl
+#!NESL [@three-char-SHA-256: j3s]
 action = "exec"
 lang = "javascript"
 code = "console.log('unclosed string"
-#!END_SHAM_j3s
+#!END_NESL_j3s
 ```
 
 ```json
@@ -60,12 +60,12 @@ code = "console.log('unclosed string"
 ```
 
 ## Process.exit with code
-```sh sham
-#!SHAM [@three-char-SHA-256: j4s]
+```sh nesl
+#!NESL [@three-char-SHA-256: j4s]
 action = "exec"
 lang = "javascript"
 code = "console.log('Exiting...'); process.exit(42);"
-#!END_SHAM_j4s
+#!END_NESL_j4s
 ```
 
 ```json
@@ -78,13 +78,13 @@ code = "console.log('Exiting...'); process.exit(42);"
 ```
 
 ## Working directory check
-```sh sham
-#!SHAM [@three-char-SHA-256: j5s]
+```sh nesl
+#!NESL [@three-char-SHA-256: j5s]
 action = "exec"
 lang = "javascript"
 code = "console.log(process.cwd())"
 cwd = "/tmp"
-#!END_SHAM_j5s
+#!END_NESL_j5s
 ```
 
 ```json
@@ -97,18 +97,18 @@ cwd = "/tmp"
 ```
 
 ## Async/await support
-```sh sham
-#!SHAM [@three-char-SHA-256: j6s]
+```sh nesl
+#!NESL [@three-char-SHA-256: j6s]
 action = "exec"
 lang = "javascript"
-code = <<'EOT_SHAM_j6s'
+code = <<'EOT_NESL_j6s'
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 (async () => {
   await delay(100);
   console.log('After delay');
 })();
-EOT_SHAM_j6s
-#!END_SHAM_j6s
+EOT_NESL_j6s
+#!END_NESL_j6s
 ```
 
 ```json
@@ -121,12 +121,12 @@ EOT_SHAM_j6s
 ```
 
 ## JSON output
-```sh sham
-#!SHAM [@three-char-SHA-256: j7s]
+```sh nesl
+#!NESL [@three-char-SHA-256: j7s]
 action = "exec"
 lang = "javascript"
 code = "console.log(JSON.stringify({status: 'ok', count: 3}))"
-#!END_SHAM_j7s
+#!END_NESL_j7s
 ```
 
 ```json

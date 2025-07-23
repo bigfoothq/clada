@@ -41,7 +41,7 @@
     "llm",
     "actions",
     "filesystem",
-    "sham"
+    "nesl"
   ],
   "author": "",
   "license": "MIT"

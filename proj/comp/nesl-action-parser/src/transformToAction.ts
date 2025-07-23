@@ -2,7 +2,7 @@ import { CladaAction, TransformError, ActionDefinition } from './types.js';
 import type { Block } from 'nesl-js';
 
 /**
- * Transform validated SHAM block into typed clada action
+ * Transform validated NESL block into typed clada action
  * Converts string values to proper types based on schema
  */
 export function transformToAction(
@@ -28,7 +28,7 @@ export function transformToAction(
     }
 
     const rawValue = block.properties[paramName];
-    
+
     // Skip if value is undefined (shouldn't happen if we got here, but TypeScript needs this)
     if (rawValue === undefined) {
       continue;

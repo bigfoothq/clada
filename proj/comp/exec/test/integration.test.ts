@@ -24,43 +24,43 @@ describe('exec integration tests', () => {
   caseFiles.forEach(file => {
     const content = readFileSync(join(testDataDir, file), 'utf8');
     const tokens: Token[] = marked.lexer(content);
-    
+
     // Extract test names from ## headings
     const testNames = tokens
       .filter(t => t.type === 'heading' && 'depth' in t && t.depth === 2)
       .map(t => (t as any).text as string);
-    
+
     // Extract code blocks
     const codeBlocks = tokens
       .filter(t => t.type === 'code')
       .map(t => (t as any).text as string);
-    
+
     describe(file, () => {
       testNames.forEach((name, i) => {
         const baseIndex = i * 2;
         if (baseIndex + 1 < codeBlocks.length) {
           it(name, async () => {
-            const shamBlock = codeBlocks[baseIndex];
+            const neslBlock = codeBlocks[baseIndex];
             const expectedJson = codeBlocks[baseIndex + 1];
-            
-            // Parse SHAM to get action
-            const action = parseShamToAction(shamBlock);
-            
+
+            // Parse NESL to get action
+            const action = parseNeslToAction(neslBlock);
+
             // Execute command
             const result = await executeCommand(action);
-            
+
             // Parse expected result
             const expected = JSON.parse(expectedJson);
-            
+
             // Compare results with dynamic value substitution
             let expectedStr = JSON.stringify(expected)
               .replace('{HOME_VALUE}', process.env.HOME || '');
-            
+
             // Handle macOS /tmp symlink
             if (result.stdout === '/private/tmp\n' && expected.stdout === '/tmp\n') {
               expectedStr = expectedStr.replace('"/tmp\\n"', '"/private/tmp\\n"');
             }
-            
+
             // Handle syntax error placeholders
             if (expected.stderr === '{SYNTAX_ERROR_OUTPUT}' && result.stderr && result.stderr.includes('SyntaxError')) {
               expectedStr = expectedStr.replace('"{SYNTAX_ERROR_OUTPUT}"', JSON.stringify(result.stderr));
@@ -68,7 +68,7 @@ describe('exec integration tests', () => {
             if (expected.stderr === '{SYNTAX_ERROR_WITH_TRACEBACK}' && result.stderr && result.stderr.includes('SyntaxError')) {
               expectedStr = expectedStr.replace('"{SYNTAX_ERROR_WITH_TRACEBACK}"', JSON.stringify(result.stderr));
             }
-            
+
             const expectedWithSubstitutions = JSON.parse(expectedStr);
             expect(result).toMatchObject(expectedWithSubstitutions);
           });
@@ -78,11 +78,11 @@ describe('exec integration tests', () => {
   });
 });
 
-// Helper to parse SHAM blocks into action objects
-function parseShamToAction(shamBlock: string): any {
-  const lines = shamBlock.split('\n');
+// Helper to parse NESL blocks into action objects
+function parseNeslToAction(neslBlock: string): any {
+  const lines = neslBlock.split('\n');
   const action: any = { parameters: {} };
-  
+
   for (const line of lines) {
     if (line.startsWith('action = ')) {
       action.action = line.slice(9).replace(/"/g, '');
@@ -106,12 +106,12 @@ function parseShamToAction(shamBlock: string): any {
       action.parameters.timeout = parseInt(line.slice(10));
     }
   }
-  
+
   // Handle multiline code blocks
-  const codeMatch = shamBlock.match(/code = <<'(.+?)'\n([\s\S]+?)\n\1/);
+  const codeMatch = neslBlock.match(/code = <<'(.+?)'\n([\s\S]+?)\n\1/);
   if (codeMatch) {
     action.parameters.code = codeMatch[2];
   }
-  
+
   return action;
 }

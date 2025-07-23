@@ -2,24 +2,24 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { readFileSync, rmSync, existsSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { marked } from 'marked';
-import { parseShamResponse } from '../../../sham-action-parser/src/index.js';
+import { parseNeslResponse } from '../../../nesl-action-parser/src/index.js';
 import { executeFileOperation } from '../../src/index.js';
 
 // Find all .cases.md files recursively
 function findTestFiles(dir: string, files: string[] = []): string[] {
   const entries = readdirSync(dir);
-  
+
   for (const entry of entries) {
     const fullPath = join(dir, entry);
     const stat = statSync(fullPath);
-    
+
     if (stat.isDirectory()) {
       findTestFiles(fullPath, files);
     } else if (entry.endsWith('.cases.md')) {
       files.push(fullPath);
     }
   }
-  
+
   return files;
 }
 
@@ -50,41 +50,41 @@ describe('write_result_contents tests', () => {
   testFiles.forEach(filepath => {
     const content = readFileSync(filepath, 'utf8');
     const tokens = marked.lexer(content);
-    
+
     // Extract test group name from first h1 heading
     const groupHeading = tokens.find(t => t.type === 'heading' && t.depth === 1);
     const groupName = groupHeading?.text || 'Unknown Group';
-    
+
     describe(groupName, () => {
       // Process h3 headings as test cases
       let currentTestName = '';
       let codeBlocks: string[] = [];
-      
+
       tokens.forEach((token, index) => {
         if (token.type === 'heading' && token.depth === 3) {
           // Process previous test if exists
           if (currentTestName && codeBlocks.length >= 2) {
             const testName = currentTestName;
             const blocks = [...codeBlocks];
-            
+
             it(testName, async () => {
               // Block 0: Write action
               // Block 1: Expected JSON result
               // Block 2: Expected file contents (optional)
-              
+
               const writeBlock = blocks[0];
               const resultBlock = blocks[1];
               const contentsBlock = blocks[2];
-              
+
               let targetPath: string | null = null;
               let testResult;
-              
+
               // Execute write action
-              const writeResult = await parseShamResponse(writeBlock);
+              const writeResult = await parseNeslResponse(writeBlock);
               if (writeResult.errors.length > 0) {
-                throw new Error(`Failed to parse write SHAM: ${writeResult.errors.map(e => e.message).join(', ')}`);
+                throw new Error(`Failed to parse write NESL: ${writeResult.errors.map(e => e.message).join(', ')}`);
               }
-              
+
               for (const action of writeResult.actions) {
                 testResult = await executeFileOperation(action);
                 // Track target path
@@ -94,11 +94,11 @@ describe('write_result_contents tests', () => {
                   if (testDirMatch) createdPaths.add(testDirMatch[0]);
                 }
               }
-              
+
               // Verify result
               const expectedResult = JSON.parse(resultBlock);
               expect(testResult).toEqual(expectedResult);
-              
+
               // Verify file contents if provided and operation succeeded
               if (contentsBlock && expectedResult.success && targetPath) {
                 const actualContent = readFileSync(targetPath, 'utf8');
@@ -106,7 +106,7 @@ describe('write_result_contents tests', () => {
               }
             }, 30000);
           }
-          
+
           // Start new test
           currentTestName = token.text;
           codeBlocks = [];
@@ -114,26 +114,26 @@ describe('write_result_contents tests', () => {
           codeBlocks.push(token.text);
         }
       });
-      
+
       // Process final test
       if (currentTestName && codeBlocks.length >= 2) {
         const testName = currentTestName;
         const blocks = [...codeBlocks];
-        
+
         it(testName, async () => {
           const writeBlock = blocks[0];
           const resultBlock = blocks[1];
           const contentsBlock = blocks[2];
-          
+
           let targetPath: string | null = null;
           let testResult;
-          
+
           // Execute write action
-          const writeResult = await parseShamResponse(writeBlock);
+          const writeResult = await parseNeslResponse(writeBlock);
           if (writeResult.errors.length > 0) {
-            throw new Error(`Failed to parse write SHAM: ${writeResult.errors.map(e => e.message).join(', ')}`);
+            throw new Error(`Failed to parse write NESL: ${writeResult.errors.map(e => e.message).join(', ')}`);
           }
-          
+
           for (const action of writeResult.actions) {
             testResult = await executeFileOperation(action);
             // Track target path
@@ -143,11 +143,11 @@ describe('write_result_contents tests', () => {
               if (testDirMatch) createdPaths.add(testDirMatch[0]);
             }
           }
-          
+
           // Verify result
           const expectedResult = JSON.parse(resultBlock);
           expect(testResult).toEqual(expectedResult);
-          
+
           // Verify file contents if provided and operation succeeded
           if (contentsBlock && expectedResult.success && targetPath) {
             const actualContent = readFileSync(targetPath, 'utf8');

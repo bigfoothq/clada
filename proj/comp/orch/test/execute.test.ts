@@ -4,7 +4,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { marked, Token } from 'marked';
 import { Clada } from '../src/index.js';
-import { clearActionSchemaCache } from '../../sham-action-parser/src/index.js';
+import { clearActionSchemaCache } from '../../nesl-action-parser/src/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -98,7 +98,7 @@ describe('Clada.execute()', () => {
       const input = codeBlocks[baseIndex].text;
       const expected = JSON.parse(codeBlocks[baseIndex + 1].text);
       const result = await clada.execute(input);
-      
+
       // Remove debug field for comparison since test data doesn't include it
       const { debug, ...resultWithoutDebug } = result;
       expect(resultWithoutDebug).toEqual(expected);

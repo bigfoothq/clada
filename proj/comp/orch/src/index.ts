@@ -1,5 +1,5 @@
-import type { CladaAction, ParseResult, ParseError } from '../../sham-action-parser/src/index.js';
-import { parseShamResponse } from '../../sham-action-parser/src/index.js';
+import type { CladaAction, ParseResult, ParseError } from '../../nesl-action-parser/src/index.js';
+import { parseNeslResponse } from '../../nesl-action-parser/src/index.js';
 import type { FileOpResult } from '../../fs-ops/src/index.js';
 import { load as loadYaml } from 'js-yaml';
 import { readFile } from 'fs/promises';
@@ -45,14 +45,14 @@ export class Clada {
   }
 
   /**
-   * Parse and execute all SHAM blocks in LLM output
+   * Parse and execute all NESL blocks in LLM output
    * Executes all valid actions sequentially, collecting both successes and failures
    */
   async execute(llmOutput: string): Promise<ExecutionResult> {
     try {
-      // Parse SHAM blocks
-      const parseResult = await parseShamResponse(llmOutput);
-      
+      // Parse NESL blocks
+      const parseResult = await parseNeslResponse(llmOutput);
+
       // Debug info captured in parseResult.debug
 
       // Initialize executors if needed

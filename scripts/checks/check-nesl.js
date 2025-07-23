@@ -1,12 +1,12 @@
-import { parseSham } from 'nesl-js';
+import { parseNesl } from 'nesl-js';
 import * as nesl from 'nesl-js';
 
 console.log('nesl-js exports:', Object.keys(nesl));
-console.log('\nparseSham type:', typeof parseSham);
+console.log('\nparseNesl type:', typeof parseNesl);
 
-const result = parseSham(`#!SHAM [@three-char-SHA-256: abc]
+const result = parseNesl(`#!NESL [@three-char-SHA-256: abc]
 action = "test"
-#!END_SHAM_abc`);
+#!END_NESL_abc`);
 
 console.log('\nResult:', JSON.stringify(result, null, 2));
 console.log('\nResult type:', typeof result);

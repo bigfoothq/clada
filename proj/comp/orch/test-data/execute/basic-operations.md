@@ -4,12 +4,12 @@
 
 ### 001-simple-file-write
 
-```sh sham
-#!SHAM [@three-char-SHA-256: abc]
+```sh nesl
+#!NESL [@three-char-SHA-256: abc]
 action = "file_write"
 path = "/tmp/001-simple-file-write/test.txt"
 content = "Hello, World!"
-#!END_SHAM_abc
+#!END_NESL_abc
 ```
 
 ```json
@@ -39,24 +39,24 @@ content = "Hello, World!"
 
 ### 002-mixed-implemented-unimplemented
 
-```sh sham
-#!SHAM [@three-char-SHA-256: fw1]
+```sh nesl
+#!NESL [@three-char-SHA-256: fw1]
 action = "file_write"
 path = "/tmp/002-mixed-implemented-unimplemented/first.txt"
 content = "First file"
-#!END_SHAM_fw1
+#!END_NESL_fw1
 
-#!SHAM [@three-char-SHA-256: ex1]
+#!NESL [@three-char-SHA-256: ex1]
 action = "exec"
 code = "echo 'hello'"
 lang = "bash"
-#!END_SHAM_ex1
+#!END_NESL_ex1
 
-#!SHAM [@three-char-SHA-256: fw2]
+#!NESL [@three-char-SHA-256: fw2]
 action = "file_write"
 path = "/tmp/002-mixed-implemented-unimplemented/second.txt"
 content = "Second file"
-#!END_SHAM_fw2
+#!END_NESL_fw2
 ```
 
 ```json
@@ -113,18 +113,18 @@ content = "Second file"
 
 ### 003-parse-error-with-valid-action
 
-```sh sham
-#!SHAM [@three-char-SHA-256: bad]
+```sh nesl
+#!NESL [@three-char-SHA-256: bad]
 action = "file_write"
 path = "/tmp/003-parse-error-with-valid-action/bad.txt"
 path = "/tmp/003-parse-error-with-valid-action/duplicate.txt"
-#!END_SHAM_bad
+#!END_NESL_bad
 
-#!SHAM [@three-char-SHA-256: gud]
+#!NESL [@three-char-SHA-256: gud]
 action = "file_write"
 path = "/tmp/003-parse-error-with-valid-action/good.txt"
 content = "Valid content"
-#!END_SHAM_gud
+#!END_NESL_gud
 ```
 
 ```json
@@ -152,7 +152,7 @@ content = "Valid content"
     "errorType": "syntax",
     "message": "Duplicate key 'path' in block 'bad'",
     "blockStartLine": 1,
-    "shamContent": "#!SHAM [@three-char-SHA-256: bad]\naction = \"file_write\"\npath = \"/tmp/003-parse-error-with-valid-action/bad.txt\"\npath = \"/tmp/003-parse-error-with-valid-action/duplicate.txt\"\n#!END_SHAM_bad"
+    "neslContent": "#!NESL [@three-char-SHA-256: bad]\naction = \"file_write\"\npath = \"/tmp/003-parse-error-with-valid-action/bad.txt\"\npath = \"/tmp/003-parse-error-with-valid-action/duplicate.txt\"\n#!END_NESL_bad"
   }]
 }
 ```
@@ -161,11 +161,11 @@ content = "Valid content"
 
 ### 004-file-operation-failure
 
-```sh sham
-#!SHAM [@three-char-SHA-256: nop]
+```sh nesl
+#!NESL [@three-char-SHA-256: nop]
 action = "file_delete"
 path = "/tmp/004-file-operation-failure/does-not-exist.txt"
-#!END_SHAM_nop
+#!END_NESL_nop
 ```
 
 ```json
@@ -189,10 +189,10 @@ path = "/tmp/004-file-operation-failure/does-not-exist.txt"
 
 ## Empty Input
 
-### 005-no-sham-blocks
+### 005-no-nesl-blocks
 
 ```
-This is just regular text without any SHAM blocks.
+This is just regular text without any NESL blocks.
 ```
 
 ```json
@@ -209,17 +209,17 @@ This is just regular text without any SHAM blocks.
 
 ### 006-file-read-success
 
-```sh sham
-#!SHAM [@three-char-SHA-256: rd1]
+```sh nesl
+#!NESL [@three-char-SHA-256: rd1]
 action = "file_write"
 path = "/tmp/006-file-read-success/read-test.txt"
 content = "Content to read later"
-#!END_SHAM_rd1
+#!END_NESL_rd1
 
-#!SHAM [@three-char-SHA-256: rd2]
+#!NESL [@three-char-SHA-256: rd2]
 action = "file_read"
 path = "/tmp/006-file-read-success/read-test.txt"
-#!END_SHAM_rd2
+#!END_NESL_rd2
 ```
 
 ```json
@@ -259,18 +259,18 @@ path = "/tmp/006-file-read-success/read-test.txt"
 
 ### 007-file-move-success
 
-```sh sham
-#!SHAM [@three-char-SHA-256: mv1]
+```sh nesl
+#!NESL [@three-char-SHA-256: mv1]
 action = "file_write"
 path = "/tmp/007-file-move-success/source-file.txt"
 content = "File to be moved"
-#!END_SHAM_mv1
+#!END_NESL_mv1
 
-#!SHAM [@three-char-SHA-256: mv2]
+#!NESL [@three-char-SHA-256: mv2]
 action = "file_move"
 old_path = "/tmp/007-file-move-success/source-file.txt"
 new_path = "/tmp/007-file-move-success/destination-file.txt"
-#!END_SHAM_mv2
+#!END_NESL_mv2
 ```
 
 ```json
@@ -311,19 +311,19 @@ new_path = "/tmp/007-file-move-success/destination-file.txt"
 
 ### 008-file-replace-text-single
 
-```sh sham
-#!SHAM [@three-char-SHA-256: rp1]
+```sh nesl
+#!NESL [@three-char-SHA-256: rp1]
 action = "file_write"
 path = "/tmp/008-file-replace-text-single/replace-single.txt"
 content = "Hello world! This is a test."
-#!END_SHAM_rp1
+#!END_NESL_rp1
 
-#!SHAM [@three-char-SHA-256: rp2]
+#!NESL [@three-char-SHA-256: rp2]
 action = "file_replace_text"
 path = "/tmp/008-file-replace-text-single/replace-single.txt"
 old_text = "world"
 new_text = "universe"
-#!END_SHAM_rp2
+#!END_NESL_rp2
 ```
 
 ```json
@@ -365,19 +365,19 @@ new_text = "universe"
 
 ### 009-file-replace-all-text
 
-```sh sham
-#!SHAM [@three-char-SHA-256: ra1]
+```sh nesl
+#!NESL [@three-char-SHA-256: ra1]
 action = "file_write"
 path = "/tmp/009-file-replace-all-text/replace-all.txt"
 content = "foo bar foo baz foo"
-#!END_SHAM_ra1
+#!END_NESL_ra1
 
-#!SHAM [@three-char-SHA-256: ra2]
+#!NESL [@three-char-SHA-256: ra2]
 action = "file_replace_all_text"
 path = "/tmp/009-file-replace-all-text/replace-all.txt"
 old_text = "foo"
 new_text = "qux"
-#!END_SHAM_ra2
+#!END_NESL_ra2
 ```
 
 ```json
@@ -419,27 +419,27 @@ new_text = "qux"
 
 ### 010-multiline-content-handling
 
-```sh sham
-#!SHAM [@three-char-SHA-256: ml1]
+```sh nesl
+#!NESL [@three-char-SHA-256: ml1]
 action = "file_write"
 path = "/tmp/010-multiline-content-handling/multiline.txt"
-content = <<'EOT_SHAM_ml1'
+content = <<'EOT_NESL_ml1'
 Line one
 Line two
 Line three
-EOT_SHAM_ml1
-#!END_SHAM_ml1
+EOT_NESL_ml1
+#!END_NESL_ml1
 
-#!SHAM [@three-char-SHA-256: ml2]
+#!NESL [@three-char-SHA-256: ml2]
 action = "file_replace_text"
 path = "/tmp/010-multiline-content-handling/multiline.txt"
-old_text = <<'EOT_SHAM_ml2'
+old_text = <<'EOT_NESL_ml2'
 Line two
-EOT_SHAM_ml2
-new_text = <<'EOT_SHAM_ml2'
+EOT_NESL_ml2
+new_text = <<'EOT_NESL_ml2'
 Line TWO (modified)
-EOT_SHAM_ml2
-#!END_SHAM_ml2
+EOT_NESL_ml2
+#!END_NESL_ml2
 ```
 
 ```json
@@ -481,19 +481,19 @@ EOT_SHAM_ml2
 
 ### 011-file-replace-text-multiple-occurrences-failure
 
-```sh sham
-#!SHAM [@three-char-SHA-256: rf1]
+```sh nesl
+#!NESL [@three-char-SHA-256: rf1]
 action = "file_write"
 path = "/tmp/011-file-replace-text-multiple-occurrences-failure/multiple-foo.txt"
 content = "foo bar foo baz"
-#!END_SHAM_rf1
+#!END_NESL_rf1
 
-#!SHAM [@three-char-SHA-256: rf2]
+#!NESL [@three-char-SHA-256: rf2]
 action = "file_replace_text"
 path = "/tmp/011-file-replace-text-multiple-occurrences-failure/multiple-foo.txt"
 old_text = "foo"
 new_text = "qux"
-#!END_SHAM_rf2
+#!END_NESL_rf2
 ```
 
 ```json
@@ -532,20 +532,20 @@ new_text = "qux"
 
 ### 012-file-replace-all-text-with-count
 
-```sh sham
-#!SHAM [@three-char-SHA-256: rc1]
+```sh nesl
+#!NESL [@three-char-SHA-256: rc1]
 action = "file_write"
 path = "/tmp/012-file-replace-all-text-with-count/count-test.txt"
 content = "test test test"
-#!END_SHAM_rc1
+#!END_NESL_rc1
 
-#!SHAM [@three-char-SHA-256: rc2]
+#!NESL [@three-char-SHA-256: rc2]
 action = "file_replace_all_text"
 path = "/tmp/012-file-replace-all-text-with-count/count-test.txt"
 old_text = "test"
 new_text = "check"
 count = "2"
-#!END_SHAM_rc2
+#!END_NESL_rc2
 ```
 
 ```json
@@ -585,24 +585,24 @@ count = "2"
 
 ### 013-file-move-overwrite-existing
 
-```sh sham
-#!SHAM [@three-char-SHA-256: ow1]
+```sh nesl
+#!NESL [@three-char-SHA-256: ow1]
 action = "file_write"
 path = "/tmp/013-file-move-overwrite-existing/move-source.txt"
 content = "source content"
-#!END_SHAM_ow1
+#!END_NESL_ow1
 
-#!SHAM [@three-char-SHA-256: ow2]
+#!NESL [@three-char-SHA-256: ow2]
 action = "file_write"
 path = "/tmp/013-file-move-overwrite-existing/move-dest.txt"
 content = "will be overwritten"
-#!END_SHAM_ow2
+#!END_NESL_ow2
 
-#!SHAM [@three-char-SHA-256: ow3]
+#!NESL [@three-char-SHA-256: ow3]
 action = "file_move"
 old_path = "/tmp/013-file-move-overwrite-existing/move-source.txt"
 new_path = "/tmp/013-file-move-overwrite-existing/move-dest.txt"
-#!END_SHAM_ow3
+#!END_NESL_ow3
 ```
 
 ```json
@@ -657,26 +657,26 @@ new_path = "/tmp/013-file-move-overwrite-existing/move-dest.txt"
 
 ### 014-empty-old-text-validation
 
-```sh sham
-#!SHAM [@three-char-SHA-256: et1]
+```sh nesl
+#!NESL [@three-char-SHA-256: et1]
 action = "file_write"
 path = "/tmp/014-empty-old-text-validation/empty-replace.txt"
 content = "some content"
-#!END_SHAM_et1
+#!END_NESL_et1
 
-#!SHAM [@three-char-SHA-256: et2]
+#!NESL [@three-char-SHA-256: et2]
 action = "file_replace_text"
 path = "/tmp/014-empty-old-text-validation/empty-replace.txt"
 old_text = ""
 new_text = "replacement"
-#!END_SHAM_et2
+#!END_NESL_et2
 
-#!SHAM [@three-char-SHA-256: et3]
+#!NESL [@three-char-SHA-256: et3]
 action = "file_replace_all_text"
 path = "/tmp/014-empty-old-text-validation/empty-replace.txt"
 old_text = ""
 new_text = "replacement"
-#!END_SHAM_et3
+#!END_NESL_et3
 ```
 
 ```json
@@ -726,11 +726,11 @@ new_text = "replacement"
 
 ### 015-file-read-nonexistent
 
-```sh sham
-#!SHAM [@three-char-SHA-256: rnx]
+```sh nesl
+#!NESL [@three-char-SHA-256: rnx]
 action = "file_read"
 path = "/tmp/015-file-read-nonexistent/does-not-exist-read.txt"
-#!END_SHAM_rnx
+#!END_NESL_rnx
 ```
 
 ```json
@@ -754,18 +754,18 @@ path = "/tmp/015-file-read-nonexistent/does-not-exist-read.txt"
 
 ### 016-file-move-creates-parent-dirs
 
-```sh sham
-#!SHAM [@three-char-SHA-256: pd1]
+```sh nesl
+#!NESL [@three-char-SHA-256: pd1]
 action = "file_write"
 path = "/tmp/016-file-move-creates-parent-dirs/parent-test.txt"
 content = "moving to new dir"
-#!END_SHAM_pd1
+#!END_NESL_pd1
 
-#!SHAM [@three-char-SHA-256: pd2]
+#!NESL [@three-char-SHA-256: pd2]
 action = "file_move"
 old_path = "/tmp/016-file-move-creates-parent-dirs/parent-test.txt"
 new_path = "/tmp/016-file-move-creates-parent-dirs/new/deeply/nested/moved-file.txt"
-#!END_SHAM_pd2
+#!END_NESL_pd2
 ```
 
 ```json
@@ -806,26 +806,26 @@ new_path = "/tmp/016-file-move-creates-parent-dirs/new/deeply/nested/moved-file.
 
 ### 017-files-read-multiple
 
-```sh sham
-#!SHAM [@three-char-SHA-256: fr1]
+```sh nesl
+#!NESL [@three-char-SHA-256: fr1]
 action = "file_write"
 path = "/tmp/017-files-read-multiple/first.txt"
 content = "First file content"
-#!END_SHAM_fr1
+#!END_NESL_fr1
 
-#!SHAM [@three-char-SHA-256: fr2]
+#!NESL [@three-char-SHA-256: fr2]
 action = "file_write"
 path = "/tmp/017-files-read-multiple/second.txt"
 content = "Second file content"
-#!END_SHAM_fr2
+#!END_NESL_fr2
 
-#!SHAM [@three-char-SHA-256: fr3]
+#!NESL [@three-char-SHA-256: fr3]
 action = "files_read"
-paths = <<'EOT_SHAM_fr3'
+paths = <<'EOT_NESL_fr3'
 /tmp/017-files-read-multiple/first.txt
 /tmp/017-files-read-multiple/second.txt
-EOT_SHAM_fr3
-#!END_SHAM_fr3
+EOT_NESL_fr3
+#!END_NESL_fr3
 ```
 
 ```json
@@ -884,20 +884,20 @@ EOT_SHAM_fr3
 
 ### 018-files-read-with-missing
 
-```sh sham
-#!SHAM [@three-char-SHA-256: fm1]
+```sh nesl
+#!NESL [@three-char-SHA-256: fm1]
 action = "file_write"
 path = "/tmp/018-files-read-with-missing/exists.txt"
 content = "This file exists"
-#!END_SHAM_fm1
+#!END_NESL_fm1
 
-#!SHAM [@three-char-SHA-256: fm2]
+#!NESL [@three-char-SHA-256: fm2]
 action = "files_read"
-paths = <<'EOT_SHAM_fm2'
+paths = <<'EOT_NESL_fm2'
 /tmp/018-files-read-with-missing/exists.txt
 /tmp/018-files-read-with-missing/missing.txt
-EOT_SHAM_fm2
-#!END_SHAM_fm2
+EOT_NESL_fm2
+#!END_NESL_fm2
 ```
 
 ```json

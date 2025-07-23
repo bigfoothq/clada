@@ -53,9 +53,9 @@ fi
 
 
 
-# # # # # # # # /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/ABSTRACT.md
-# # # # # # # # /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/API.md
-# # # # # # # # /Users/stuart/repos/clada/proj/comp/sham-action-parser/doc/ARCH.md
+# # # # # # # # /Users/stuart/repos/clada/proj/comp/nesl-action-parser/doc/ABSTRACT.md
+# # # # # # # # /Users/stuart/repos/clada/proj/comp/nesl-action-parser/doc/API.md
+# # # # # # # # /Users/stuart/repos/clada/proj/comp/nesl-action-parser/doc/ARCH.md
 
 # # # # # # # # /Users/stuart/repos/clada/proj/comp/fs-ops/doc/ABSTRACT.md
 # # # # # # # # /Users/stuart/repos/clada/proj/comp/fs-ops/doc/API.md

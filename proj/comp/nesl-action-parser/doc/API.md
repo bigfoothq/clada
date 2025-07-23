@@ -1,4 +1,4 @@
-# Component: sham-action-parser
+# Component: nesl-action-parser
 
 ## Component Type
 standard
@@ -12,7 +12,7 @@ standard
 ```yaml
 dependencies:
   external/nesl-js:
-    functions: [parseSham]
+    functions: [parseNesl]
     types: [Block, ParseResult as NeslParseResult]
   
   external/js-yaml:
@@ -35,24 +35,24 @@ dependencies:
 ## Exports
 ```yaml
 exports:
-  functions: [parseShamResponse, validateShamBlock, transformToAction, clearActionSchemaCache]
+  functions: [parseNeslResponse, validateNeslBlock, transformToAction, clearActionSchemaCache]
   types: [ParseResult, CladaAction, ParseError, ValidationResult, TransformError]
   errors: [TransformError]
 ```
 
-### parseShamResponse
-- **Signature**: `parseShamResponse(shamText: string) -> Promise<ParseResult>`
-- **Purpose**: Parse SHAM blocks from text into validated clada actions.
-- **Test-data**: `test-data/parseShamResponse.json`
+### parseNeslResponse
+- **Signature**: `parseNeslResponse(neslText: string) -> Promise<ParseResult>`
+- **Purpose**: Parse NESL blocks from text into validated clada actions.
+- **Test-data**: `test-data/parseNeslResponse.json`
 
-### validateShamBlock
-- **Signature**: `validateShamBlock(block: ShamBlock, actionSchema: ActionDefinition) -> ValidationResult`
-- **Purpose**: Validate a single SHAM block against action schema.
-- **Test-data**: `test-data/validateShamBlock.json`
+### validateNeslBlock
+- **Signature**: `validateNeslBlock(block: NeslBlock, actionSchema: ActionDefinition) -> ValidationResult`
+- **Purpose**: Validate a single NESL block against action schema.
+- **Test-data**: `test-data/validateNeslBlock.json`
 
 ### transformToAction
-- **Signature**: `transformToAction(block: ShamBlock, actionDef: ActionDefinition) -> CladaAction`
-- **Purpose**: Transform validated SHAM block into typed clada action.
+- **Signature**: `transformToAction(block: NeslBlock, actionDef: ActionDefinition) -> CladaAction`
+- **Purpose**: Transform validated NESL block into typed clada action.
 - **Throws**: `TransformError` when type conversion fails
 - **Test-data**: `test-data/transformToAction.json`
 
@@ -68,9 +68,9 @@ exports:
 - **Signature**: `loadActionSchema() -> Promise<Map<string, ActionDefinition>>`
 - **Purpose**: Load and parse unified-design.yaml action definitions with 5s timeout.
 
-### reconstructShamBlock
-- **Signature**: `reconstructShamBlock(block: Block) -> string`
-- **Purpose**: Recreate SHAM syntax from parsed block for error context.
+### reconstructNeslBlock
+- **Signature**: `reconstructNeslBlock(block: Block) -> string`
+- **Purpose**: Recreate NESL syntax from parsed block for error context.
 
 ### parseBoolean (in transformToAction.ts)
 - **Signature**: `parseBoolean(value: string) -> boolean`
@@ -106,7 +106,7 @@ exports:
   action: string              // Action name from unified-design
   parameters: Record<string, any>  // Typed parameters
   metadata: {
-    blockId: string          // SHAM block ID
+    blockId: string          // NESL block ID
     startLine: number
     endLine: number
   }
@@ -116,12 +116,12 @@ exports:
 ### ParseError
 ```typescript
 {
-  blockId: string            // Which SHAM block failed
+  blockId: string            // Which NESL block failed
   action?: string            // Action type if identified
   errorType: 'syntax' | 'validation' | 'type'
   message: string            // Specific error details
-  blockStartLine?: number    // Starting line of the SHAM block
-  shamContent?: string       // Original SHAM block for context
+  blockStartLine?: number    // Starting line of the NESL block
+  neslContent?: string       // Original NESL block for context
 }
 ```
 

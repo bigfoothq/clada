@@ -1,10 +1,10 @@
 # Hooks Component
 
 ## Purpose (60 words)
-Execute user-defined shell commands before and after SHAM block execution. Enables VCS integration through configurable lifecycle hooks with variable interpolation, timeout control, and error handling. Loads configuration from clada.yml files.
+Execute user-defined shell commands before and after NESL block execution. Enables VCS integration through configurable lifecycle hooks with variable interpolation, timeout control, and error handling. Loads configuration from clada.yml files.
 
 ## Overview (300 words)
-The hooks component provides lifecycle management for clada operations, allowing users to define shell commands that run before and after SHAM execution. This enables seamless version control integration without hardcoding VCS-specific logic into clada itself.
+The hooks component provides lifecycle management for clada operations, allowing users to define shell commands that run before and after NESL execution. This enables seamless version control integration without hardcoding VCS-specific logic into clada itself.
 
 Key features:
 - Before/after hook execution with configurable commands
@@ -16,8 +16,8 @@ Key features:
 The component executes commands sequentially, failing fast on errors unless explicitly configured to continue. Variables are interpolated before passing to the shell, preventing injection attacks. Commands execute in the repository root by default with optional cwd override.
 
 ## Requirements (EARS format)
-- The system SHALL execute before hooks prior to SHAM execution
-- The system SHALL execute after hooks following SHAM execution
+- The system SHALL execute before hooks prior to NESL execution
+- The system SHALL execute after hooks following NESL execution
 - The system SHALL interpolate variables before shell execution
 - The system SHALL fail fast on command errors unless continueOnError is set
 - The system SHALL respect per-command timeout values

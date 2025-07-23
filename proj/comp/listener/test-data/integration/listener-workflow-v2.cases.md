@@ -16,12 +16,12 @@ Nothing special here.
 Just a simple text file.
 Nothing special here.
 
-```sh sham
-#!SHAM [@three-char-SHA-256: sf1]
+```sh nesl
+#!NESL [@three-char-SHA-256: sf1]
 action = "file_write"
 path = "/tmp/t_listener_simple/output.txt"
-content = "Hello from SHAM!"
-#!END_SHAM_sf1
+content = "Hello from NESL!"
+#!END_NESL_sf1
 ```
 ````
 
@@ -37,12 +37,12 @@ sf1 ✅ file_write /tmp/t_listener_simple/output.txt
 Just a simple text file.
 Nothing special here.
 
-```sh sham
-#!SHAM [@three-char-SHA-256: sf1]
+```sh nesl
+#!NESL [@three-char-SHA-256: sf1]
 action = "file_write"
 path = "/tmp/t_listener_simple/output.txt"
-content = "Hello from SHAM!"
-#!END_SHAM_sf1
+content = "Hello from NESL!"
+#!END_NESL_sf1
 ```
 ````
 
@@ -78,27 +78,27 @@ Empty file to start.
 ````sh
 Empty file to start.
 
-```sh sham
-#!SHAM [@three-char-SHA-256: wr1]
+```sh nesl
+#!NESL [@three-char-SHA-256: wr1]
 action = "file_write"
 path = "/tmp/t_listener_multi/created.txt"
 content = "This will succeed"
-#!END_SHAM_wr1
+#!END_NESL_wr1
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: rd1]
+```sh nesl
+#!NESL [@three-char-SHA-256: rd1]
 action = "file_read"
 path = "/tmp/t_listener_multi/missing.txt"
-#!END_SHAM_rd1
+#!END_NESL_rd1
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: ex1]
+```sh nesl
+#!NESL [@three-char-SHA-256: ex1]
 action = "exec"
 lang = "bash"
 code = "echo 'Hello from bash'"
-#!END_SHAM_ex1
+#!END_NESL_ex1
 ```
 ````
 
@@ -114,27 +114,27 @@ ex1 ✅ exec bash
 
 Empty file to start.
 
-```sh sham
-#!SHAM [@three-char-SHA-256: wr1]
+```sh nesl
+#!NESL [@three-char-SHA-256: wr1]
 action = "file_write"
 path = "/tmp/t_listener_multi/created.txt"
 content = "This will succeed"
-#!END_SHAM_wr1
+#!END_NESL_wr1
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: rd1]
+```sh nesl
+#!NESL [@three-char-SHA-256: rd1]
 action = "file_read"
 path = "/tmp/t_listener_multi/missing.txt"
-#!END_SHAM_rd1
+#!END_NESL_rd1
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: ex1]
+```sh nesl
+#!NESL [@three-char-SHA-256: ex1]
 action = "exec"
 lang = "bash"
 code = "echo 'Hello from bash'"
-#!END_SHAM_ex1
+#!END_NESL_ex1
 ```
 ````
 
@@ -181,12 +181,12 @@ Testing parse errors.
 ````sh
 Testing parse errors.
 
-```sh sham
-#!SHAM [@three-char-SHA-256: bad]
+```sh nesl
+#!NESL [@three-char-SHA-256: bad]
 action = "file_write"
 path = "/tmp/t_listener_parse/test.txt"
 content = "missing closing quote
-#!END_SHAM_bad
+#!END_NESL_bad
 ```
 ````
 
@@ -200,12 +200,12 @@ bad ❌ file_write ERROR: Unclosed quoted string (line 4)
 
 Testing parse errors.
 
-```sh sham
-#!SHAM [@three-char-SHA-256: bad]
+```sh nesl
+#!NESL [@three-char-SHA-256: bad]
 action = "file_write"
 path = "/tmp/t_listener_parse/test.txt"
 content = "missing closing quote
-#!END_SHAM_bad
+#!END_NESL_bad
 ```
 ````
 
@@ -240,15 +240,15 @@ Testing hash-based execution.
 ````sh
 Testing hash-based execution.
 
-```sh sham
-#!SHAM [@three-char-SHA-256: nc1]
+```sh nesl
+#!NESL [@three-char-SHA-256: nc1]
 action = "file_write"
 path = "/tmp/t_listener_nochange/counter.txt"
 content = "1"
-#!END_SHAM_nc1
+#!END_NESL_nc1
 ```
 
-Adding a comment outside SHAM blocks.
+Adding a comment outside NESL blocks.
 ````
 
 #### Expected Prepended Results
@@ -261,15 +261,15 @@ nc1 ✅ file_write /tmp/t_listener_nochange/counter.txt
 
 Testing hash-based execution.
 
-```sh sham
-#!SHAM [@three-char-SHA-256: nc1]
+```sh nesl
+#!NESL [@three-char-SHA-256: nc1]
 action = "file_write"
 path = "/tmp/t_listener_nochange/counter.txt"
 content = "1"
-#!END_SHAM_nc1
+#!END_NESL_nc1
 ```
 
-Adding a comment outside SHAM blocks.
+Adding a comment outside NESL blocks.
 ````
 
 #### Expected Output File
@@ -303,11 +303,11 @@ Testing file replacement functionality.
 ````sh
 Testing file replacement functionality.
 
-```sh sham
-#!SHAM [@three-char-SHA-256: fr1]
+```sh nesl
+#!NESL [@three-char-SHA-256: fr1]
 action = "file_write"
 path = "/tmp/t_listener_replace/config.yaml"
-content = <<'EOT_SHAM_fr1'
+content = <<'EOT_NESL_fr1'
 # Configuration file
 database:
   host: localhost
@@ -317,27 +317,27 @@ database:
 server:
   host: localhost
   port: 3000
-EOT_SHAM_fr1
-#!END_SHAM_fr1
+EOT_NESL_fr1
+#!END_NESL_fr1
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: fr2]
+```sh nesl
+#!NESL [@three-char-SHA-256: fr2]
 action = "file_replace_text"
 path = "/tmp/t_listener_replace/config.yaml"
-old_text = <<'EOT_SHAM_fr2'
+old_text = <<'EOT_NESL_fr2'
 database:
   host: localhost
   port: 5432
   name: myapp_dev
-EOT_SHAM_fr2
-new_text = <<'EOT_SHAM_fr2'
+EOT_NESL_fr2
+new_text = <<'EOT_NESL_fr2'
 database:
   host: production.example.com
   port: 5432
   name: myapp_prod
-EOT_SHAM_fr2
-#!END_SHAM_fr2
+EOT_NESL_fr2
+#!END_NESL_fr2
 ```
 ````
 
@@ -352,11 +352,11 @@ fr2 ✅ file_replace_text /tmp/t_listener_replace/config.yaml
 
 Testing file replacement functionality.
 
-```sh sham
-#!SHAM [@three-char-SHA-256: fr1]
+```sh nesl
+#!NESL [@three-char-SHA-256: fr1]
 action = "file_write"
 path = "/tmp/t_listener_replace/config.yaml"
-content = <<'EOT_SHAM_fr1'
+content = <<'EOT_NESL_fr1'
 # Configuration file
 database:
   host: localhost
@@ -366,27 +366,27 @@ database:
 server:
   host: localhost
   port: 3000
-EOT_SHAM_fr1
-#!END_SHAM_fr1
+EOT_NESL_fr1
+#!END_NESL_fr1
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: fr2]
+```sh nesl
+#!NESL [@three-char-SHA-256: fr2]
 action = "file_replace_text"
 path = "/tmp/t_listener_replace/config.yaml"
-old_text = <<'EOT_SHAM_fr2'
+old_text = <<'EOT_NESL_fr2'
 database:
   host: localhost
   port: 5432
   name: myapp_dev
-EOT_SHAM_fr2
-new_text = <<'EOT_SHAM_fr2'
+EOT_NESL_fr2
+new_text = <<'EOT_NESL_fr2'
 database:
   host: production.example.com
   port: 5432
   name: myapp_prod
-EOT_SHAM_fr2
-#!END_SHAM_fr2
+EOT_NESL_fr2
+#!END_NESL_fr2
 ```
 ````
 
@@ -423,11 +423,11 @@ Testing multiple match failure.
 ````sh
 Testing multiple match failure.
 
-```sh sham
-#!SHAM [@three-char-SHA-256: fm1]
+```sh nesl
+#!NESL [@three-char-SHA-256: fm1]
 action = "file_write"
 path = "/tmp/t_listener_multi_match/app.js"
-content = <<'EOT_SHAM_fm1'
+content = <<'EOT_NESL_fm1'
 // Application code
 function process() {
   const value = 100;
@@ -444,21 +444,21 @@ function validate() {
   const value = 100;
   return value > 0;
 }
-EOT_SHAM_fm1
-#!END_SHAM_fm1
+EOT_NESL_fm1
+#!END_NESL_fm1
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: fm2]
+```sh nesl
+#!NESL [@three-char-SHA-256: fm2]
 action = "file_replace_text"
 path = "/tmp/t_listener_multi_match/app.js"
-old_text = <<'EOT_SHAM_fm2'
+old_text = <<'EOT_NESL_fm2'
   const value = 100;
-EOT_SHAM_fm2
-new_text = <<'EOT_SHAM_fm2'
+EOT_NESL_fm2
+new_text = <<'EOT_NESL_fm2'
   const value = 999;
-EOT_SHAM_fm2
-#!END_SHAM_fm2
+EOT_NESL_fm2
+#!END_NESL_fm2
 ```
 ````
 
@@ -473,11 +473,11 @@ fm2 ❌ file_replace_text /tmp/t_listener_multi_match/app.js - old_text appears 
 
 Testing multiple match failure.
 
-```sh sham
-#!SHAM [@three-char-SHA-256: fm1]
+```sh nesl
+#!NESL [@three-char-SHA-256: fm1]
 action = "file_write"
 path = "/tmp/t_listener_multi_match/app.js"
-content = <<'EOT_SHAM_fm1'
+content = <<'EOT_NESL_fm1'
 // Application code
 function process() {
   const value = 100;
@@ -494,21 +494,21 @@ function validate() {
   const value = 100;
   return value > 0;
 }
-EOT_SHAM_fm1
-#!END_SHAM_fm1
+EOT_NESL_fm1
+#!END_NESL_fm1
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: fm2]
+```sh nesl
+#!NESL [@three-char-SHA-256: fm2]
 action = "file_replace_text"
 path = "/tmp/t_listener_multi_match/app.js"
-old_text = <<'EOT_SHAM_fm2'
+old_text = <<'EOT_NESL_fm2'
   const value = 100;
-EOT_SHAM_fm2
-new_text = <<'EOT_SHAM_fm2'
+EOT_NESL_fm2
+new_text = <<'EOT_NESL_fm2'
   const value = 999;
-EOT_SHAM_fm2
-#!END_SHAM_fm2
+EOT_NESL_fm2
+#!END_NESL_fm2
 ```
 ````
 
@@ -545,11 +545,11 @@ Testing no match failure.
 ````sh
 Testing no match failure.
 
-```sh sham
-#!SHAM [@three-char-SHA-256: fn1]
+```sh nesl
+#!NESL [@three-char-SHA-256: fn1]
 action = "file_write"
 path = "/tmp/t_listener_no_match/readme.md"
-content = <<'EOT_SHAM_fn1'
+content = <<'EOT_NESL_fn1'
 # Project README
 
 This is a sample project.
@@ -563,25 +563,25 @@ Run the following command:
 
 Start the application with:
 - npm start
-EOT_SHAM_fn1
-#!END_SHAM_fn1
+EOT_NESL_fn1
+#!END_NESL_fn1
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: fn2]
+```sh nesl
+#!NESL [@three-char-SHA-256: fn2]
 action = "file_replace_text"
 path = "/tmp/t_listener_no_match/readme.md"
-old_text = <<'EOT_SHAM_fn2'
+old_text = <<'EOT_NESL_fn2'
 ## Configuration
 
 Configure the app by editing config.json
-EOT_SHAM_fn2
-new_text = <<'EOT_SHAM_fn2'
+EOT_NESL_fn2
+new_text = <<'EOT_NESL_fn2'
 ## Configuration
 
 Configure the app by editing settings.yaml
-EOT_SHAM_fn2
-#!END_SHAM_fn2
+EOT_NESL_fn2
+#!END_NESL_fn2
 ```
 ````
 
@@ -596,11 +596,11 @@ fn2 ❌ file_replace_text /tmp/t_listener_no_match/readme.md - old_text not foun
 
 Testing no match failure.
 
-```sh sham
-#!SHAM [@three-char-SHA-256: fn1]
+```sh nesl
+#!NESL [@three-char-SHA-256: fn1]
 action = "file_write"
 path = "/tmp/t_listener_no_match/readme.md"
-content = <<'EOT_SHAM_fn1'
+content = <<'EOT_NESL_fn1'
 # Project README
 
 This is a sample project.
@@ -614,25 +614,25 @@ Run the following command:
 
 Start the application with:
 - npm start
-EOT_SHAM_fn1
-#!END_SHAM_fn1
+EOT_NESL_fn1
+#!END_NESL_fn1
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: fn2]
+```sh nesl
+#!NESL [@three-char-SHA-256: fn2]
 action = "file_replace_text"
 path = "/tmp/t_listener_no_match/readme.md"
-old_text = <<'EOT_SHAM_fn2'
+old_text = <<'EOT_NESL_fn2'
 ## Configuration
 
 Configure the app by editing config.json
-EOT_SHAM_fn2
-new_text = <<'EOT_SHAM_fn2'
+EOT_NESL_fn2
+new_text = <<'EOT_NESL_fn2'
 ## Configuration
 
 Configure the app by editing settings.yaml
-EOT_SHAM_fn2
-#!END_SHAM_fn2
+EOT_NESL_fn2
+#!END_NESL_fn2
 ```
 ````
 
@@ -669,11 +669,11 @@ Testing file read output formatting.
 ````sh
 Testing file read output formatting.
 
-```sh sham
-#!SHAM [@three-char-SHA-256: rf1]
+```sh nesl
+#!NESL [@three-char-SHA-256: rf1]
 action = "file_write"
 path = "/tmp/t_listener_read/sample.py"
-content = <<'EOT_SHAM_rf1'
+content = <<'EOT_NESL_rf1'
 #!/usr/bin/env python3
 """Sample Python file for testing."""
 
@@ -683,15 +683,15 @@ def greet(name):
 
 if __name__ == "__main__":
     print(greet("World"))
-EOT_SHAM_rf1
-#!END_SHAM_rf1
+EOT_NESL_rf1
+#!END_NESL_rf1
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: rf2]
+```sh nesl
+#!NESL [@three-char-SHA-256: rf2]
 action = "file_read"
 path = "/tmp/t_listener_read/sample.py"
-#!END_SHAM_rf2
+#!END_NESL_rf2
 ```
 ````
 
@@ -706,11 +706,11 @@ rf2 ✅ file_read /tmp/t_listener_read/sample.py
 
 Testing file read output formatting.
 
-```sh sham
-#!SHAM [@three-char-SHA-256: rf1]
+```sh nesl
+#!NESL [@three-char-SHA-256: rf1]
 action = "file_write"
 path = "/tmp/t_listener_read/sample.py"
-content = <<'EOT_SHAM_rf1'
+content = <<'EOT_NESL_rf1'
 #!/usr/bin/env python3
 """Sample Python file for testing."""
 
@@ -720,15 +720,15 @@ def greet(name):
 
 if __name__ == "__main__":
     print(greet("World"))
-EOT_SHAM_rf1
-#!END_SHAM_rf1
+EOT_NESL_rf1
+#!END_NESL_rf1
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: rf2]
+```sh nesl
+#!NESL [@three-char-SHA-256: rf2]
 action = "file_read"
 path = "/tmp/t_listener_read/sample.py"
-#!END_SHAM_rf2
+#!END_NESL_rf2
 ```
 ````
 
@@ -791,11 +791,11 @@ Testing file read numbered output formatting.
 ````sh
 Testing file read numbered output formatting.
 
-```sh sham
-#!SHAM [@three-char-SHA-256: rn1]
+```sh nesl
+#!NESL [@three-char-SHA-256: rn1]
 action = "file_write"
 path = "/tmp/t_listener_read_num/config.yaml"
-content = <<'EOT_SHAM_rn1'
+content = <<'EOT_NESL_rn1'
 # Application Configuration
 app:
   name: MyApp
@@ -810,15 +810,15 @@ database:
 logging:
   level: info
   file: /var/log/myapp.log
-EOT_SHAM_rn1
-#!END_SHAM_rn1
+EOT_NESL_rn1
+#!END_NESL_rn1
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: rn2]
+```sh nesl
+#!NESL [@three-char-SHA-256: rn2]
 action = "file_read_numbered"
 path = "/tmp/t_listener_read_num/config.yaml"
-#!END_SHAM_rn2
+#!END_NESL_rn2
 ```
 ````
 
@@ -833,11 +833,11 @@ rn2 ✅ file_read_numbered /tmp/t_listener_read_num/config.yaml
 
 Testing file read numbered output formatting.
 
-```sh sham
-#!SHAM [@three-char-SHA-256: rn1]
+```sh nesl
+#!NESL [@three-char-SHA-256: rn1]
 action = "file_write"
 path = "/tmp/t_listener_read_num/config.yaml"
-content = <<'EOT_SHAM_rn1'
+content = <<'EOT_NESL_rn1'
 # Application Configuration
 app:
   name: MyApp
@@ -852,15 +852,15 @@ database:
 logging:
   level: info
   file: /var/log/myapp.log
-EOT_SHAM_rn1
-#!END_SHAM_rn1
+EOT_NESL_rn1
+#!END_NESL_rn1
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: rn2]
+```sh nesl
+#!NESL [@three-char-SHA-256: rn2]
 action = "file_read_numbered"
 path = "/tmp/t_listener_read_num/config.yaml"
-#!END_SHAM_rn2
+#!END_NESL_rn2
 ```
 ````
 
@@ -933,11 +933,11 @@ Testing files read output formatting with multiple files.
 ````sh
 Testing files read output formatting with multiple files.
 
-```sh sham
-#!SHAM [@three-char-SHA-256: mr1]
+```sh nesl
+#!NESL [@three-char-SHA-256: mr1]
 action = "file_write"
 path = "/tmp/t_listener_multi_read/README.md"
-content = <<'EOT_SHAM_mr1'
+content = <<'EOT_NESL_mr1'
 # Project Documentation
 
 This is the main README file.
@@ -946,15 +946,15 @@ This is the main README file.
 - Feature 1
 - Feature 2
 - Feature 3
-EOT_SHAM_mr1
-#!END_SHAM_mr1
+EOT_NESL_mr1
+#!END_NESL_mr1
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: mr2]
+```sh nesl
+#!NESL [@three-char-SHA-256: mr2]
 action = "file_write"
 path = "/tmp/t_listener_multi_read/main.py"
-content = <<'EOT_SHAM_mr2'
+content = <<'EOT_NESL_mr2'
 #!/usr/bin/env python3
 
 def main():
@@ -962,32 +962,32 @@ def main():
 
 if __name__ == "__main__":
     main()
-EOT_SHAM_mr2
-#!END_SHAM_mr2
+EOT_NESL_mr2
+#!END_NESL_mr2
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: mr3]
+```sh nesl
+#!NESL [@three-char-SHA-256: mr3]
 action = "file_write"
 path = "/tmp/t_listener_multi_read/.gitignore"
-content = <<'EOT_SHAM_mr3'
+content = <<'EOT_NESL_mr3'
 *.pyc
 __pycache__/
 .env
 venv/
-EOT_SHAM_mr3
-#!END_SHAM_mr3
+EOT_NESL_mr3
+#!END_NESL_mr3
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: mr4]
+```sh nesl
+#!NESL [@three-char-SHA-256: mr4]
 action = "files_read"
-paths = <<'EOT_SHAM_mr4'
+paths = <<'EOT_NESL_mr4'
 /tmp/t_listener_multi_read/README.md
 /tmp/t_listener_multi_read/main.py
 /tmp/t_listener_multi_read/.gitignore
-EOT_SHAM_mr4
-#!END_SHAM_mr4
+EOT_NESL_mr4
+#!END_NESL_mr4
 ```
 ````
 
@@ -1004,11 +1004,11 @@ mr4 ✅ files_read (3 files)
 
 Testing files read output formatting with multiple files.
 
-```sh sham
-#!SHAM [@three-char-SHA-256: mr1]
+```sh nesl
+#!NESL [@three-char-SHA-256: mr1]
 action = "file_write"
 path = "/tmp/t_listener_multi_read/README.md"
-content = <<'EOT_SHAM_mr1'
+content = <<'EOT_NESL_mr1'
 # Project Documentation
 
 This is the main README file.
@@ -1017,15 +1017,15 @@ This is the main README file.
 - Feature 1
 - Feature 2
 - Feature 3
-EOT_SHAM_mr1
-#!END_SHAM_mr1
+EOT_NESL_mr1
+#!END_NESL_mr1
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: mr2]
+```sh nesl
+#!NESL [@three-char-SHA-256: mr2]
 action = "file_write"
 path = "/tmp/t_listener_multi_read/main.py"
-content = <<'EOT_SHAM_mr2'
+content = <<'EOT_NESL_mr2'
 #!/usr/bin/env python3
 
 def main():
@@ -1033,32 +1033,32 @@ def main():
 
 if __name__ == "__main__":
     main()
-EOT_SHAM_mr2
-#!END_SHAM_mr2
+EOT_NESL_mr2
+#!END_NESL_mr2
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: mr3]
+```sh nesl
+#!NESL [@three-char-SHA-256: mr3]
 action = "file_write"
 path = "/tmp/t_listener_multi_read/.gitignore"
-content = <<'EOT_SHAM_mr3'
+content = <<'EOT_NESL_mr3'
 *.pyc
 __pycache__/
 .env
 venv/
-EOT_SHAM_mr3
-#!END_SHAM_mr3
+EOT_NESL_mr3
+#!END_NESL_mr3
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: mr4]
+```sh nesl
+#!NESL [@three-char-SHA-256: mr4]
 action = "files_read"
-paths = <<'EOT_SHAM_mr4'
+paths = <<'EOT_NESL_mr4'
 /tmp/t_listener_multi_read/README.md
 /tmp/t_listener_multi_read/main.py
 /tmp/t_listener_multi_read/.gitignore
-EOT_SHAM_mr4
-#!END_SHAM_mr4
+EOT_NESL_mr4
+#!END_NESL_mr4
 ```
 ````
 
@@ -1167,50 +1167,50 @@ Testing multiple parse error types.
 ````sh
 Testing multiple parse error types.
 
-```sh sham
-#!SHAM [@three-char-SHA-256: pe1]
+```sh nesl
+#!NESL [@three-char-SHA-256: pe1]
 action = "file_write"
 path = "/tmp/t_parse_errors/test1.txt"
 content = "missing closing quote
-#!END_SHAM_pe1
+#!END_NESL_pe1
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: pe2]
+```sh nesl
+#!NESL [@three-char-SHA-256: pe2]
 action := "file_read"
 path = "/tmp/t_parse_errors/test2.txt"
-#!END_SHAM_pe2
+#!END_NESL_pe2
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: pe3]
+```sh nesl
+#!NESL [@three-char-SHA-256: pe3]
 just some random text without assignment
-#!END_SHAM_pe3
+#!END_NESL_pe3
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: pe4]
+```sh nesl
+#!NESL [@three-char-SHA-256: pe4]
 action = "file_write"
-path = <<EOT_SHAM_pe4
+path = <<EOT_NESL_pe4
 /tmp/test.txt
-EOT_SHAM_pe4
-#!END_SHAM_pe4
+EOT_NESL_pe4
+#!END_NESL_pe4
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: pe5]
+```sh nesl
+#!NESL [@three-char-SHA-256: pe5]
 action = "exec"
 lang = "bash"
 code = "echo 'test'" extra stuff
-#!END_SHAM_pe5
+#!END_NESL_pe5
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: 1234567890]
+```sh nesl
+#!NESL [@three-char-SHA-256: 1234567890]
 action = "exec"
 lang = "bash"
 code = "echo 'test'"
-#!END_SHAM_1234567890
+#!END_NESL_1234567890
 ```
 ````
 
@@ -1231,50 +1231,50 @@ unknown ❌ -          ERROR: Block ID must be exactly 3 characters (line 42)
 
 Testing multiple parse error types.
 
-```sh sham
-#!SHAM [@three-char-SHA-256: pe1]
+```sh nesl
+#!NESL [@three-char-SHA-256: pe1]
 action = "file_write"
 path = "/tmp/t_parse_errors/test1.txt"
 content = "missing closing quote
-#!END_SHAM_pe1
+#!END_NESL_pe1
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: pe2]
+```sh nesl
+#!NESL [@three-char-SHA-256: pe2]
 action := "file_read"
 path = "/tmp/t_parse_errors/test2.txt"
-#!END_SHAM_pe2
+#!END_NESL_pe2
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: pe3]
+```sh nesl
+#!NESL [@three-char-SHA-256: pe3]
 just some random text without assignment
-#!END_SHAM_pe3
+#!END_NESL_pe3
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: pe4]
+```sh nesl
+#!NESL [@three-char-SHA-256: pe4]
 action = "file_write"
-path = <<EOT_SHAM_pe4
+path = <<EOT_NESL_pe4
 /tmp/test.txt
-EOT_SHAM_pe4
-#!END_SHAM_pe4
+EOT_NESL_pe4
+#!END_NESL_pe4
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: pe5]
+```sh nesl
+#!NESL [@three-char-SHA-256: pe5]
 action = "exec"
 lang = "bash"
 code = "echo 'test'" extra stuff
-#!END_SHAM_pe5
+#!END_NESL_pe5
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: 1234567890]
+```sh nesl
+#!NESL [@three-char-SHA-256: 1234567890]
 action = "exec"
 lang = "bash"
 code = "echo 'test'"
-#!END_SHAM_1234567890
+#!END_NESL_1234567890
 ```
 ````
 

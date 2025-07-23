@@ -1,30 +1,30 @@
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: rr1]
+```sh nesl
+#!NESL [@three-char-SHA-256: rr1]
 action = "file_write"
 path = "/tmp/t_replace-line-range/code.js"
-content = <<'EOT_SHAM_rr1'
+content = <<'EOT_NESL_rr1'
 function oldImplementation() {
   console.log('line 2');
   console.log('line 3');
   console.log('line 4');
   return 'old';
 }
-EOT_SHAM_rr1
-#!END_SHAM_rr1
+EOT_NESL_rr1
+#!END_NESL_rr1
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: rr2]
+```sh nesl
+#!NESL [@three-char-SHA-256: rr2]
 action = "file_replace_lines"
 path = "/tmp/t_replace-line-range/code.js"
 lines = "2-5"
-new_content = <<'EOT_SHAM_rr2'
+new_content = <<'EOT_NESL_rr2'
   // New implementation
   return 'new';
-EOT_SHAM_rr2
-#!END_SHAM_rr2
+EOT_NESL_rr2
+#!END_NESL_rr2
 ```
 
 
@@ -90,4 +90,4 @@ function oldImplementation() {
 === END FILE: [numbered] /Users/stuart/repos/clada/use-listener/test-files/ham.md ===
 ```
 
-generate sham action code to replace all the questions in the ham.md file above with a few more lines of dialog expanding on the question a little
+generate nesl action code to replace all the questions in the ham.md file above with a few more lines of dialog expanding on the question a little

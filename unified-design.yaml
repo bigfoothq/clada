@@ -1,19 +1,19 @@
 # AI Coder Tools Schema - Unified Design
 
-# Clada executes filesystem and runtime commands embedded in LLM output using SHAM syntax. It provides deterministic filesystem access and shell command execution for LLM coding agents.
+# Clada executes filesystem and runtime commands embedded in LLM output using NESL syntax. It provides deterministic filesystem access and shell command execution for LLM coding agents.
 
-# SHAM syntax example:
+# NESL syntax example:
 
-SHAM_synatx_example: |
-  ```sh sham
-  #!SHAM [@three-char-SHA-256: k7m]
+NESL_synatx_example: |
+  ```sh nesl
+  #!NESL [@three-char-SHA-256: k7m]
   action = "file_write"
   path = "/tmp/\"hello\".txt"
-  content = <<'EOT_SHAM_k7m'
+  content = <<'EOT_NESL_k7m'
   Hello world!
   how are you?
-  EOT_SHAM_k7m
-  #!END_SHAM_k7m
+  EOT_NESL_k7m
+  #!END_NESL_k7m
   ```
 
 

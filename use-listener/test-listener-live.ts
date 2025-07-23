@@ -11,13 +11,13 @@ async function main() {
   try {
     await writeFile(TEST_FILE, `# Test Commands
 
-Try adding SHAM blocks below this line:
+Try adding NESL blocks below this line:
 
-\`\`\`sh sham
-#!SHAM [@three-char-SHA-256: abc]
+\`\`\`sh nesl
+#!NESL [@three-char-SHA-256: abc]
 action = "ls"
 path = "."
-#!END_SHAM_abc
+#!END_NESL_abc
 \`\`\`
 
 `, { flag: 'wx' }); // wx = write only if doesn't exist

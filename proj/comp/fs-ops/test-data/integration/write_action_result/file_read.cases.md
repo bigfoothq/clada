@@ -4,19 +4,19 @@
 
 ### 001-read-existing-file
 
-```sh sham
-#!SHAM [@three-char-SHA-256: crf]
+```sh nesl
+#!NESL [@three-char-SHA-256: crf]
 action = "file_write"
 path = "/tmp/t_read-existing-file/readable.txt"
 content = "This is readable content"
-#!END_SHAM_crf
+#!END_NESL_crf
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: rdf]
+```sh nesl
+#!NESL [@three-char-SHA-256: rdf]
 action = "file_read"
 path = "/tmp/t_read-existing-file/readable.txt"
-#!END_SHAM_rdf
+#!END_NESL_rdf
 ```
 
 ```json
@@ -31,14 +31,14 @@ path = "/tmp/t_read-existing-file/readable.txt"
 
 ### 002-read-nonexistent-file
 
-```sh sham
+```sh nesl
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: rnx]
+```sh nesl
+#!NESL [@three-char-SHA-256: rnx]
 action = "file_read"
 path = "/tmp/t_read-nonexistent-file/not-there.txt"
-#!END_SHAM_rnx
+#!END_NESL_rnx
 ```
 
 ```json

@@ -34,7 +34,7 @@ exports:
 
 ### executeCommand
 - **Signature**: `executeCommand(action: CladaAction) -> Promise<ExecResult>`
-- **Purpose**: Execute code from parsed SHAM action in specified language.
+- **Purpose**: Execute code from parsed NESL action in specified language.
 - **Throws**: Never - all errors captured in ExecResult
 - **Test-data**: `test-data/executeCommand.json` [PLANNED]
 

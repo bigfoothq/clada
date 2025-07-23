@@ -1,10 +1,10 @@
 /**
  * fs-ops - File system operations executor for clada
  * 
- * Handles all file and directory operations from parsed SHAM actions
+ * Handles all file and directory operations from parsed NESL actions
  */
 
-import type { CladaAction } from '../../sham-action-parser/src/index.js';
+import type { CladaAction } from '../../nesl-action-parser/src/index.js';
 import { writeFile, mkdir, unlink, rename, readFile } from 'fs/promises';
 import { dirname } from 'path';
 import { formatNodeError } from './formatNodeError.js';
@@ -31,25 +31,25 @@ export class FileOpError extends Error {
 }
 
 /**
- * Execute a file system operation from a parsed SHAM action
+ * Execute a file system operation from a parsed NESL action
  * Never throws - all errors returned in result
  */
 export async function executeFileOperation(action: CladaAction): Promise<FileOpResult> {
   try {
     const handler = actionHandlers[action.action];
-    
- 
-    
+
+
+
     if (!handler) {
       return {
         success: false,
         error: `Unknown action: ${action.action}`
       };
     }
-    
+
     const result = await handler(action);
     return result;
-    
+
   } catch (error: any) {
     // This should never happen - handlers should catch their own errors
     return {
@@ -66,28 +66,28 @@ export async function executeFileOperation(action: CladaAction): Promise<FileOpR
  */
 async function handleFileMove(action: CladaAction): Promise<FileOpResult> {
   const { old_path, new_path } = action.parameters;
-  
+
   try {
     // Pre-flight check for better error messages
     const sourceExists = await fileExists(old_path);
-    
+
     if (!sourceExists) {
       return {
         success: false,
         error: `file_move: Source file not found '${old_path}' (ENOENT)`
       };
     }
-    
+
     // Check if destination exists (for overwrote flag)
     const destExists = await fileExists(new_path);
-    
+
     // Create parent directories for destination
     const parentDir = dirname(new_path);
     await mkdir(parentDir, { recursive: true });
-    
+
     // Move the file
     await rename(old_path, new_path);
-    
+
     const result: FileOpResult = {
       success: true,
       data: {
@@ -95,13 +95,13 @@ async function handleFileMove(action: CladaAction): Promise<FileOpResult> {
         new_path
       }
     };
-    
+
     if (destExists) {
       result.data.overwrote = true;
     }
-    
+
     return result;
-    
+
   } catch (error: any) {
     return {
       success: false,
@@ -115,17 +115,17 @@ async function handleFileMove(action: CladaAction): Promise<FileOpResult> {
  */
 async function handleFileDelete(action: CladaAction): Promise<FileOpResult> {
   const { path } = action.parameters;
-  
+
   try {
     await unlink(path);
-    
+
     return {
       success: true,
       data: {
         path
       }
     };
-    
+
   } catch (error: any) {
     return {
       success: false,
@@ -140,23 +140,23 @@ async function handleFileDelete(action: CladaAction): Promise<FileOpResult> {
  */
 async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
   const { path, content } = action.parameters;
-  
+
   try {
     // Create parent directories if needed
     const parentDir = dirname(path);
     await mkdir(parentDir, { recursive: true });
-    
+
     // Write file
     await writeFile(path, content, 'utf8');
     const bytesWritten = Buffer.byteLength(content, 'utf8');
-    
+
     // Temporary debug for test 004
     if (path.includes('move-to-existing-file')) {
       // console.log(`DEBUG: Wrote file ${path}`);
       const exists = await fileExists(path);
       // console.log(`DEBUG: File exists after write: ${exists}`);
     }
-    
+
     return {
       success: true,
       data: {
@@ -164,7 +164,7 @@ async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
         bytesWritten
       }
     };
-    
+
   } catch (error: any) {
     return {
       success: false,
@@ -178,10 +178,10 @@ async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
  */
 async function handleFileRead(action: CladaAction): Promise<FileOpResult> {
   const { path } = action.parameters;
-  
+
   try {
     const content = await readFile(path, 'utf8');
-    
+
     return {
       success: true,
       data: {
@@ -189,7 +189,7 @@ async function handleFileRead(action: CladaAction): Promise<FileOpResult> {
         content
       }
     };
-    
+
   } catch (error: any) {
     return {
       success: false,
@@ -206,13 +206,13 @@ async function handleFileRead(action: CladaAction): Promise<FileOpResult> {
  */
 async function handleFileReadNumbered(action: CladaAction): Promise<FileOpResult> {
   const { path, lines, delimiter = ": " } = action.parameters;
-  
+
   try {
     const content = await readFile(path, 'utf8');
-    
+
     // Extract and number the requested lines
     const { result, outOfRange } = extractNumberedLines(content, lines, delimiter);
-    
+
     // If out of range, return error with partial content
     if (outOfRange) {
       return {
@@ -224,7 +224,7 @@ async function handleFileReadNumbered(action: CladaAction): Promise<FileOpResult
         }
       };
     }
-    
+
     return {
       success: true,
       data: {
@@ -232,7 +232,7 @@ async function handleFileReadNumbered(action: CladaAction): Promise<FileOpResult
         content: result
       }
     };
-    
+
   } catch (error: any) {
     // Check if it's our custom validation error
     if (error.message && error.message.startsWith('Invalid line')) {
@@ -241,7 +241,7 @@ async function handleFileReadNumbered(action: CladaAction): Promise<FileOpResult
         error: `file_read_numbered: ${error.message}`
       };
     }
-    
+
     return {
       success: false,
       error: formatNodeError(error, path, 'open')
@@ -256,11 +256,11 @@ async function handleFileReadNumbered(action: CladaAction): Promise<FileOpResult
  */
 async function handleFileReplaceLines(action: CladaAction): Promise<FileOpResult> {
   const { path, lines, new_content } = action.parameters;
-  
+
   try {
     // Read existing file content
     const content = await readFile(path, 'utf8');
-    
+
     // Handle empty file edge case
     if (content === '') {
       return {
@@ -268,31 +268,31 @@ async function handleFileReplaceLines(action: CladaAction): Promise<FileOpResult
         error: `file_replace_lines: Line range ${lines} is out of bounds (file has 0 lines)`
       };
     }
-    
+
     // Split into lines, preserving empty lines
     // Check if content ends with a newline
     const endsWithNewline = content.match(/\r?\n$/);
     const fileLines = content.split(/\r?\n|\r/);
-    
+
     // If the file ends with a newline, split gives us an extra empty element
     // Remove it for line counting, but remember it existed
     if (endsWithNewline && fileLines[fileLines.length - 1] === '') {
       fileLines.pop();
     }
-    
+
     const totalLines = fileLines.length;
-    
+
     // Parse line specification
     let startLine: number;
     let endLine: number;
-    
+
     if (!lines || lines === '') {
       return {
         success: false,
         error: `file_replace_lines: Invalid line specification '${lines}'`
       };
     }
-    
+
     if (lines.includes('-')) {
       // Range format: "23-43"
       const parts = lines.split('-');
@@ -302,24 +302,24 @@ async function handleFileReplaceLines(action: CladaAction): Promise<FileOpResult
           error: `file_replace_lines: Invalid line specification '${lines}'`
         };
       }
-      
+
       startLine = parseInt(parts[0], 10);
       endLine = parseInt(parts[1], 10);
-      
+
       if (isNaN(startLine) || isNaN(endLine)) {
         return {
           success: false,
           error: `file_replace_lines: Invalid line specification '${lines}'`
         };
       }
-      
+
       if (startLine < 1 || endLine < 1) {
         return {
           success: false,
           error: `file_replace_lines: Invalid line specification '${lines}'`
         };
       }
-      
+
       if (startLine > endLine) {
         return {
           success: false,
@@ -337,9 +337,9 @@ async function handleFileReplaceLines(action: CladaAction): Promise<FileOpResult
       }
       endLine = startLine;
     }
-    
- 
-    
+
+
+
     // Check if lines are out of range
     if (startLine > totalLines || endLine > totalLines) {
       return {
@@ -347,40 +347,40 @@ async function handleFileReplaceLines(action: CladaAction): Promise<FileOpResult
         error: `file_replace_lines: Line range ${lines} is out of bounds (file has ${totalLines} lines)`
       };
     }
-    
+
     // Split new content into lines
     // Empty content should produce one empty line, not zero lines
     const newLines = new_content.split(/\r?\n|\r/);
-    
+
     // Reconstruct the file with replaced lines
     const resultLines: string[] = [];
-    
+
     // Add lines before the replacement range
     for (let i = 0; i < startLine - 1; i++) {
       resultLines.push(fileLines[i]);
     }
-    
+
     // Add the new content
     resultLines.push(...newLines);
-    
+
     // Add lines after the replacement range
     for (let i = endLine; i < totalLines; i++) {
       resultLines.push(fileLines[i]);
     }
-    
+
     // Join back with newlines
     let result = resultLines.join('\n');
-    
+
     // If the original file ended with a newline, preserve it
     if (endsWithNewline) {
       result += '\n';
     }
-    
+
     // Write the file back
     await writeFile(path, result, 'utf8');
-    
+
     const linesReplaced = endLine - startLine + 1;
-    
+
     return {
       success: true,
       data: {
@@ -388,7 +388,7 @@ async function handleFileReplaceLines(action: CladaAction): Promise<FileOpResult
         lines_replaced: linesReplaced
       }
     };
-    
+
   } catch (error: any) {
     return {
       success: false,
@@ -404,23 +404,23 @@ async function handleFileReplaceLines(action: CladaAction): Promise<FileOpResult
  */
 async function handleFilesRead(action: CladaAction): Promise<FileOpResult> {
   const { paths } = action.parameters;
-  
+
   // Parse the multi-line paths string
   const pathList = paths
     .split('\n')
     .map(line => line.trim())
     .filter(line => line.length > 0);  // Remove empty lines
-  
+
   if (pathList.length === 0) {
     return {
       success: false,
       error: 'files_read: No paths provided'
     };
   }
-  
+
   // Read all files, collecting content and errors
   const results: Array<{ path: string; content?: string; error?: string }> = [];
-  
+
   for (const filePath of pathList) {
     try {
       const content = await readFile(filePath, 'utf8');
@@ -431,7 +431,7 @@ async function handleFilesRead(action: CladaAction): Promise<FileOpResult> {
       results.push({ path: filePath, error: errorMsg });
     }
   }
-  
+
   // Check if any files failed to read
   const failedFiles = results.filter(r => r.error);
   if (failedFiles.length > 0) {
@@ -444,10 +444,10 @@ async function handleFilesRead(action: CladaAction): Promise<FileOpResult> {
       error: `files_read: Failed to read ${failedFiles.length} file(s):\n${errorDetails}`
     };
   }
-  
+
   // All files read successfully - return contents as array
   const contents = results.map(r => r.content!);
-  
+
   return {
     success: true,
     data: {
@@ -463,7 +463,7 @@ async function handleFilesRead(action: CladaAction): Promise<FileOpResult> {
  */
 async function handleFileReplaceText(action: CladaAction): Promise<FileOpResult> {
   const { path, old_text, new_text } = action.parameters;
-  
+
   // Validate old_text is not empty
   if (!old_text || old_text.length === 0) {
     return {
@@ -471,11 +471,11 @@ async function handleFileReplaceText(action: CladaAction): Promise<FileOpResult>
       error: 'file_replace_text: old_text cannot be empty'
     };
   }
-  
+
   try {
     // Read existing file content
     const content = await readFile(path, 'utf8');
-    
+
     // Count occurrences first
     let count = 0;
     let searchIndex = 0;
@@ -485,7 +485,7 @@ async function handleFileReplaceText(action: CladaAction): Promise<FileOpResult>
       count++;
       searchIndex = index + old_text.length;
     }
-    
+
     // Validate exactly one occurrence
     if (count === 0) {
       return {
@@ -499,13 +499,13 @@ async function handleFileReplaceText(action: CladaAction): Promise<FileOpResult>
         error: `file_replace_text: old_text appears ${count} times, must appear exactly once`
       };
     }
-    
+
     // Replace the single occurrence
     const { result, replacements } = replaceText(content, old_text, new_text, 1);
-    
+
     // Write updated content back
     await writeFile(path, result, 'utf8');
-    
+
     return {
       success: true,
       data: {
@@ -513,7 +513,7 @@ async function handleFileReplaceText(action: CladaAction): Promise<FileOpResult>
         replacements
       }
     };
-    
+
   } catch (error: any) {
     // Special case for empty old_text validation error
     if (error.message === 'old_text cannot be empty') {
@@ -522,7 +522,7 @@ async function handleFileReplaceText(action: CladaAction): Promise<FileOpResult>
         error: 'file_replace_text: old_text cannot be empty'
       };
     }
-    
+
     return {
       success: false,
       error: formatNodeError(error, path, 'open')
@@ -536,7 +536,7 @@ async function handleFileReplaceText(action: CladaAction): Promise<FileOpResult>
  */
 async function handleFileReplaceAllText(action: CladaAction): Promise<FileOpResult> {
   const { path, old_text, new_text, count } = action.parameters;
-  
+
   // Validate old_text is not empty
   if (!old_text || old_text.length === 0) {
     return {
@@ -544,11 +544,11 @@ async function handleFileReplaceAllText(action: CladaAction): Promise<FileOpResu
       error: 'file_replace_all_text: old_text cannot be empty'
     };
   }
-  
+
   try {
     // Read existing file content
     const content = await readFile(path, 'utf8');
-    
+
     // If count specified, validate it matches actual occurrences
     if (count !== undefined) {
       // Count actual occurrences
@@ -560,7 +560,7 @@ async function handleFileReplaceAllText(action: CladaAction): Promise<FileOpResu
         actualCount++;
         searchIndex = index + old_text.length;
       }
-      
+
       if (actualCount !== count) {
         return {
           success: false,
@@ -568,13 +568,13 @@ async function handleFileReplaceAllText(action: CladaAction): Promise<FileOpResu
         };
       }
     }
-    
+
     // Replace all occurrences
     const { result, replacements } = replaceText(content, old_text, new_text);
-    
+
     // Write updated content back
     await writeFile(path, result, 'utf8');
-    
+
     return {
       success: true,
       data: {
@@ -582,7 +582,7 @@ async function handleFileReplaceAllText(action: CladaAction): Promise<FileOpResu
         replacements
       }
     };
-    
+
   } catch (error: any) {
     // Special case for empty old_text validation error
     if (error.message === 'old_text cannot be empty') {
@@ -591,7 +591,7 @@ async function handleFileReplaceAllText(action: CladaAction): Promise<FileOpResu
         error: 'file_replace_all_text: old_text cannot be empty'
       };
     }
-    
+
     return {
       success: false,
       error: formatNodeError(error, path, 'open')
@@ -605,7 +605,7 @@ async function createFile(path: string, content: string): Promise<void> {
   throw new Error('Not implemented');
 }
 
- 
+
 
 async function replaceTextInFile(path: string, oldText: string, newText: string, count?: number): Promise<number> {
   throw new Error('Not implemented');

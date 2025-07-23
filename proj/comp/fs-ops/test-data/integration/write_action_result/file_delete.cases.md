@@ -4,19 +4,19 @@
 
 ### 001-delete-existing-file
 
-```sh sham
-#!SHAM [@three-char-SHA-256: cre]
+```sh nesl
+#!NESL [@three-char-SHA-256: cre]
 action = "file_write"
 path = "/tmp/t_delete-existing-file/to-delete.txt"
 content = "This file will be deleted"
-#!END_SHAM_cre
+#!END_NESL_cre
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: del]
+```sh nesl
+#!NESL [@three-char-SHA-256: del]
 action = "file_delete"
 path = "/tmp/t_delete-existing-file/to-delete.txt"
-#!END_SHAM_del
+#!END_NESL_del
 ```
 
 ```json
@@ -30,14 +30,14 @@ path = "/tmp/t_delete-existing-file/to-delete.txt"
 
 ### 002-delete-nonexistent-file
 
-```sh sham
+```sh nesl
 ```
 
-```sh sham
-#!SHAM [@three-char-SHA-256: dnf]
+```sh nesl
+#!NESL [@three-char-SHA-256: dnf]
 action = "file_delete"
 path = "/tmp/t_delete-nonexistent-file/does-not-exist.txt"
-#!END_SHAM_dnf
+#!END_NESL_dnf
 ```
 
 ```json

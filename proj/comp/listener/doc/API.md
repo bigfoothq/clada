@@ -45,7 +45,7 @@ exports:
 
 ### startListener
 - **Signature**: `startListener(config: ListenerConfig) -> Promise<ListenerHandle>`
-- **Purpose**: Begin watching file for SHAM blocks and executing them.
+- **Purpose**: Begin watching file for NESL blocks and executing them.
 - **Throws**: `ListenerError` when file doesn't exist or can't be accessed
 - **Test-data**: `test-data/startListener.json` [PLANNED]
 
@@ -77,7 +77,7 @@ exports:
 ### ListenerState
 ```typescript
 {
-  lastExecutedHash: string   // SHA-256 of previously executed SHAM content
+  lastExecutedHash: string   // SHA-256 of previously executed NESL content
   isProcessing: boolean      // Currently executing actions
   outputPath: string         // Full path to output file
 }

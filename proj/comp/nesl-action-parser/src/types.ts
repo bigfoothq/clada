@@ -28,7 +28,7 @@ export interface ParseError {
   errorType: 'syntax' | 'validation' | 'type';
   message: string;
   blockStartLine?: number;
-  shamContent?: string;
+  neslContent?: string;
 }
 
 export interface ValidationResult {

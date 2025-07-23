@@ -42,7 +42,7 @@ exports:
 
 ### executeFileOperation
 - **Signature**: `executeFileOperation(action: CladaAction) -> Promise<FileOpResult>`
-- **Purpose**: Execute file system operations from parsed SHAM actions
+- **Purpose**: Execute file system operations from parsed NESL actions
 - **Throws**: Never - all errors captured in FileOpResult
 - **Test-data**: `test-data/integration/*.cases.md` [IMPLEMENTED]
 

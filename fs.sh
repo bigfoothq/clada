@@ -2,7 +2,7 @@
 # run:
 # ./fs
 
-# find sham21 -type f -not -name "package-lock.json"  -not -path "*/node_modules/*"  -exec sh -c 'echo; echo "=== START FILE: $1 ==="; cat "$1"; echo; echo "\n=== END FILE: $1 ==="' _ {} \; | pbcopy
+# find nesl21 -type f -not -name "package-lock.json"  -not -path "*/node_modules/*"  -exec sh -c 'echo; echo "=== START FILE: $1 ==="; cat "$1"; echo; echo "\n=== END FILE: $1 ==="' _ {} \; | pbcopy
 # find . -type f -not -name "package-lock.json"  -not -path "*/node_modules/*"  -exec sh -c 'echo; echo "=== START FILE: $1 ==="; cat "$1"; echo; echo "\n=== END FILE: $1 ==="' _ {} \; | pbcopy
 
 # find . -type f -not -name "package-lock.json"  -not -name "snapshot.txt"  -not -path "*/node_modules/*" -exec sh -c '
@@ -17,8 +17,8 @@
 
 echo "=== 'pwd' ==="
 pwd
-echo -e "\n=== sham21/ contents ('find sham21 ...') ==="
-find sham21 -not -path "*/node_modules/*" -not -path "*/.*/*" -not -path "*/trash/*" | sort | sed 's|[^/]*/|- |g' | sed 's|- |  |' | sed 's|^ *||'
+echo -e "\n=== nesl21/ contents ('find nesl21 ...') ==="
+find nesl21 -not -path "*/node_modules/*" -not -path "*/.*/*" -not -path "*/trash/*" | sort | sed 's|[^/]*/|- |g' | sed 's|- |  |' | sed 's|^ *||'
 echo -e "\n=== 'ls -1' ==="
 ls -1
 echo -e "\n=== 'cat replacer/replacer_llm_instructions.md' ==="

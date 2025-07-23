@@ -1,6 +1,6 @@
 # Command Execution
 
-Executes code snippets in multiple languages from parsed SHAM actions, capturing output and exit status for LLM feedback.
+Executes code snippets in multiple languages from parsed NESL actions, capturing output and exit status for LLM feedback.
 
 ## Overview
 

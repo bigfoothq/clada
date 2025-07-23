@@ -2,24 +2,24 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { readFileSync, rmSync, existsSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { marked } from 'marked';
-import { parseShamResponse } from '../../../sham-action-parser/src/index.js';
+import { parseNeslResponse } from '../../../nesl-action-parser/src/index.js';
 import { executeFileOperation } from '../../src/index.js';
 
 // Find all .cases.md files recursively
 function findTestFiles(dir: string, files: string[] = []): string[] {
   const entries = readdirSync(dir);
-  
+
   for (const entry of entries) {
     const fullPath = join(dir, entry);
     const stat = statSync(fullPath);
-    
+
     if (stat.isDirectory()) {
       findTestFiles(fullPath, files);
     } else if (entry.endsWith('.cases.md')) {
       files.push(fullPath);
     }
   }
-  
+
   return files;
 }
 
@@ -50,16 +50,16 @@ describe('write_action_result tests', () => {
   testFiles.forEach(filepath => {
     const content = readFileSync(filepath, 'utf8');
     const tokens = marked.lexer(content);
-    
+
     // Extract test group name from first h1 heading
     const groupHeading = tokens.find(t => t.type === 'heading' && t.depth === 1);
     const groupName = groupHeading?.text || 'Unknown Group';
-    
+
     describe(groupName, () => {
       // Process h3 headings as test cases
       let currentTestName = '';
       let codeBlocks: string[] = [];
-      
+
       /**
        * Process a test case with its code blocks
        * @param testName Name of the test
@@ -67,19 +67,19 @@ describe('write_action_result tests', () => {
        */
       const processTest = (testName: string, blocks: string[]) => {
         it(testName, async () => {
-          // Block 0: Write action (optional) - may contain multiple SHAM blocks
+          // Block 0: Write action (optional) - may contain multiple NESL blocks
           // Block 1: Test action
           // Block 2: Expected JSON result
-          
+
           const writeBlock = blocks[0];
           const actionBlock = blocks[1];
           const resultBlock = blocks[2];
-          
+
           // Execute write action if not empty
           if (writeBlock?.trim()) {
-            
-            const writeResult = await parseShamResponse(writeBlock);
-            
+
+            const writeResult = await parseNeslResponse(writeBlock);
+
             // // Debug: log parse result
             // if (testName.includes('move-to-existing-file')) {
             //   console.log(`DEBUG: Parse errors: ${writeResult.errors.length}`);
@@ -90,11 +90,11 @@ describe('write_action_result tests', () => {
             //     });
             //   }
             // }
-            
+
             if (writeResult.errors.length > 0) {
-              throw new Error(`Failed to parse write SHAM: ${writeResult.errors.map(e => e.message).join(', ')}`);
+              throw new Error(`Failed to parse write NESL: ${writeResult.errors.map(e => e.message).join(', ')}`);
             }
-            
+
             // // Debug: log parsed actions
             // if (testName.includes('move-to-existing-file')) {
             //   console.log(`DEBUG: Parsed ${writeResult.actions.length} write actions`);
@@ -102,7 +102,7 @@ describe('write_action_result tests', () => {
             //     console.log(`DEBUG: Action ${i}: ${action.action} path=${action.parameters?.path}`);
             //   });
             // }
-            
+
             // Execute each write action
             for (const action of writeResult.actions) {
               const result = await executeFileOperation(action);
@@ -120,13 +120,13 @@ describe('write_action_result tests', () => {
               }
             }
           }
-          
+
           // Execute test action
-          const actionResult = await parseShamResponse(actionBlock);
+          const actionResult = await parseNeslResponse(actionBlock);
           if (actionResult.errors.length > 0) {
-            throw new Error(`Failed to parse action SHAM: ${actionResult.errors.map(e => e.message).join(', ')}`);
+            throw new Error(`Failed to parse action NESL: ${actionResult.errors.map(e => e.message).join(', ')}`);
           }
-          
+
           let testResult;
           for (const action of actionResult.actions) {
             testResult = await executeFileOperation(action);
@@ -144,13 +144,13 @@ describe('write_action_result tests', () => {
               if (testDirMatch) createdPaths.add(testDirMatch[0]);
             }
           }
-          
+
           // Verify result
           const expectedResult = JSON.parse(resultBlock);
           expect(testResult).toEqual(expectedResult);
         }, 30000);
       };
-      
+
       // Parse tokens and create tests
       tokens.forEach((token, index) => {
         if (token.type === 'heading' && token.depth === 3) {
@@ -158,7 +158,7 @@ describe('write_action_result tests', () => {
           if (currentTestName && codeBlocks.length >= 2) {
             processTest(currentTestName, [...codeBlocks]);
           }
-          
+
           // Start new test
           currentTestName = token.text;
           codeBlocks = [];
@@ -166,7 +166,7 @@ describe('write_action_result tests', () => {
           codeBlocks.push(token.text);
         }
       });
-      
+
       // Process final test
       if (currentTestName && codeBlocks.length >= 2) {
         processTest(currentTestName, [...codeBlocks]);

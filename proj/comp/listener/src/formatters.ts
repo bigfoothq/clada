@@ -57,7 +57,7 @@ export function formatSummary(orchResult: OrchestratorResult, timestamp: Date): 
   
   // DEBUG: Log raw orchestrator result for parse errors
   if (orchResult.parseErrors && orchResult.parseErrors.length > 0) {
-    console.log('DEBUG: Raw parseErrors:', JSON.stringify(orchResult.parseErrors, null, 2));
+    // console.log('DEBUG: Raw parseErrors:', JSON.stringify(orchResult.parseErrors, null, 2));
   }
   
   // Add execution results

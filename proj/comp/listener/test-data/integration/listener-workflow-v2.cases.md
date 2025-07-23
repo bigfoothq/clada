@@ -1221,6 +1221,44 @@ pe5 ❌ exec       ERROR: Unexpected content after quoted value (line 34)
 === END ===
 
 Testing multiple parse error types.
+
+```sh sham
+#!SHAM [@three-char-SHA-256: pe1]
+action = "file_write"
+path = "/tmp/t_parse_errors/test1.txt"
+content = "missing closing quote
+#!END_SHAM_pe1
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: pe2]
+action := "file_read"
+path = "/tmp/t_parse_errors/test2.txt"
+#!END_SHAM_pe2
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: pe3]
+just some random text without assignment
+#!END_SHAM_pe3
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: pe4]
+action = "file_write"
+path = <<EOT_SHAM_pe4
+/tmp/test.txt
+EOT_SHAM_pe4
+#!END_SHAM_pe4
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: pe5]
+action = "exec"
+lang = "bash"
+code = "echo 'test'" extra stuff
+#!END_SHAM_pe5
+```
 ````
 
 #### Expected Output File

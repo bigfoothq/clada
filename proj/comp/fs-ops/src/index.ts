@@ -398,9 +398,9 @@ async function handleFileReplaceLines(action: CladaAction): Promise<FileOpResult
 }
 
 /**
- * Handle files_read action - reads multiple files and returns their contents
+ * Handle files_read action - reads multiple files and concatenates with delimiters
  * Parses multi-line paths parameter, one absolute path per line
- * Returns an array of file contents in the same order as the paths
+ * Returns concatenated content with === /path/to/file === delimiters
  */
 async function handleFilesRead(action: CladaAction): Promise<FileOpResult> {
   const { paths } = action.parameters;
@@ -445,14 +445,19 @@ async function handleFilesRead(action: CladaAction): Promise<FileOpResult> {
     };
   }
   
-  // All files read successfully - return contents as array
-  const contents = results.map(r => r.content!);
+  // All files read successfully - concatenate with delimiters
+  const concatenated = results
+    .map(r => {
+      const header = `=== ${r.path} ===`;
+      return `${header}\n${r.content}`;
+    })
+    .join('\n\n');
   
   return {
     success: true,
     data: {
       paths: pathList,
-      content: contents
+      content: concatenated
     }
   };
 }

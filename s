@@ -13,19 +13,11 @@ fi
 
 file_list=$(cat <<'EOF'
 
-/Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts
-/Users/stuart/repos/clada/proj/comp/sham-action-parser/src/index.ts
-/Users/stuart/repos/clada/proj/comp/sham-action-parser/src/types.ts
+/Users/stuart/repos/clada/proj/comp/listener/test/integration/listener-workflow-v2.test.ts
 /Users/stuart/repos/clada/proj/comp/listener/test-data/integration/listener-workflow-v2.cases.md
-/Users/stuart/repos/clada/proj/comp/listener/src/errors.ts
-/Users/stuart/repos/clada/proj/comp/listener/src/formatters.ts
-/Users/stuart/repos/clada/proj/comp/listener/src/index.ts
 /Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
-/Users/stuart/repos/clada/proj/comp/listener/src/types.ts
-/Users/stuart/repos/clada/proj/comp/listener/src/unified-design-loader.ts
-/Users/stuart/repos/clada/proj/comp/listener/src/utils.ts
+/Users/stuart/repos/clada/proj/comp/sham-action-parser/src/index.ts
 
-/Users/stuart/repos/clada/replacer/replacer_llm_instructions.md
 
 EOF
 )

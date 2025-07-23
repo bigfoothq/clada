@@ -872,10 +872,7 @@ EOT_SHAM_fr3
         "/tmp/017-files-read-multiple/first.txt",
         "/tmp/017-files-read-multiple/second.txt"
       ],
-      "content": [
-        "First file content",
-        "Second file content"
-      ]
+      "content": "=== /tmp/017-files-read-multiple/first.txt ===\nFirst file content\n\n=== /tmp/017-files-read-multiple/second.txt ===\nSecond file content"
     }
   }],
   "parseErrors": []

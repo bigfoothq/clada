@@ -31,7 +31,8 @@ path = "."
   const handle = await startListener({
     filePath: TEST_FILE,
     debounceMs: 500,
-    outputFilename: '.my-test-output.txt'
+    outputFilename: '.my-test-output.txt',
+    debug: true
   });
 
   console.log(`

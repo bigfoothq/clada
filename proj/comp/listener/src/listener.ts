@@ -94,7 +94,18 @@ async function processFileChange(filePath: string, state: ListenerState): Promis
     // Execute via orchestrator with full file content
     const clada = new Clada({ gitCommit: false });
     const orchResult = await clada.execute(fullContent);
-    // console.log('Executed', orchResult.executedActions, 'actions');
+    
+    // Debug logging
+    if (state.debug) {
+      console.log('\n=== DEBUG: Orchestrator Result ===');
+      console.log('Executed actions:', orchResult.executedActions);
+      console.log('Results:', orchResult.results?.length || 0);
+      console.log('Parse errors:', orchResult.parseErrors?.length || 0);
+      if (orchResult.parseErrors && orchResult.parseErrors.length > 0) {
+        console.log('Raw parseErrors:', JSON.stringify(orchResult.parseErrors, null, 2));
+      }
+      console.log('=== END DEBUG ===\n');
+    }
     
     // Format outputs
     const timestamp = new Date();
@@ -159,7 +170,8 @@ export async function startListener(config: ListenerConfig): Promise<ListenerHan
   const state: ListenerState = {
     lastExecutedHash: '',
     isProcessing: false,
-    outputPath: join(dirname(config.filePath), config.outputFilename || '.clada-output-latest.txt')
+    outputPath: join(dirname(config.filePath), config.outputFilename || '.clada-output-latest.txt'),
+    debug: config.debug || false
   };
   
   // Set up debounced handler

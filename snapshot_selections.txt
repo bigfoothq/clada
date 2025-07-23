@@ -1,2205 +1,141 @@
-=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts ===
-/**
- * fs-ops - File system operations executor for clada
- * 
- * Handles all file and directory operations from parsed SHAM actions
- */
+=== START FILE: /Users/stuart/repos/clada/use-listener/test-listener-live.ts ===
+#!/usr/bin/env tsx
 
-import type { CladaAction } from '../../sham-action-parser/src/index.js';
-import { writeFile, mkdir, unlink, rename, readFile } from 'fs/promises';
-import { dirname } from 'path';
-import { formatNodeError } from './formatNodeError.js';
-import { fileExists } from './fileSystemUtils.js';
-import { replaceText } from './replaceText.js';
-import { extractNumberedLines } from './extractNumberedLines.js';
+import { startListener, stopListener } from '../proj/comp/listener/src/index.js';
+import { writeFile } from 'fs/promises';
+import { join } from 'path';
 
-export interface FileOpResult {
-  success: boolean;
-  data?: any;
-  error?: string;
-}
+const TEST_FILE = join(process.cwd(), 'use-listener', 'my-test-commands.md');
 
-export class FileOpError extends Error {
-  constructor(
-    message: string,
-    public code: string,
-    public path?: string,
-    public operation?: string
-  ) {
-    super(message);
-    this.name = 'FileOpError';
-  }
-}
-
-/**
- * Execute a file system operation from a parsed SHAM action
- * Never throws - all errors returned in result
- */
-export async function executeFileOperation(action: CladaAction): Promise<FileOpResult> {
+async function main() {
+  // Create initial test file if it doesn't exist
   try {
-    const handler = actionHandlers[action.action];
-    
- 
-    
-    if (!handler) {
-      return {
-        success: false,
-        error: `Unknown action: ${action.action}`
-      };
-    }
-    
-    const result = await handler(action);
-    return result;
-    
-  } catch (error: any) {
-    // This should never happen - handlers should catch their own errors
-    return {
-      success: false,
-      error: `Unexpected error in executeFileOperation: ${error.message}`
-    };
-  }
-}
+    await writeFile(TEST_FILE, `# Test Commands
 
-/**
- * Handle file_move action - moves/renames a file
- * Creates parent directories for destination if needed
- * Overwrites destination if it exists
- */
-async function handleFileMove(action: CladaAction): Promise<FileOpResult> {
-  const { old_path, new_path } = action.parameters;
-  
-  try {
-    // Pre-flight check for better error messages
-    const sourceExists = await fileExists(old_path);
-    
-    if (!sourceExists) {
-      return {
-        success: false,
-        error: `file_move: Source file not found '${old_path}' (ENOENT)`
-      };
-    }
-    
-    // Check if destination exists (for overwrote flag)
-    const destExists = await fileExists(new_path);
-    
-    // Create parent directories for destination
-    const parentDir = dirname(new_path);
-    await mkdir(parentDir, { recursive: true });
-    
-    // Move the file
-    await rename(old_path, new_path);
-    
-    const result: FileOpResult = {
-      success: true,
-      data: {
-        old_path,
-        new_path
-      }
-    };
-    
-    if (destExists) {
-      result.data.overwrote = true;
-    }
-    
-    return result;
-    
-  } catch (error: any) {
-    return {
-      success: false,
-      error: formatNodeError(error, old_path, 'rename', new_path)
-    };
-  }
-}
+Try adding SHAM blocks below this line:
 
-/**
- * Handle file_delete action - removes a file
- */
-async function handleFileDelete(action: CladaAction): Promise<FileOpResult> {
-  const { path } = action.parameters;
-  
-  try {
-    await unlink(path);
-    
-    return {
-      success: true,
-      data: {
-        path
-      }
-    };
-    
-  } catch (error: any) {
-    return {
-      success: false,
-      error: formatNodeError(error, path, 'unlink')
-    };
-  }
-}
+\`\`\`sh sham
+#!SHAM [@three-char-SHA-256: abc]
+action = "ls"
+path = "."
+#!END_SHAM_abc
+\`\`\`
 
-/**
- * Handle file_write action - writes/creates/overwrites a file with content
- * Automatically creates parent directories if needed
- */
-async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
-  const { path, content } = action.parameters;
-  
-  try {
-    // Create parent directories if needed
-    const parentDir = dirname(path);
-    await mkdir(parentDir, { recursive: true });
-    
-    // Write file
-    await writeFile(path, content, 'utf8');
-    const bytesWritten = Buffer.byteLength(content, 'utf8');
-    
-    // Temporary debug for test 004
-    if (path.includes('move-to-existing-file')) {
-      // console.log(`DEBUG: Wrote file ${path}`);
-      const exists = await fileExists(path);
-      // console.log(`DEBUG: File exists after write: ${exists}`);
-    }
-    
-    return {
-      success: true,
-      data: {
-        path,
-        bytesWritten
-      }
-    };
-    
-  } catch (error: any) {
-    return {
-      success: false,
-      error: formatNodeError(error, path, 'open')
-    };
-  }
-}
-
-/**
- * Handle file_read action - reads file content
- */
-async function handleFileRead(action: CladaAction): Promise<FileOpResult> {
-  const { path } = action.parameters;
-  
-  try {
-    const content = await readFile(path, 'utf8');
-    
-    return {
-      success: true,
-      data: {
-        path,
-        content
-      }
-    };
-    
-  } catch (error: any) {
-    return {
-      success: false,
-      error: formatNodeError(error, path, 'open')
-    };
-  }
-}
-
-/**
- * Handle file_read_numbered action - reads file content with line numbers
- * Returns specified lines with line numbers prepended
- * If lines parameter is missing, reads all lines
- * If some lines are out of range, returns available content with error
- */
-async function handleFileReadNumbered(action: CladaAction): Promise<FileOpResult> {
-  const { path, lines, delimiter = ": " } = action.parameters;
-  
-  try {
-    const content = await readFile(path, 'utf8');
-    
-    // Extract and number the requested lines
-    const { result, outOfRange } = extractNumberedLines(content, lines, delimiter);
-    
-    // If out of range, return error with partial content
-    if (outOfRange) {
-      return {
-        success: false,
-        error: `file_read_numbered: Requested lines ${outOfRange.requested} but file only has ${outOfRange.actual} lines`,
-        data: {
-          path,
-          content: result
-        }
-      };
-    }
-    
-    return {
-      success: true,
-      data: {
-        path,
-        content: result
-      }
-    };
-    
-  } catch (error: any) {
-    // Check if it's our custom validation error
-    if (error.message && error.message.startsWith('Invalid line')) {
-      return {
-        success: false,
-        error: `file_read_numbered: ${error.message}`
-      };
-    }
-    
-    return {
-      success: false,
-      error: formatNodeError(error, path, 'open')
-    };
-  }
-}
-
-/**
- * Handle file_replace_lines action - replaces specified lines in a file
- * Supports single line ("4") or range ("23-43") specifications
- * Preserves line endings and handles edge cases
- */
-async function handleFileReplaceLines(action: CladaAction): Promise<FileOpResult> {
-  const { path, lines, new_content } = action.parameters;
-  
-  try {
-    // Read existing file content
-    const content = await readFile(path, 'utf8');
-    
-    // Handle empty file edge case
-    if (content === '') {
-      return {
-        success: false,
-        error: `file_replace_lines: Line range ${lines} is out of bounds (file has 0 lines)`
-      };
-    }
-    
-    // Split into lines, preserving empty lines
-    // Check if content ends with a newline
-    const endsWithNewline = content.match(/\r?\n$/);
-    const fileLines = content.split(/\r?\n|\r/);
-    
-    // If the file ends with a newline, split gives us an extra empty element
-    // Remove it for line counting, but remember it existed
-    if (endsWithNewline && fileLines[fileLines.length - 1] === '') {
-      fileLines.pop();
-    }
-    
-    const totalLines = fileLines.length;
-    
-    // Parse line specification
-    let startLine: number;
-    let endLine: number;
-    
-    if (!lines || lines === '') {
-      return {
-        success: false,
-        error: `file_replace_lines: Invalid line specification '${lines}'`
-      };
-    }
-    
-    if (lines.includes('-')) {
-      // Range format: "23-43"
-      const parts = lines.split('-');
-      if (parts.length !== 2) {
-        return {
-          success: false,
-          error: `file_replace_lines: Invalid line specification '${lines}'`
-        };
-      }
-      
-      startLine = parseInt(parts[0], 10);
-      endLine = parseInt(parts[1], 10);
-      
-      if (isNaN(startLine) || isNaN(endLine)) {
-        return {
-          success: false,
-          error: `file_replace_lines: Invalid line specification '${lines}'`
-        };
-      }
-      
-      if (startLine < 1 || endLine < 1) {
-        return {
-          success: false,
-          error: `file_replace_lines: Invalid line specification '${lines}'`
-        };
-      }
-      
-      if (startLine > endLine) {
-        return {
-          success: false,
-          error: `file_replace_lines: Invalid line range '${lines}' (start must be <= end)`
-        };
-      }
-    } else {
-      // Single line format: "4"
-      startLine = parseInt(lines, 10);
-      if (isNaN(startLine) || startLine < 1) {
-        return {
-          success: false,
-          error: `file_replace_lines: Invalid line specification '${lines}'`
-        };
-      }
-      endLine = startLine;
-    }
-    
- 
-    
-    // Check if lines are out of range
-    if (startLine > totalLines || endLine > totalLines) {
-      return {
-        success: false,
-        error: `file_replace_lines: Line range ${lines} is out of bounds (file has ${totalLines} lines)`
-      };
-    }
-    
-    // Split new content into lines
-    // Empty content should produce one empty line, not zero lines
-    const newLines = new_content.split(/\r?\n|\r/);
-    
-    // Reconstruct the file with replaced lines
-    const resultLines: string[] = [];
-    
-    // Add lines before the replacement range
-    for (let i = 0; i < startLine - 1; i++) {
-      resultLines.push(fileLines[i]);
-    }
-    
-    // Add the new content
-    resultLines.push(...newLines);
-    
-    // Add lines after the replacement range
-    for (let i = endLine; i < totalLines; i++) {
-      resultLines.push(fileLines[i]);
-    }
-    
-    // Join back with newlines
-    let result = resultLines.join('\n');
-    
-    // If the original file ended with a newline, preserve it
-    if (endsWithNewline) {
-      result += '\n';
-    }
-    
-    // Write the file back
-    await writeFile(path, result, 'utf8');
-    
-    const linesReplaced = endLine - startLine + 1;
-    
-    return {
-      success: true,
-      data: {
-        path,
-        lines_replaced: linesReplaced
-      }
-    };
-    
-  } catch (error: any) {
-    return {
-      success: false,
-      error: formatNodeError(error, path, 'open')
-    };
-  }
-}
-
-/**
- * Handle files_read action - reads multiple files and returns their contents
- * Parses multi-line paths parameter, one absolute path per line
- * Returns an array of file contents in the same order as the paths
- */
-async function handleFilesRead(action: CladaAction): Promise<FileOpResult> {
-  const { paths } = action.parameters;
-  
-  // Parse the multi-line paths string
-  const pathList = paths
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0);  // Remove empty lines
-  
-  if (pathList.length === 0) {
-    return {
-      success: false,
-      error: 'files_read: No paths provided'
-    };
-  }
-  
-  // Read all files, collecting content and errors
-  const results: Array<{ path: string; content?: string; error?: string }> = [];
-  
-  for (const filePath of pathList) {
-    try {
-      const content = await readFile(filePath, 'utf8');
-      results.push({ path: filePath, content });
-    } catch (error: any) {
-      // Collect error for this file
-      const errorMsg = formatNodeError(error, filePath, 'open');
-      results.push({ path: filePath, error: errorMsg });
-    }
-  }
-  
-  // Check if any files failed to read
-  const failedFiles = results.filter(r => r.error);
-  if (failedFiles.length > 0) {
-    // Return error listing all failed files
-    const errorDetails = failedFiles
-      .map(f => `  ${f.path}: ${f.error}`)
-      .join('\n');
-    return {
-      success: false,
-      error: `files_read: Failed to read ${failedFiles.length} file(s):\n${errorDetails}`
-    };
-  }
-  
-  // All files read successfully - return contents as array
-  const contents = results.map(r => r.content!);
-  
-  return {
-    success: true,
-    data: {
-      paths: pathList,
-      content: contents
-    }
-  };
-}
-
-/**
- * Handle file_replace_text action - replaces EXACTLY ONE occurrence
- * Fails if old_text appears 0 or 2+ times
- */
-async function handleFileReplaceText(action: CladaAction): Promise<FileOpResult> {
-  const { path, old_text, new_text } = action.parameters;
-  
-  // Validate old_text is not empty
-  if (!old_text || old_text.length === 0) {
-    return {
-      success: false,
-      error: 'file_replace_text: old_text cannot be empty'
-    };
-  }
-  
-  try {
-    // Read existing file content
-    const content = await readFile(path, 'utf8');
-    
-    // Count occurrences first
-    let count = 0;
-    let searchIndex = 0;
-    while (true) {
-      const index = content.indexOf(old_text, searchIndex);
-      if (index === -1) break;
-      count++;
-      searchIndex = index + old_text.length;
-    }
-    
-    // Validate exactly one occurrence
-    if (count === 0) {
-      return {
-        success: false,
-        error: `file_replace_text: old_text not found in file`
-      };
-    }
-    if (count > 1) {
-      return {
-        success: false,
-        error: `file_replace_text: old_text appears ${count} times, must appear exactly once`
-      };
-    }
-    
-    // Replace the single occurrence
-    const { result, replacements } = replaceText(content, old_text, new_text, 1);
-    
-    // Write updated content back
-    await writeFile(path, result, 'utf8');
-    
-    return {
-      success: true,
-      data: {
-        path,
-        replacements
-      }
-    };
-    
-  } catch (error: any) {
-    // Special case for empty old_text validation error
-    if (error.message === 'old_text cannot be empty') {
-      return {
-        success: false,
-        error: 'file_replace_text: old_text cannot be empty'
-      };
-    }
-    
-    return {
-      success: false,
-      error: formatNodeError(error, path, 'open')
-    };
-  }
-}
-
-/**
- * Handle file_replace_all_text action - replaces all occurrences
- * If count provided, validates exact match
- */
-async function handleFileReplaceAllText(action: CladaAction): Promise<FileOpResult> {
-  const { path, old_text, new_text, count } = action.parameters;
-  
-  // Validate old_text is not empty
-  if (!old_text || old_text.length === 0) {
-    return {
-      success: false,
-      error: 'file_replace_all_text: old_text cannot be empty'
-    };
-  }
-  
-  try {
-    // Read existing file content
-    const content = await readFile(path, 'utf8');
-    
-    // If count specified, validate it matches actual occurrences
-    if (count !== undefined) {
-      // Count actual occurrences
-      let actualCount = 0;
-      let searchIndex = 0;
-      while (true) {
-        const index = content.indexOf(old_text, searchIndex);
-        if (index === -1) break;
-        actualCount++;
-        searchIndex = index + old_text.length;
-      }
-      
-      if (actualCount !== count) {
-        return {
-          success: false,
-          error: `file_replace_all_text: expected ${count} occurrences but found ${actualCount}`
-        };
-      }
-    }
-    
-    // Replace all occurrences
-    const { result, replacements } = replaceText(content, old_text, new_text);
-    
-    // Write updated content back
-    await writeFile(path, result, 'utf8');
-    
-    return {
-      success: true,
-      data: {
-        path,
-        replacements
-      }
-    };
-    
-  } catch (error: any) {
-    // Special case for empty old_text validation error
-    if (error.message === 'old_text cannot be empty') {
-      return {
-        success: false,
-        error: 'file_replace_all_text: old_text cannot be empty'
-      };
-    }
-    
-    return {
-      success: false,
-      error: formatNodeError(error, path, 'open')
-    };
-  }
-}
-
-// Internal function stubs for each operation
-
-async function createFile(path: string, content: string): Promise<void> {
-  throw new Error('Not implemented');
-}
-
- 
-
-async function replaceTextInFile(path: string, oldText: string, newText: string, count?: number): Promise<number> {
-  throw new Error('Not implemented');
-}
-
-async function deleteFile(path: string): Promise<void> {
-  throw new Error('Not implemented');
-}
-
-async function moveFile(oldPath: string, newPath: string): Promise<void> {
-  throw new Error('Not implemented');
-}
-
-async function readFileContent(path: string): Promise<string> {
-  throw new Error('Not implemented');
-}
-
-async function createDirectory(path: string): Promise<void> {
-  throw new Error('Not implemented');
-}
-
-async function deleteDirectory(path: string): Promise<void> {
-  throw new Error('Not implemented');
-}
-
-interface DirEntry {
-  name: string;
-  type: 'file' | 'directory';
-  size: number;
-  modified: Date;
-}
-
-async function listDirectory(path: string): Promise<DirEntry[]> {
-  throw new Error('Not implemented');
-}
-
-interface GrepResult {
-  file: string;
-  line_number: number;
-  line: string;
-}
-
-async function searchFiles(pattern: string, path: string, include?: string): Promise<GrepResult[]> {
-  throw new Error('Not implemented');
-}
-
-async function globFiles(pattern: string, basePath: string): Promise<string[]> {
-  throw new Error('Not implemented');
-}
-
-// Action handler mapping
-const actionHandlers: Record<string, (action: CladaAction) => Promise<FileOpResult>> = {
-  'file_write': handleFileWrite,
-  'file_replace_text': handleFileReplaceText,
-  'file_replace_all_text': handleFileReplaceAllText,
-  'file_delete': handleFileDelete,
-  'file_move': handleFileMove,
-  'file_read': handleFileRead,
-  'files_read': handleFilesRead,
-  'file_read_numbered': handleFileReadNumbered,
-  'file_replace_lines': handleFileReplaceLines,
-  'dir_create': async (action) => {
-    return { success: false, error: 'Not implemented' };
-  },
-  'dir_delete': async (action) => {
-    return { success: false, error: 'Not implemented' };
-  },
-  'ls': async (action) => {
-    return { success: false, error: 'Action not implemented: ls' };
-  },
-  'grep': async (action) => {
-    return { success: false, error: 'Not implemented' };
-  },
-  'glob': async (action) => {
-    return { success: false, error: 'Not implemented' };
-  }
-};
-=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/index.ts ===
-/**
- * SHAM Action Parser - Parses SHAM blocks into validated clada actions
- */
-
-import { ParseResult, CladaAction, ParseError, ValidationResult, TransformError, ActionDefinition } from './types.js';
-import { validateShamBlock } from './validateShamBlock.js';
-import { transformToAction } from './transformToAction.js';
-import { parseSham, type Block, type ParseResult as NeslParseResult } from 'nesl-js';
-import { load as loadYaml } from 'js-yaml';
-import { readFile } from 'fs/promises';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-// Re-export types for consumers
-export type { ParseResult, CladaAction, ParseError, ValidationResult, TransformError };
-
-// Cache for action schema
-let actionSchemaCache: Map<string, ActionDefinition> | null = null;
-
-/**
- * Clear the action schema cache - useful for testing
- * Forces reload of unified-design.yaml on next parse
- */
-export function clearActionSchemaCache(): void {
-  actionSchemaCache = null;
-}
-
-/**
- * Parse SHAM blocks from text into validated clada actions
- * Processes all blocks, collecting successes and errors
- */
-export async function parseShamResponse(shamText: string): Promise<ParseResult> {
-  const actions: CladaAction[] = [];
-  const errors: ParseError[] = [];
-
-  // Debug logging for specific test cases
-  // const isDebugging = shamText.includes('move-to-existing-file');
-  // if (isDebugging) {
-  //   console.log('DEBUG parseShamResponse: Input text length:', shamText.length);
-  //   console.log('DEBUG parseShamResponse: Contains SHAM blocks:', shamText.includes('#!SHAM'));
-  //   console.log('DEBUG parseShamResponse: Number of #!SHAM occurrences:', (shamText.match(/#!SHAM/g) || []).length);
-  //   console.log('DEBUG parseShamResponse: Number of #!END_SHAM occurrences:', (shamText.match(/#!END_SHAM/g) || []).length);
-  // }
-
-  // Parse SHAM blocks using nesl-js
-  let parseResult: NeslParseResult;
-  try {
-   
-    parseResult = parseSham(shamText);
-    
-    // if (isDebugging) {
-    //   console.log('DEBUG parseShamResponse: parseSham returned:', parseResult);
-    //   if (parseResult) {
-    //     console.log('DEBUG parseShamResponse: blocks:', parseResult.blocks?.length || 0);
-    //     console.log('DEBUG parseShamResponse: errors:', parseResult.errors?.length || 0);
-    //   }
-    // }
-    
-    // Handle case where parseSham returns undefined or null
-    if (!parseResult) {
-      parseResult = { blocks: [], errors: [] };
-    }
-  } catch (error) {
-    return {
-      actions: [],
-      errors: [{
-        blockId: 'unknown',
-        errorType: 'syntax',
-        message: `Failed to parse SHAM: ${error}`,
-        shamContent: shamText
-      }],
-      summary: {
-        totalBlocks: 0,
-        successCount: 0,
-        errorCount: 1
-      }
-    };
+`, { flag: 'wx' }); // wx = write only if doesn't exist
+    console.log(`Created test file: ${TEST_FILE}`);
+  } catch (e) {
+    console.log(`Using existing test file: ${TEST_FILE}`);
   }
 
-  // Process syntax errors from nesl-js parser
-  if (parseResult.errors && parseResult.errors.length > 0) {
-    for (const parseError of parseResult.errors) {
-      // Find the block this error belongs to
-      const block = parseResult.blocks?.find(b => b.id === parseError.blockId);
-      
-      errors.push({
-        blockId: parseError.blockId || 'unknown',
-        action: block?.properties?.action,
-        errorType: 'syntax',
-        message: parseError.message,
-        blockStartLine: block?.startLine || parseError.line,
-        shamContent: parseError.context 
-          ? `#!SHAM [@three-char-SHA-256: ${parseError.blockId}]\n${parseError.context}`.trimEnd()
-          : reconstructShamBlock(block || { id: parseError.blockId, properties: {} })
-      });
-    }
-  }
+  // Start the listener
+  console.log('Starting listener...');
+  const handle = await startListener({
+    filePath: TEST_FILE,
+    debounceMs: 500,
+    outputFilename: '.my-test-output.txt',
+    debug: true
+  });
 
-  // Load action schema
-  const actionSchema = await loadActionSchema();
+  console.log(`
+🎧 Listener started!
+📝 Edit file: ${TEST_FILE}
+📋 Output will be copied to clipboard
+📄 Full output saved to: .my-test-output.txt
 
-  // Process each SHAM block
-  const blocks = parseResult.blocks || [];
-  
-  // If no blocks found, return empty result
-  if (blocks.length === 0) {
-    return {
-      actions: [],
-      errors: [],
-      summary: {
-        totalBlocks: 0,
-        successCount: 0,
-        errorCount: 0
-      }
-    };
-  }
-  
-  // Track blocks with syntax errors to skip them
-  const blocksWithSyntaxErrors = new Set(
-    parseResult.errors?.map(e => e.blockId) || []
-  );
-  
-  for (const block of blocks) {
-    const blockId = block.id || 'unknown';
-    
-    // Skip blocks that already have syntax errors
-    if (blocksWithSyntaxErrors.has(blockId)) {
-      continue;
-    }
-    
-    try {
-      // Get action type from block
-      const actionType = block.properties?.action;
-      const actionDef = actionType ? actionSchema.get(actionType) : undefined;
+Press Ctrl+C to stop
+`);
 
- 
+  // Handle graceful shutdown
+  process.on('SIGINT', async () => {
+    console.log('\n\nStopping listener...');
+    await stopListener(handle);
+    process.exit(0);
+  });
 
-      // Validate block
-      const validation = validateShamBlock(block, actionDef ?? null);
-      
-      if (!validation.valid) {
-        errors.push({
-          blockId,
-          action: actionType,
-          errorType: 'validation',
-          message: validation.errors?.[0] || 'Validation failed',
-          blockStartLine: block.startLine,
-          shamContent: reconstructShamBlock(block)
-        });
-        continue;
-      }
-
-      // Transform to action
-      try {
-        const action = transformToAction(block, actionDef!);
-        actions.push(action);
-      } catch (error) {
-        if (error instanceof TransformError) {
-          errors.push({
-            blockId,
-            action: actionType,
-            errorType: 'type',
-            message: error.message,
-            blockStartLine: block.startLine,
-            shamContent: reconstructShamBlock(block)
-          });
-        } else {
-          throw error;
-        }
-      }
-    } catch (error) {
-      errors.push({
-        blockId,
-        action: block.properties?.action,
-        errorType: 'validation',
-        message: `Unexpected error: ${error}`,
-        blockStartLine: block.startLine,
-        shamContent: reconstructShamBlock(block)
-      });
-    }
-  }
-
-  const result = {
-    actions,
-    errors,
-    summary: {
-      totalBlocks: blocks.length,
-      successCount: actions.length,
-      errorCount: errors.length
-    }
-  };
-  return result;
+  // Keep process alive
+  await new Promise(() => { });
 }
 
-/**
- * Load and cache action definitions from unified-design.yaml
- */
-async function loadActionSchema(): Promise<Map<string, ActionDefinition>> {
- 
-  if (actionSchemaCache) {
-    return actionSchemaCache;
-  }
+main().catch(console.error);
+=== END FILE: /Users/stuart/repos/clada/use-listener/test-listener-live.ts ===
 
-  // Get the directory of this module
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = dirname(__filename);
-  
-  // Navigate to project root and find unified-design.yaml
-  const yamlPath = join(__dirname, '../../../../unified-design.yaml');
-  
-  try {
-    // Add timeout to file read operation
-    const yamlContent = await Promise.race([
-      readFile(yamlPath, 'utf8'),
-      new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('YAML read timeout')), 5000)
-      )
-    ]);
-    const design = loadYaml(yamlContent) as any;
-    
-    actionSchemaCache = new Map();
-    
-    // Extract tool definitions
-    if (design.tools) {
-      for (const [toolName, toolDef] of Object.entries(design.tools)) {
-        actionSchemaCache.set(toolName, toolDef as ActionDefinition);
-      }
-    }
-    
- 
-    
-    return actionSchemaCache;
-  } catch (error) {
-    throw new Error(`Failed to load unified-design.yaml: ${error}`);
-  }
-}
-
-/**
- * Reconstruct SHAM block text for error context
- */
-function reconstructShamBlock(block: Block): string {
-  const lines: string[] = [];
-  
-  // Start line
-  lines.push(`#!SHAM [@three-char-SHA-256: ${block.id || 'unknown'}]`);
-  
-  // Properties
-  for (const [key, value] of Object.entries(block.properties || {})) {
-    if (key.startsWith('@')) continue; // Skip annotations
-    
-    if (typeof value === 'string' && value.includes('\n')) {
-      // Multi-line value with heredoc
-      lines.push(`${key} = <<'EOT_SHAM_${block.id}'`);
-      lines.push(value);
-      lines.push(`EOT_SHAM_${block.id}`);
-    } else {
-      // Single line value - use JSON.stringify to handle quotes properly
-      lines.push(`${key} = ${JSON.stringify(value)}`);
-    }
-  }
-  
-  // End line
-  lines.push(`#!END_SHAM_${block.id || 'unknown'}`);
-  
-  return lines.join('\n');
-}
-
-// Re-export functions for consumers
-export { validateShamBlock, transformToAction };
-=== END FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/index.ts ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/types.ts ===
-export interface ParseResult {
-  actions: CladaAction[];
-  errors: ParseError[];
-  summary: {
-    totalBlocks: number;
-    successCount: number;
-    errorCount: number;
-  };
-}
-
-export interface CladaAction {
-  action: string;
-  parameters: Record<string, any>;
-  metadata: {
-    blockId: string;
-    startLine: number;
-    endLine: number;
-  };
-}
-
-export interface ParseError {
-  blockId: string;
-  action?: string;
-  errorType: 'syntax' | 'validation' | 'type';
-  message: string;
-  blockStartLine?: number;
-  shamContent?: string;
-}
-
-export interface ValidationResult {
-  valid: boolean;
-  actionType?: string;
-  errors?: string[];
-}
-
-export class TransformError extends Error {
-  constructor(
-    message: string,
-    public parameterName: string,
-    public expectedType: string,
-    public actualValue: string
-  ) {
-    super(message);
-    this.name = 'TransformError';
-  }
-}
-
-export interface ActionDefinition {
-  type: 'read' | 'write' | 'meta' | 'git' | 'dynamic';
-  description: string;
-  parameters: Record<string, ParameterDef>;
-  returns?: Record<string, any>;
-}
-
-export interface ParameterDef {
-  type: string;
-  required: boolean;
-  format?: string;
-  values?: string[];
-  default?: any;
-}
-=== END FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/types.ts ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/test-data/integration/listener-workflow-v2.cases.md ===
-# Listener Workflow Integration Tests v2
-
-## listener-workflow-v2
-
-### simple-file-write
-
-#### input file
-
-````sh
-Just a simple text file.
-Nothing special here.
-````
-
-#### input file
-````sh
-Just a simple text file.
-Nothing special here.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: sf1]
-action = "file_write"
-path = "/tmp/t_listener_simple/output.txt"
-content = "Hello from SHAM!"
-#!END_SHAM_sf1
-```
-````
-
-
-#### input file
-````sh
+=== START FILE: /Users/stuart/repos/clada/use-listener/my-test-commands.md ===
 📋 Copied to clipboard
 
 === CLADA RESULTS ===
-sf1 ✅ file_write /tmp/t_listener_simple/output.txt
 === END ===
 
-Just a simple text file.
-Nothing special here.
 
 ```sh sham
-#!SHAM [@three-char-SHA-256: sf1]
-action = "file_write"
-path = "/tmp/t_listener_simple/output.txt"
-content = "Hello from SHAM!"
-#!END_SHAM_sf1
-```
-````
-
-#### output file
-````sh
-=== CLADA RESULTS ===
-sf1 ✅ file_write /tmp/t_listener_simple/output.txt
-=== END ===
-
-=== OUTPUTS ===
-=== END ===
-````
-
-#### clipboard
-````sh
-=== CLADA RESULTS ===
-sf1 ✅ file_write /tmp/t_listener_simple/output.txt
-=== END ===
-
-=== OUTPUTS ===
-=== END ===
-````
-
-### multiple-actions-mixed-results
-
-#### input file
-
-````sh
-Empty file to start.
-````
-
-#### input file
-````sh
-Empty file to start.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: wr1]
-action = "file_write"
-path = "/tmp/t_listener_multi/created.txt"
-content = "This will succeed"
-#!END_SHAM_wr1
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rd1]
-action = "file_read"
-path = "/tmp/t_listener_multi/missing.txt"
-#!END_SHAM_rd1
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: ex1]
+#!SHAM [@three-char-SHA-256: pe]
 action = "exec"
 lang = "bash"
-code = "echo 'Hello from bash'"
-#!END_SHAM_ex1
-```
-````
-
-#### input file
-````sh
-📋 Copied to clipboard
-
-=== CLADA RESULTS ===
-wr1 ✅ file_write /tmp/t_listener_multi/created.txt
-rd1 ❌ file_read /tmp/t_listener_multi/missing.txt - File not found
-ex1 ✅ exec bash
-=== END ===
-
-Empty file to start.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: wr1]
-action = "file_write"
-path = "/tmp/t_listener_multi/created.txt"
-content = "This will succeed"
-#!END_SHAM_wr1
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rd1]
-action = "file_read"
-path = "/tmp/t_listener_multi/missing.txt"
-#!END_SHAM_rd1
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: ex1]
-action = "exec"
-lang = "bash"
-code = "echo 'Hello from bash'"
-#!END_SHAM_ex1
-```
-````
-
-#### output file
-````sh
-=== CLADA RESULTS ===
-wr1 ✅ file_write /tmp/t_listener_multi/created.txt
-rd1 ❌ file_read /tmp/t_listener_multi/missing.txt - File not found
-ex1 ✅ exec bash
-=== END ===
-
-=== OUTPUTS ===
-
-[ex1] exec bash:
-stdout:
-Hello from bash
-=== END ===
-````
-
-#### clipboard
-````sh
-=== CLADA RESULTS ===
-wr1 ✅ file_write /tmp/t_listener_multi/created.txt
-rd1 ❌ file_read /tmp/t_listener_multi/missing.txt - File not found
-ex1 ✅ exec bash
-=== END ===
-
-=== OUTPUTS ===
-
-[ex1] exec bash:
-stdout:
-Hello from bash
-=== END ===
-````
-
-### parse-error-handling
-
-#### Initial Content
-````sh
-Testing parse errors.
-````
-
-#### New Content
-````sh
-Testing parse errors.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: bad]
-action = "file_write"
-path = "/tmp/t_listener_parse/test.txt"
-content = "missing closing quote
-#!END_SHAM_bad
-```
-````
-
-#### Expected Prepended Results
-````sh
-📋 Copied to clipboard
-
-=== CLADA RESULTS ===
-bad ❌ file_write - Unclosed quoted string
-=== END ===
-
-Testing parse errors.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: bad]
-action = "file_write"
-path = "/tmp/t_listener_parse/test.txt"
-content = "missing closing quote
-#!END_SHAM_bad
-```
-````
-
-#### Expected Output File
-````sh
-=== CLADA RESULTS ===
-bad ❌ file_write - Unclosed quoted string
-=== END ===
-
-=== OUTPUTS ===
-=== END ===
-````
-
-#### clipboard
-````sh
-=== CLADA RESULTS ===
-bad ❌ file_write - Unclosed quoted string
-=== END ===
-
-=== OUTPUTS ===
-=== END ===
-````
-
-### no-reexecution-on-same-content
-
-#### Initial Content
-````sh
-Testing hash-based execution.
-````
-
-#### New Content
-````sh
-Testing hash-based execution.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: nc1]
-action = "file_write"
-path = "/tmp/t_listener_nochange/counter.txt"
-content = "1"
-#!END_SHAM_nc1
-```
-
-Adding a comment outside SHAM blocks.
-````
-
-#### Expected Prepended Results
-````sh
-📋 Copied to clipboard
-
-=== CLADA RESULTS ===
-nc1 ✅ file_write /tmp/t_listener_nochange/counter.txt
-=== END ===
-
-Testing hash-based execution.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: nc1]
-action = "file_write"
-path = "/tmp/t_listener_nochange/counter.txt"
-content = "1"
-#!END_SHAM_nc1
-```
-
-Adding a comment outside SHAM blocks.
-````
-
-#### Expected Output File
-````sh
-=== CLADA RESULTS ===
-nc1 ✅ file_write /tmp/t_listener_nochange/counter.txt
-=== END ===
-
-=== OUTPUTS ===
-=== END ===
-````
-
-#### clipboard
-````sh
-=== CLADA RESULTS ===
-nc1 ✅ file_write /tmp/t_listener_nochange/counter.txt
-=== END ===
-
-=== OUTPUTS ===
-=== END ===
-````
-
-### successful-file-replace-text
-
-#### Initial Content
-````sh
-Testing file replacement functionality.
-````
-
-#### New Content
-````sh
-Testing file replacement functionality.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: fr1]
-action = "file_write"
-path = "/tmp/t_listener_replace/config.yaml"
-content = <<'EOT_SHAM_fr1'
-# Configuration file
-database:
-  host: localhost
-  port: 5432
-  name: myapp_dev
-
-server:
-  host: localhost
-  port: 3000
-EOT_SHAM_fr1
-#!END_SHAM_fr1
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: fr2]
-action = "file_replace_text"
-path = "/tmp/t_listener_replace/config.yaml"
-old_text = <<'EOT_SHAM_fr2'
-database:
-  host: localhost
-  port: 5432
-  name: myapp_dev
-EOT_SHAM_fr2
-new_text = <<'EOT_SHAM_fr2'
-database:
-  host: production.example.com
-  port: 5432
-  name: myapp_prod
-EOT_SHAM_fr2
-#!END_SHAM_fr2
-```
-````
-
-#### Expected Prepended Results
-````sh
-📋 Copied to clipboard
-
-=== CLADA RESULTS ===
-fr1 ✅ file_write /tmp/t_listener_replace/config.yaml
-fr2 ✅ file_replace_text /tmp/t_listener_replace/config.yaml
-=== END ===
-
-Testing file replacement functionality.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: fr1]
-action = "file_write"
-path = "/tmp/t_listener_replace/config.yaml"
-content = <<'EOT_SHAM_fr1'
-# Configuration file
-database:
-  host: localhost
-  port: 5432
-  name: myapp_dev
-
-server:
-  host: localhost
-  port: 3000
-EOT_SHAM_fr1
-#!END_SHAM_fr1
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: fr2]
-action = "file_replace_text"
-path = "/tmp/t_listener_replace/config.yaml"
-old_text = <<'EOT_SHAM_fr2'
-database:
-  host: localhost
-  port: 5432
-  name: myapp_dev
-EOT_SHAM_fr2
-new_text = <<'EOT_SHAM_fr2'
-database:
-  host: production.example.com
-  port: 5432
-  name: myapp_prod
-EOT_SHAM_fr2
-#!END_SHAM_fr2
-```
-````
-
-#### Expected Output File
-````sh
-=== CLADA RESULTS ===
-fr1 ✅ file_write /tmp/t_listener_replace/config.yaml
-fr2 ✅ file_replace_text /tmp/t_listener_replace/config.yaml
-=== END ===
-
-=== OUTPUTS ===
-=== END ===
-````
-
-#### clipboard
-````sh
-=== CLADA RESULTS ===
-fr1 ✅ file_write /tmp/t_listener_replace/config.yaml
-fr2 ✅ file_replace_text /tmp/t_listener_replace/config.yaml
-=== END ===
-
-=== OUTPUTS ===
-=== END ===
-````
-
-### failed-file-replace-text-multiple-matches
-
-#### Initial Content
-````sh
-Testing multiple match failure.
-````
-
-#### New Content
-````sh
-Testing multiple match failure.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: fm1]
-action = "file_write"
-path = "/tmp/t_listener_multi_match/app.js"
-content = <<'EOT_SHAM_fm1'
-// Application code
-function process() {
-  const value = 100;
-  console.log(value);
-  
-  if (value > 50) {
-    console.log("High value");
-  }
-  
-  return value;
-}
-
-function validate() {
-  const value = 100;
-  return value > 0;
-}
-EOT_SHAM_fm1
-#!END_SHAM_fm1
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: fm2]
-action = "file_replace_text"
-path = "/tmp/t_listener_multi_match/app.js"
-old_text = <<'EOT_SHAM_fm2'
-  const value = 100;
-EOT_SHAM_fm2
-new_text = <<'EOT_SHAM_fm2'
-  const value = 999;
-EOT_SHAM_fm2
-#!END_SHAM_fm2
-```
-````
-
-#### Expected Prepended Results
-````sh
-📋 Copied to clipboard
-
-=== CLADA RESULTS ===
-fm1 ✅ file_write /tmp/t_listener_multi_match/app.js
-fm2 ❌ file_replace_text /tmp/t_listener_multi_match/app.js - old_text appears 2 times, must appear exactly once
-=== END ===
-
-Testing multiple match failure.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: fm1]
-action = "file_write"
-path = "/tmp/t_listener_multi_match/app.js"
-content = <<'EOT_SHAM_fm1'
-// Application code
-function process() {
-  const value = 100;
-  console.log(value);
-  
-  if (value > 50) {
-    console.log("High value");
-  }
-  
-  return value;
-}
-
-function validate() {
-  const value = 100;
-  return value > 0;
-}
-EOT_SHAM_fm1
-#!END_SHAM_fm1
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: fm2]
-action = "file_replace_text"
-path = "/tmp/t_listener_multi_match/app.js"
-old_text = <<'EOT_SHAM_fm2'
-  const value = 100;
-EOT_SHAM_fm2
-new_text = <<'EOT_SHAM_fm2'
-  const value = 999;
-EOT_SHAM_fm2
-#!END_SHAM_fm2
-```
-````
-
-#### Expected Output File
-````sh
-=== CLADA RESULTS ===
-fm1 ✅ file_write /tmp/t_listener_multi_match/app.js
-fm2 ❌ file_replace_text /tmp/t_listener_multi_match/app.js - old_text appears 2 times, must appear exactly once
-=== END ===
-
-=== OUTPUTS ===
-=== END ===
-````
-
-#### clipboard
-````sh
-=== CLADA RESULTS ===
-fm1 ✅ file_write /tmp/t_listener_multi_match/app.js
-fm2 ❌ file_replace_text /tmp/t_listener_multi_match/app.js - old_text appears 2 times, must appear exactly once
-=== END ===
-
-=== OUTPUTS ===
-=== END ===
-````
-
-### failed-file-replace-text-no-matches
-
-#### Initial Content
-````sh
-Testing no match failure.
-````
-
-#### New Content
-````sh
-Testing no match failure.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: fn1]
-action = "file_write"
-path = "/tmp/t_listener_no_match/readme.md"
-content = <<'EOT_SHAM_fn1'
-# Project README
-
-This is a sample project.
-
-## Installation
-
-Run the following command:
-- npm install
-
-## Usage
-
-Start the application with:
-- npm start
-EOT_SHAM_fn1
-#!END_SHAM_fn1
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: fn2]
-action = "file_replace_text"
-path = "/tmp/t_listener_no_match/readme.md"
-old_text = <<'EOT_SHAM_fn2'
-## Configuration
-
-Configure the app by editing config.json
-EOT_SHAM_fn2
-new_text = <<'EOT_SHAM_fn2'
-## Configuration
-
-Configure the app by editing settings.yaml
-EOT_SHAM_fn2
-#!END_SHAM_fn2
-```
-````
-
-#### Expected Prepended Results
-````sh
-📋 Copied to clipboard
-
-=== CLADA RESULTS ===
-fn1 ✅ file_write /tmp/t_listener_no_match/readme.md
-fn2 ❌ file_replace_text /tmp/t_listener_no_match/readme.md - old_text not found in file
-=== END ===
-
-Testing no match failure.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: fn1]
-action = "file_write"
-path = "/tmp/t_listener_no_match/readme.md"
-content = <<'EOT_SHAM_fn1'
-# Project README
-
-This is a sample project.
-
-## Installation
-
-Run the following command:
-- npm install
-
-## Usage
-
-Start the application with:
-- npm start
-EOT_SHAM_fn1
-#!END_SHAM_fn1
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: fn2]
-action = "file_replace_text"
-path = "/tmp/t_listener_no_match/readme.md"
-old_text = <<'EOT_SHAM_fn2'
-## Configuration
-
-Configure the app by editing config.json
-EOT_SHAM_fn2
-new_text = <<'EOT_SHAM_fn2'
-## Configuration
-
-Configure the app by editing settings.yaml
-EOT_SHAM_fn2
-#!END_SHAM_fn2
-```
-````
-
-#### Expected Output File
-````sh
-=== CLADA RESULTS ===
-fn1 ✅ file_write /tmp/t_listener_no_match/readme.md
-fn2 ❌ file_replace_text /tmp/t_listener_no_match/readme.md - old_text not found in file
-=== END ===
-
-=== OUTPUTS ===
-=== END ===
-````
-
-#### clipboard
-````sh
-=== CLADA RESULTS ===
-fn1 ✅ file_write /tmp/t_listener_no_match/readme.md
-fn2 ❌ file_replace_text /tmp/t_listener_no_match/readme.md - old_text not found in file
-=== END ===
-
-=== OUTPUTS ===
-=== END ===
-````
-
-### file-read-formatting
-
-#### Initial Content
-````sh
-Testing file read output formatting.
-````
-
-#### New Content
-````sh
-Testing file read output formatting.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rf1]
-action = "file_write"
-path = "/tmp/t_listener_read/sample.py"
-content = <<'EOT_SHAM_rf1'
-#!/usr/bin/env python3
-"""Sample Python file for testing."""
-
-def greet(name):
-    """Return a greeting message."""
-    return f"Hello, {name}!"
-
-if __name__ == "__main__":
-    print(greet("World"))
-EOT_SHAM_rf1
-#!END_SHAM_rf1
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rf2]
-action = "file_read"
-path = "/tmp/t_listener_read/sample.py"
-#!END_SHAM_rf2
-```
-````
-
-#### Expected Prepended Results
-````sh
-📋 Copied to clipboard
-
-=== CLADA RESULTS ===
-rf1 ✅ file_write /tmp/t_listener_read/sample.py
-rf2 ✅ file_read /tmp/t_listener_read/sample.py
-=== END ===
-
-Testing file read output formatting.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rf1]
-action = "file_write"
-path = "/tmp/t_listener_read/sample.py"
-content = <<'EOT_SHAM_rf1'
-#!/usr/bin/env python3
-"""Sample Python file for testing."""
-
-def greet(name):
-    """Return a greeting message."""
-    return f"Hello, {name}!"
-
-if __name__ == "__main__":
-    print(greet("World"))
-EOT_SHAM_rf1
-#!END_SHAM_rf1
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rf2]
-action = "file_read"
-path = "/tmp/t_listener_read/sample.py"
-#!END_SHAM_rf2
-```
-````
-
-#### Expected Output File
-````sh
-=== CLADA RESULTS ===
-rf1 ✅ file_write /tmp/t_listener_read/sample.py
-rf2 ✅ file_read /tmp/t_listener_read/sample.py
-=== END ===
-
-=== OUTPUTS ===
-
-[rf2] file_read:
-=== START FILE: /tmp/t_listener_read/sample.py ===
-#!/usr/bin/env python3
-"""Sample Python file for testing."""
-
-def greet(name):
-    """Return a greeting message."""
-    return f"Hello, {name}!"
-
-if __name__ == "__main__":
-    print(greet("World"))
-=== END FILE: /tmp/t_listener_read/sample.py ===
-=== END ===
-````
-
-#### clipboard
-````sh
-=== CLADA RESULTS ===
-rf1 ✅ file_write /tmp/t_listener_read/sample.py
-rf2 ✅ file_read /tmp/t_listener_read/sample.py
-=== END ===
-
-=== OUTPUTS ===
-
-[rf2] file_read:
-=== START FILE: /tmp/t_listener_read/sample.py ===
-#!/usr/bin/env python3
-"""Sample Python file for testing."""
-
-def greet(name):
-    """Return a greeting message."""
-    return f"Hello, {name}!"
-
-if __name__ == "__main__":
-    print(greet("World"))
-=== END FILE: /tmp/t_listener_read/sample.py ===
-=== END ===
-````
-
-### file-read-numbered-formatting
-
-#### Initial Content
-````sh
-Testing file read numbered output formatting.
-````
-
-#### New Content
-````sh
-Testing file read numbered output formatting.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rn1]
-action = "file_write"
-path = "/tmp/t_listener_read_num/config.yaml"
-content = <<'EOT_SHAM_rn1'
-# Application Configuration
-app:
-  name: MyApp
-  version: 1.0.0
-  debug: true
-
-database:
-  host: localhost
-  port: 5432
-  name: myapp_db
-  
-logging:
-  level: info
-  file: /var/log/myapp.log
-EOT_SHAM_rn1
-#!END_SHAM_rn1
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rn2]
-action = "file_read_numbered"
-path = "/tmp/t_listener_read_num/config.yaml"
-#!END_SHAM_rn2
-```
-````
-
-#### Expected Prepended Results
-````sh
-📋 Copied to clipboard
-
-=== CLADA RESULTS ===
-rn1 ✅ file_write /tmp/t_listener_read_num/config.yaml
-rn2 ✅ file_read_numbered /tmp/t_listener_read_num/config.yaml
-=== END ===
-
-Testing file read numbered output formatting.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rn1]
-action = "file_write"
-path = "/tmp/t_listener_read_num/config.yaml"
-content = <<'EOT_SHAM_rn1'
-# Application Configuration
-app:
-  name: MyApp
-  version: 1.0.0
-  debug: true
-
-database:
-  host: localhost
-  port: 5432
-  name: myapp_db
-  
-logging:
-  level: info
-  file: /var/log/myapp.log
-EOT_SHAM_rn1
-#!END_SHAM_rn1
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: rn2]
-action = "file_read_numbered"
-path = "/tmp/t_listener_read_num/config.yaml"
-#!END_SHAM_rn2
-```
-````
-
-#### Expected Output File
-````sh
-=== CLADA RESULTS ===
-rn1 ✅ file_write /tmp/t_listener_read_num/config.yaml
-rn2 ✅ file_read_numbered /tmp/t_listener_read_num/config.yaml
-=== END ===
-
-=== OUTPUTS ===
-
-[rn2] file_read_numbered:
-=== START FILE: [numbered] /tmp/t_listener_read_num/config.yaml ===
- 1: # Application Configuration
- 2: app:
- 3:   name: MyApp
- 4:   version: 1.0.0
- 5:   debug: true
- 6: 
- 7: database:
- 8:   host: localhost
- 9:   port: 5432
-10:   name: myapp_db
-11:   
-12: logging:
-13:   level: info
-14:   file: /var/log/myapp.log
-=== END FILE: [numbered] /tmp/t_listener_read_num/config.yaml ===
-=== END ===
-````
-
-#### clipboard
-````sh
-=== CLADA RESULTS ===
-rn1 ✅ file_write /tmp/t_listener_read_num/config.yaml
-rn2 ✅ file_read_numbered /tmp/t_listener_read_num/config.yaml
-=== END ===
-
-=== OUTPUTS ===
-
-[rn2] file_read_numbered:
-=== START FILE: [numbered] /tmp/t_listener_read_num/config.yaml ===
- 1: # Application Configuration
- 2: app:
- 3:   name: MyApp
- 4:   version: 1.0.0
- 5:   debug: true
- 6: 
- 7: database:
- 8:   host: localhost
- 9:   port: 5432
-10:   name: myapp_db
-11:   
-12: logging:
-13:   level: info
-14:   file: /var/log/myapp.log
-=== END FILE: [numbered] /tmp/t_listener_read_num/config.yaml ===
-=== END ===
-````
-
-### files-read-formatting
-
-#### Initial Content
-````sh
-Testing files read output formatting with multiple files.
-````
-
-#### New Content
-````sh
-Testing files read output formatting with multiple files.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: mr1]
-action = "file_write"
-path = "/tmp/t_listener_multi_read/README.md"
-content = <<'EOT_SHAM_mr1'
-# Project Documentation
-
-This is the main README file.
-
-## Features
-- Feature 1
-- Feature 2
-- Feature 3
-EOT_SHAM_mr1
-#!END_SHAM_mr1
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: mr2]
-action = "file_write"
-path = "/tmp/t_listener_multi_read/main.py"
-content = <<'EOT_SHAM_mr2'
-#!/usr/bin/env python3
-
-def main():
-    print("Hello from main!")
-
-if __name__ == "__main__":
-    main()
-EOT_SHAM_mr2
-#!END_SHAM_mr2
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: mr3]
-action = "file_write"
-path = "/tmp/t_listener_multi_read/.gitignore"
-content = <<'EOT_SHAM_mr3'
-*.pyc
-__pycache__/
-.env
-venv/
-EOT_SHAM_mr3
-#!END_SHAM_mr3
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: mr4]
-action = "files_read"
-paths = <<'EOT_SHAM_mr4'
-/tmp/t_listener_multi_read/README.md
-/tmp/t_listener_multi_read/main.py
-/tmp/t_listener_multi_read/.gitignore
-EOT_SHAM_mr4
-#!END_SHAM_mr4
-```
-````
-
-#### Expected Prepended Results
-````sh
-📋 Copied to clipboard
-
-=== CLADA RESULTS ===
-mr1 ✅ file_write /tmp/t_listener_multi_read/README.md
-mr2 ✅ file_write /tmp/t_listener_multi_read/main.py
-mr3 ✅ file_write /tmp/t_listener_multi_read/.gitignore
-mr4 ✅ files_read (3 files)
-=== END ===
-
-Testing files read output formatting with multiple files.
-
-```sh sham
-#!SHAM [@three-char-SHA-256: mr1]
-action = "file_write"
-path = "/tmp/t_listener_multi_read/README.md"
-content = <<'EOT_SHAM_mr1'
-# Project Documentation
-
-This is the main README file.
-
-## Features
-- Feature 1
-- Feature 2
-- Feature 3
-EOT_SHAM_mr1
-#!END_SHAM_mr1
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: mr2]
-action = "file_write"
-path = "/tmp/t_listener_multi_read/main.py"
-content = <<'EOT_SHAM_mr2'
-#!/usr/bin/env python3
-
-def main():
-    print("Hello from main!")
-
-if __name__ == "__main__":
-    main()
-EOT_SHAM_mr2
-#!END_SHAM_mr2
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: mr3]
-action = "file_write"
-path = "/tmp/t_listener_multi_read/.gitignore"
-content = <<'EOT_SHAM_mr3'
-*.pyc
-__pycache__/
-.env
-venv/
-EOT_SHAM_mr3
-#!END_SHAM_mr3
-```
-
-```sh sham
-#!SHAM [@three-char-SHA-256: mr4]
-action = "files_read"
-paths = <<'EOT_SHAM_mr4'
-/tmp/t_listener_multi_read/README.md
-/tmp/t_listener_multi_read/main.py
-/tmp/t_listener_multi_read/.gitignore
-EOT_SHAM_mr4
-#!END_SHAM_mr4
-```
-````
-
-#### Expected Output File
-````sh
-=== CLADA RESULTS ===
-mr1 ✅ file_write /tmp/t_listener_multi_read/README.md
-mr2 ✅ file_write /tmp/t_listener_multi_read/main.py
-mr3 ✅ file_write /tmp/t_listener_multi_read/.gitignore
-mr4 ✅ files_read (3 files)
-=== END ===
-
-=== OUTPUTS ===
-
-[mr4] files_read:
-Reading 3 files:
-- /tmp/t_listener_multi_read/README.md
-- /tmp/t_listener_multi_read/main.py
-- /tmp/t_listener_multi_read/.gitignore
-
-=== START FILE: /tmp/t_listener_multi_read/README.md ===
-# Project Documentation
-
-This is the main README file.
-
-## Features
-- Feature 1
-- Feature 2
-- Feature 3
-=== END FILE: /tmp/t_listener_multi_read/README.md ===
-
-=== START FILE: /tmp/t_listener_multi_read/main.py ===
-#!/usr/bin/env python3
-
-def main():
-    print("Hello from main!")
-
-if __name__ == "__main__":
-    main()
-=== END FILE: /tmp/t_listener_multi_read/main.py ===
-
-=== START FILE: /tmp/t_listener_multi_read/.gitignore ===
-*.pyc
-__pycache__/
-.env
-venv/
-=== END FILE: /tmp/t_listener_multi_read/.gitignore ===
-=== END ===
-````
-
-#### clipboard
-````sh
-=== CLADA RESULTS ===
-mr1 ✅ file_write /tmp/t_listener_multi_read/README.md
-mr2 ✅ file_write /tmp/t_listener_multi_read/main.py
-mr3 ✅ file_write /tmp/t_listener_multi_read/.gitignore
-mr4 ✅ files_read (3 files)
-=== END ===
-
-=== OUTPUTS ===
-
-[mr4] files_read:
-Reading 3 files:
-- /tmp/t_listener_multi_read/README.md
-- /tmp/t_listener_multi_read/main.py
-- /tmp/t_listener_multi_read/.gitignore
-
-=== START FILE: /tmp/t_listener_multi_read/README.md ===
-# Project Documentation
-
-This is the main README file.
-
-## Features
-- Feature 1
-- Feature 2
-- Feature 3
-=== END FILE: /tmp/t_listener_multi_read/README.md ===
-
-=== START FILE: /tmp/t_listener_multi_read/main.py ===
-#!/usr/bin/env python3
-
-def main():
-    print("Hello from main!")
-
-if __name__ == "__main__":
-    main()
-=== END FILE: /tmp/t_listener_multi_read/main.py ===
-
-=== START FILE: /tmp/t_listener_multi_read/.gitignore ===
-*.pyc
-__pycache__/
-.env
-venv/
-=== END FILE: /tmp/t_listener_multi_read/.gitignore ===
-=== END ===
-````
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/test-data/integration/listener-workflow-v2.cases.md ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/errors.ts ===
-export class ListenerError extends Error {
-  constructor(
-    public code: 'FILE_NOT_FOUND' | 'ACCESS_DENIED' | 'ALREADY_WATCHING',
-    public path: string,
-    message?: string
-  ) {
-    super(message || `listener: ${code} '${path}'`);
-    this.name = 'ListenerError';
-  }
-}
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/errors.ts ===
+code = "echo 'test'" extra stuff
+#!END_SHAM_pe
+=== END FILE: /Users/stuart/repos/clada/use-listener/my-test-commands.md ===
 
 === START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/formatters.ts ===
 import type { OrchestratorResult } from '../../orch/src/types.js';
 
+// export function formatSummary(orchResult: OrchestratorResult, timestamp: Date): string {
+//   const lines = ['', '=== CLADA RESULTS ==='];
+  
+//   // Add execution results
+//   if (orchResult.results) {
+//     for (const result of orchResult.results) {
+//       const icon = result.success ? '✅' : '❌';
+//       const primaryParam = getPrimaryParamFromResult(result);
+      
+//       if (result.success) {
+//         lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam}`.trim());
+//       } else {
+//         lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam} - ${getErrorSummary(result.error)}`.trim());
+//       }
+//     }
+//   }
+  
+//   // Add parse errors - group by blockId
+//   if (orchResult.parseErrors) {
+//     const errorsByBlock = new Map<string, any[]>();
+    
+//     for (const error of orchResult.parseErrors) {
+//       const blockId = error.blockId || 'unknown';
+//       if (!errorsByBlock.has(blockId)) {
+//         errorsByBlock.set(blockId, []);
+//       }
+//       errorsByBlock.get(blockId)!.push(error);
+//     }
+    
+//     // Format grouped errors
+//     for (const [blockId, errors] of errorsByBlock) {
+//       const firstError = errors[0];
+//       const action = firstError.action || 'parse';
+//       const lineInfo = firstError.blockStartLine ? `, line ${firstError.blockStartLine}` : '';
+      
+//       if (errors.length === 1) {
+//         // Single error - simple format
+//         lines.push(`${blockId} ❌ ${action}${lineInfo} - ${firstError.errorType}: ${firstError.message}`);
+//       } else {
+//         // Multiple errors - list them
+//         lines.push(`${blockId} ❌ ${action}${lineInfo} - ${errors.length} errors:`);
+//         const uniqueMessages = [...new Set(errors.map(e => `  ${e.errorType}: ${e.message}`))];
+//         lines.push(...uniqueMessages);
+//       }
+//     }
+//   }
+  
+//   lines.push('=== END ===', '');
+//   return lines.join('\n');
+// }
+
+
 export function formatSummary(orchResult: OrchestratorResult, timestamp: Date): string {
   const lines = ['', '=== CLADA RESULTS ==='];
+  
+  // DEBUG: Log raw orchestrator result for parse errors
+  if (orchResult.parseErrors && orchResult.parseErrors.length > 0) {
+    // console.log('DEBUG: Raw parseErrors:', JSON.stringify(orchResult.parseErrors, null, 2));
+  }
   
   // Add execution results
   if (orchResult.results) {
@@ -2215,10 +151,52 @@ export function formatSummary(orchResult: OrchestratorResult, timestamp: Date): 
     }
   }
   
-  // Add parse errors
+  // Add parse errors - group by blockId
   if (orchResult.parseErrors) {
+    const errorsByBlock = new Map<string, any[]>();
+    
+    // Group errors by blockId
     for (const error of orchResult.parseErrors) {
-      lines.push(`${error.blockId || 'unknown'} ❌ ${error.action || '(parse error)'} - ${error.message}`);
+      const blockId = error.blockId || 'unknown';
+      if (!errorsByBlock.has(blockId)) {
+        errorsByBlock.set(blockId, []);
+      }
+      errorsByBlock.get(blockId)!.push(error);
+    }
+    
+    // Format grouped errors
+    for (const [blockId, errors] of errorsByBlock) {
+      const firstError = errors[0];
+      const action = firstError.action || '-';
+      const lineInfo = firstError.blockStartLine ? ` (line ${firstError.blockStartLine})` : '';
+      
+      // Pad action to 10 characters for alignment
+      const paddedAction = action.padEnd(10);
+      
+      if (errors.length === 1) {
+        // Single error
+        lines.push(`${blockId} ❌ ${paddedAction} ERROR: ${firstError.message}${lineInfo}`);
+      } else {
+        // Multiple errors - count unique messages
+        const messageCount = new Map<string, number>();
+        for (const error of errors) {
+          const msg = error.message;
+          messageCount.set(msg, (messageCount.get(msg) || 0) + 1);
+        }
+        
+        // First line shows total count
+        lines.push(`${blockId} ❌ ${paddedAction} ERROR: ${errors.length} syntax errors${lineInfo}`);
+        
+        // Sub-bullets for each unique error type
+        const indent = ' '.repeat(20); // Align with ERROR: column
+        for (const [msg, count] of messageCount) {
+          if (count > 1) {
+            lines.push(`${indent}- ${msg} (${count} occurrences)`);
+          } else {
+            lines.push(`${indent}- ${msg}`);
+          }
+        }
+      }
     }
   }
   
@@ -2327,10 +305,52 @@ export function formatFullOutput(orchResult: OrchestratorResult): string {
     }
   }
   
-  // Add parse errors
+  // Add parse errors - group by blockId
   if (orchResult.parseErrors) {
+    const errorsByBlock = new Map<string, any[]>();
+    
+    // Group errors by blockId
     for (const error of orchResult.parseErrors) {
-      lines.push(`${error.blockId || 'unknown'} ❌ ${error.action || '(parse error)'} - ${error.message}`);
+      const blockId = error.blockId || 'unknown';
+      if (!errorsByBlock.has(blockId)) {
+        errorsByBlock.set(blockId, []);
+      }
+      errorsByBlock.get(blockId)!.push(error);
+    }
+    
+    // Format grouped errors
+    for (const [blockId, errors] of errorsByBlock) {
+      const firstError = errors[0];
+      const action = firstError.action || '-';
+      const lineInfo = firstError.blockStartLine ? ` (line ${firstError.blockStartLine})` : '';
+      
+      // Pad action to 10 characters for alignment
+      const paddedAction = action.padEnd(10);
+      
+      if (errors.length === 1) {
+        // Single error
+        lines.push(`${blockId} ❌ ${paddedAction} ERROR: ${firstError.message}${lineInfo}`);
+      } else {
+        // Multiple errors - count unique messages
+        const messageCount = new Map<string, number>();
+        for (const error of errors) {
+          const msg = error.message;
+          messageCount.set(msg, (messageCount.get(msg) || 0) + 1);
+        }
+        
+        // First line shows total count
+        lines.push(`${blockId} ❌ ${paddedAction} ERROR: ${errors.length} syntax errors${lineInfo}`);
+        
+        // Sub-bullets for each unique error type
+        const indent = ' '.repeat(20); // Align with ERROR: column
+        for (const [msg, count] of messageCount) {
+          if (count > 1) {
+            lines.push(`${indent}- ${msg} (${count} occurrences)`);
+          } else {
+            lines.push(`${indent}- ${msg}`);
+          }
+        }
+      }
     }
   }
   
@@ -2401,12 +421,6 @@ function shouldShowOutput(action: string, params?: any): boolean {
 
  
 === END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/formatters.ts ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/index.ts ===
-export { startListener, stopListener } from './listener.js';
-export type { ListenerConfig, ListenerHandle, ListenerState } from './types.js';
-export { ListenerError } from './errors.js';
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/index.ts ===
 
 === START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/listener.ts ===
 import { watchFile, unwatchFile, Stats } from 'fs';
@@ -2505,7 +519,18 @@ async function processFileChange(filePath: string, state: ListenerState): Promis
     // Execute via orchestrator with full file content
     const clada = new Clada({ gitCommit: false });
     const orchResult = await clada.execute(fullContent);
-    // console.log('Executed', orchResult.executedActions, 'actions');
+    
+    // Debug logging
+    if (state.debug) {
+      console.log('\n=== DEBUG: Orchestrator Result ===');
+      console.log('Executed actions:', orchResult.executedActions);
+      console.log('Results:', orchResult.results?.length || 0);
+      console.log('Parse errors:', orchResult.parseErrors?.length || 0);
+      if (orchResult.parseErrors && orchResult.parseErrors.length > 0) {
+        console.log('Raw parseErrors:', JSON.stringify(orchResult.parseErrors, null, 2));
+      }
+      console.log('=== END DEBUG ===\n');
+    }
     
     // Format outputs
     const timestamp = new Date();
@@ -2570,7 +595,8 @@ export async function startListener(config: ListenerConfig): Promise<ListenerHan
   const state: ListenerState = {
     lastExecutedHash: '',
     isProcessing: false,
-    outputPath: join(dirname(config.filePath), config.outputFilename || '.clada-output-latest.txt')
+    outputPath: join(dirname(config.filePath), config.outputFilename || '.clada-output-latest.txt'),
+    debug: config.debug || false
   };
   
   // Set up debounced handler
@@ -2614,128 +640,6 @@ export async function stopListener(handle: ListenerHandle): Promise<void> {
   await handle.stop();
 }
 === END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/listener.ts ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/types.ts ===
-export interface ListenerConfig {
-  filePath: string;
-  debounceMs?: number;
-  outputFilename?: string;
-}
-
-export interface ListenerHandle {
-  id: string;
-  filePath: string;
-  stop: () => Promise<void>;
-}
-
-export interface ListenerState {
-  lastExecutedHash: string;
-  isProcessing: boolean;
-  outputPath: string;
-  actionSchema: Map<string, ActionDefinition>;
-}
-
-export interface ActionDefinition {
-  type: 'read' | 'write' | 'meta' | 'git' | 'dynamic';
-  description: string;
-  output_display?: 'always' | 'never' | 'conditional';
-  primary_param?: string;
-  parameters: Record<string, ParameterDef>;
-  returns: Record<string, any>;
-}
-
-export interface ParameterDef {
-  type: string;
-  required: boolean;
-  format?: string;
-  values?: string[];
-  default?: any;
-}
-
-export interface SizeCheckResult {
-  valid: boolean;
-  totalSize: number;
-  errors: any[]; // ExecutionResult[] but avoiding circular dependency
-}
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/types.ts ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/unified-design-loader.ts ===
-import { readFile } from 'fs/promises';
-import { parse as parseYaml } from 'js-yaml';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-interface ToolDefinition {
-  output_display?: 'always' | 'never' | 'conditional';
-  parameters?: Record<string, any>;
-}
-
-interface UnifiedDesign {
-  tools: Record<string, ToolDefinition>;
-}
-
-let cachedDesign: UnifiedDesign | null = null;
-
-/**
- * Load and cache the unified design configuration.
- * Returns the parsed unified design object.
- */
-export async function loadUnifiedDesign(): Promise<UnifiedDesign> {
-  if (cachedDesign) {
-    return cachedDesign;
-  }
-
-  const __dirname = dirname(fileURLToPath(import.meta.url));
-  const designPath = join(__dirname, '../../../doc/unified-design.yaml');
-  const content = await readFile(designPath, 'utf-8');
-  cachedDesign = parseYaml(content) as UnifiedDesign;
-  
-  return cachedDesign;
-}
-
-/**
- * Check if output should be displayed for a given action.
- * Returns true if output should be included in OUTPUTS section.
- */
-export async function shouldDisplayOutput(
-  action: string, 
-  params: Record<string, any> = {}
-): Promise<boolean> {
-  const design = await loadUnifiedDesign();
-  const tool = design.tools[action];
-  
-  if (!tool) {
-    // Unknown tool - default to showing output
-    return true;
-  }
-  
-  const displayRule = tool.output_display || 'always';
-  
-  switch (displayRule) {
-    case 'always':
-      return true;
-    case 'never':
-      return false;
-    case 'conditional':
-      // For exec, check return_output parameter
-      if (action === 'exec') {
-        return params.return_output !== false;
-      }
-      // Default for other conditional actions
-      return true;
-    default:
-      return true;
-  }
-}
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/unified-design-loader.ts ===
-
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/utils.ts ===
-import { createHash } from 'node:crypto';
-
-export function computeContentHash(content: string): string {
-  return createHash('sha256').update(content).digest('hex');
-}
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/utils.ts ===
 
 === START FILE: /Users/stuart/repos/clada/replacer/replacer_llm_instructions.md ===
 coding style guide:  TDD.  self documenting code.  every api  function name should make it super obvious who is doing what and why

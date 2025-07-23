@@ -1,237 +1,188 @@
-=== PROCESSED: 2025-07-22 21:41:19 ===
-SUCCESS Block 1: Updated /Users/stuart/repos/clada/proj/comp/listener/src/formatters.ts
-SUCCESS Block 2: Updated /Users/stuart/repos/clada/proj/comp/listener/src/formatters.ts
+=== PROCESSED: 2025-07-22 22:07:17 ===
+SUCCESS Block 1: Updated /Users/stuart/repos/clada/proj/comp/listener/src/types.ts
+SUCCESS Block 2: Updated /Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
+SUCCESS Block 3: Updated /Users/stuart/repos/clada/proj/comp/listener/src/types.ts
+SUCCESS Block 4: Updated /Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
+SUCCESS Block 5: Updated /Users/stuart/repos/clada/use-listener/test-listener-live.ts
 ===
 
-Looking at the test failure, the issue is clear: the current `formatSummary` function doesn't match the expected output format for parse errors. The test expects a specific format with:
+The issue is that `test-listener-live.ts` only starts the listener - it doesn't have visibility into the orchestrator results or parse errors. The debug logging happens inside the listener/formatter code, but those console.logs might be getting swallowed or you're not seeing them in the terminal.
 
-1. Aligned columns using spacing
-2. "ERROR:" prefix for error messages  
-3. Special handling for multiple errors on the same block (grouping with count and sub-bullets)
-4. Line number information in parentheses
-5. Action shown as "-" when no action is detected
-
-Let me analyze the expected format more carefully:
-
-```
-pe1 ❌ file_write   ERROR: Unclosed quoted string (line 4)
-pe2 ❌ -            ERROR: Invalid assignment operator ':=' - only '=' is allowed (line 12)
-pe3 ❌ -            ERROR: Invalid line format: not a valid key-value assignment or empty line (line 19)
-pe4 ❌ file_write   ERROR: 3 syntax errors (line 25)
-                    - Value must be a quoted string or heredoc
-                    - Invalid line format (2 occurrences)
-pe5 ❌ exec         ERROR: Unexpected content after quoted value (line 34)
-```
-
-The key patterns:
-- Fixed-width columns: blockId (3 chars) + space + ❌ + space + action (padded to ~10 chars) + space + ERROR: + message
-- When action is unknown/missing, use "-"
-- When multiple errors exist for same block, show count and list unique errors with occurrence counts
-- Line numbers shown as "(line X)" at end of first error line
+Here are two approaches to debug this:
 
 <<<EXPLANATION>>>
-
-Update formatSummary to match the expected test output format with proper column alignment, ERROR: prefix, grouped error handling, and line number formatting
+Add a debug mode to the listener configuration that enables verbose logging of parse errors and orchestrator results
 
 <<<FILE>>>
-
-/Users/stuart/repos/clada/proj/comp/listener/src/formatters.ts
+/Users/stuart/repos/clada/proj/comp/listener/src/types.ts
 
 <<<SEARCH>>>
-export function formatSummary(orchResult: OrchestratorResult, timestamp: Date): string {
-  const lines = ['', '=== CLADA RESULTS ==='];
-  
-  // DEBUG: Log raw orchestrator result for parse errors
-  if (orchResult.parseErrors && orchResult.parseErrors.length > 0) {
-    console.log('DEBUG: Raw parseErrors:', JSON.stringify(orchResult.parseErrors, null, 2));
-  }
-  
-  // Add execution results
-  if (orchResult.results) {
-    for (const result of orchResult.results) {
-      const icon = result.success ? '✅' : '❌';
-      const primaryParam = getPrimaryParamFromResult(result);
-      
-      if (result.success) {
-        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam}`.trim());
-      } else {
-        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam} - ${getErrorSummary(result.error)}`.trim());
-      }
-    }
-  }
-  
-  // Add parse errors
-  if (orchResult.parseErrors) {
-    for (const error of orchResult.parseErrors) {
-      lines.push(`${error.blockId || 'unknown'} ❌ ${error.action || '(parse error)'} - ${error.message}`);
-    }
-  }
-  
-  lines.push('=== END ===', '');
-  return lines.join('\n');
+export interface ListenerConfig {
+  filePath: string;
+  debounceMs?: number;
+  outputFilename?: string;
 }
 <<<REPLACE>>>
-export function formatSummary(orchResult: OrchestratorResult, timestamp: Date): string {
-  const lines = ['', '=== CLADA RESULTS ==='];
-  
-  // DEBUG: Log raw orchestrator result for parse errors
-  if (orchResult.parseErrors && orchResult.parseErrors.length > 0) {
-    console.log('DEBUG: Raw parseErrors:', JSON.stringify(orchResult.parseErrors, null, 2));
-  }
-  
-  // Add execution results
-  if (orchResult.results) {
-    for (const result of orchResult.results) {
-      const icon = result.success ? '✅' : '❌';
-      const primaryParam = getPrimaryParamFromResult(result);
-      
-      if (result.success) {
-        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam}`.trim());
-      } else {
-        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam} - ${getErrorSummary(result.error)}`.trim());
-      }
-    }
-  }
-  
-  // Add parse errors - group by blockId
-  if (orchResult.parseErrors) {
-    const errorsByBlock = new Map<string, any[]>();
-    
-    // Group errors by blockId
-    for (const error of orchResult.parseErrors) {
-      const blockId = error.blockId || 'unknown';
-      if (!errorsByBlock.has(blockId)) {
-        errorsByBlock.set(blockId, []);
-      }
-      errorsByBlock.get(blockId)!.push(error);
-    }
-    
-    // Format grouped errors
-    for (const [blockId, errors] of errorsByBlock) {
-      const firstError = errors[0];
-      const action = firstError.action || '-';
-      const lineInfo = firstError.blockStartLine ? ` (line ${firstError.blockStartLine})` : '';
-      
-      // Pad action to 10 characters for alignment
-      const paddedAction = action.padEnd(10);
-      
-      if (errors.length === 1) {
-        // Single error
-        lines.push(`${blockId} ❌ ${paddedAction} ERROR: ${firstError.message}${lineInfo}`);
-      } else {
-        // Multiple errors - count unique messages
-        const messageCount = new Map<string, number>();
-        for (const error of errors) {
-          const msg = error.message;
-          messageCount.set(msg, (messageCount.get(msg) || 0) + 1);
-        }
-        
-        // First line shows total count
-        lines.push(`${blockId} ❌ ${paddedAction} ERROR: ${errors.length} syntax errors${lineInfo}`);
-        
-        // Sub-bullets for each unique error type
-        const indent = ' '.repeat(20); // Align with ERROR: column
-        for (const [msg, count] of messageCount) {
-          if (count > 1) {
-            lines.push(`${indent}- ${msg} (${count} occurrences)`);
-          } else {
-            lines.push(`${indent}- ${msg}`);
-          }
-        }
-      }
-    }
-  }
-  
-  lines.push('=== END ===', '');
-  return lines.join('\n');
+export interface ListenerConfig {
+  filePath: string;
+  debounceMs?: number;
+  outputFilename?: string;
+  debug?: boolean;
 }
 <<<END>>>
 
 <<<EXPLANATION>>>
-
-Update formatFullOutput to use the same parse error formatting logic as formatSummary for consistency
+Pass debug flag through state and use it to control debug output in processFileChange
 
 <<<FILE>>>
-
-/Users/stuart/repos/clada/proj/comp/listener/src/formatters.ts
+/Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
 
 <<<SEARCH>>>
-  // Add parse errors - group by blockId
-  if (orchResult.parseErrors) {
-    const errorsByBlock = new Map<string, any[]>();
-    
-    for (const error of orchResult.parseErrors) {
-      const blockId = error.blockId || 'unknown';
-      if (!errorsByBlock.has(blockId)) {
-        errorsByBlock.set(blockId, []);
-      }
-      errorsByBlock.get(blockId)!.push(error);
-    }
-    
-    // Format grouped errors
-    for (const [blockId, errors] of errorsByBlock) {
-      const firstError = errors[0];
-      const action = firstError.action || 'parse';
-      const lineInfo = firstError.blockStartLine ? `, line ${firstError.blockStartLine}` : '';
-      
-      if (errors.length === 1) {
-        // Single error - simple format
-        lines.push(`${blockId} ❌ ${action}${lineInfo} - ${firstError.errorType}: ${firstError.message}`);
-      } else {
-        // Multiple errors - list them
-        lines.push(`${blockId} ❌ ${action}${lineInfo} - ${errors.length} errors:`);
-        const uniqueMessages = [...new Set(errors.map(e => `  ${e.errorType}: ${e.message}`))];
-        lines.push(...uniqueMessages);
-      }
-    }
+export async function startListener(config: ListenerConfig): Promise<ListenerHandle> {
+  // Validate config
+  if (!config.filePath) {
+    throw new Error('listener: filePath is required');
   }
+  if (!config.filePath.startsWith('/')) {
+    throw new Error('listener: filePath must be absolute');
+  }
+  if (config.debounceMs !== undefined && config.debounceMs < 100) {
+    throw new Error('listener: debounceMs must be at least 100');
+  }
+  
+  // Check file exists
+  try {
+    await access(config.filePath, constants.F_OK);
+  } catch (error) {
+    throw new ListenerError('FILE_NOT_FOUND', config.filePath);
+  }
+  
+  // Check not already watching
+  if (activeListeners.has(config.filePath)) {
+    throw new ListenerError('ALREADY_WATCHING', config.filePath);
+  }
+  
+  // Initialize state
+  const state: ListenerState = {
+    lastExecutedHash: '',
+    isProcessing: false,
+    outputPath: join(dirname(config.filePath), config.outputFilename || '.clada-output-latest.txt')
+  };
 <<<REPLACE>>>
-  // Add parse errors - group by blockId
-  if (orchResult.parseErrors) {
-    const errorsByBlock = new Map<string, any[]>();
-    
-    // Group errors by blockId
-    for (const error of orchResult.parseErrors) {
-      const blockId = error.blockId || 'unknown';
-      if (!errorsByBlock.has(blockId)) {
-        errorsByBlock.set(blockId, []);
-      }
-      errorsByBlock.get(blockId)!.push(error);
-    }
-    
-    // Format grouped errors
-    for (const [blockId, errors] of errorsByBlock) {
-      const firstError = errors[0];
-      const action = firstError.action || '-';
-      const lineInfo = firstError.blockStartLine ? ` (line ${firstError.blockStartLine})` : '';
-      
-      // Pad action to 10 characters for alignment
-      const paddedAction = action.padEnd(10);
-      
-      if (errors.length === 1) {
-        // Single error
-        lines.push(`${blockId} ❌ ${paddedAction} ERROR: ${firstError.message}${lineInfo}`);
-      } else {
-        // Multiple errors - count unique messages
-        const messageCount = new Map<string, number>();
-        for (const error of errors) {
-          const msg = error.message;
-          messageCount.set(msg, (messageCount.get(msg) || 0) + 1);
-        }
-        
-        // First line shows total count
-        lines.push(`${blockId} ❌ ${paddedAction} ERROR: ${errors.length} syntax errors${lineInfo}`);
-        
-        // Sub-bullets for each unique error type
-        const indent = ' '.repeat(20); // Align with ERROR: column
-        for (const [msg, count] of messageCount) {
-          if (count > 1) {
-            lines.push(`${indent}- ${msg} (${count} occurrences)`);
-          } else {
-            lines.push(`${indent}- ${msg}`);
-          }
-        }
-      }
-    }
+export async function startListener(config: ListenerConfig): Promise<ListenerHandle> {
+  // Validate config
+  if (!config.filePath) {
+    throw new Error('listener: filePath is required');
   }
+  if (!config.filePath.startsWith('/')) {
+    throw new Error('listener: filePath must be absolute');
+  }
+  if (config.debounceMs !== undefined && config.debounceMs < 100) {
+    throw new Error('listener: debounceMs must be at least 100');
+  }
+  
+  // Check file exists
+  try {
+    await access(config.filePath, constants.F_OK);
+  } catch (error) {
+    throw new ListenerError('FILE_NOT_FOUND', config.filePath);
+  }
+  
+  // Check not already watching
+  if (activeListeners.has(config.filePath)) {
+    throw new ListenerError('ALREADY_WATCHING', config.filePath);
+  }
+  
+  // Initialize state
+  const state: ListenerState = {
+    lastExecutedHash: '',
+    isProcessing: false,
+    outputPath: join(dirname(config.filePath), config.outputFilename || '.clada-output-latest.txt'),
+    debug: config.debug || false
+  };
 <<<END>>>
+
+<<<EXPLANATION>>>
+Add debug flag to ListenerState interface
+
+<<<FILE>>>
+/Users/stuart/repos/clada/proj/comp/listener/src/types.ts
+
+<<<SEARCH>>>
+export interface ListenerState {
+  lastExecutedHash: string;
+  isProcessing: boolean;
+  outputPath: string;
+  actionSchema: Map<string, ActionDefinition>;
+}
+<<<REPLACE>>>
+export interface ListenerState {
+  lastExecutedHash: string;
+  isProcessing: boolean;
+  outputPath: string;
+  actionSchema?: Map<string, ActionDefinition>;
+  debug?: boolean;
+}
+<<<END>>>
+
+<<<EXPLANATION>>>
+Add debug logging in processFileChange to show raw orchestrator results when debug is enabled
+
+<<<FILE>>>
+/Users/stuart/repos/clada/proj/comp/listener/src/listener.ts
+
+<<<SEARCH>>>
+    // Execute via orchestrator with full file content
+    const clada = new Clada({ gitCommit: false });
+    const orchResult = await clada.execute(fullContent);
+    // console.log('Executed', orchResult.executedActions, 'actions');
+<<<REPLACE>>>
+    // Execute via orchestrator with full file content
+    const clada = new Clada({ gitCommit: false });
+    const orchResult = await clada.execute(fullContent);
+    
+    // Debug logging
+    if (state.debug) {
+      console.log('\n=== DEBUG: Orchestrator Result ===');
+      console.log('Executed actions:', orchResult.executedActions);
+      console.log('Results:', orchResult.results?.length || 0);
+      console.log('Parse errors:', orchResult.parseErrors?.length || 0);
+      if (orchResult.parseErrors && orchResult.parseErrors.length > 0) {
+        console.log('Raw parseErrors:', JSON.stringify(orchResult.parseErrors, null, 2));
+      }
+      console.log('=== END DEBUG ===\n');
+    }
+<<<END>>>
+
+<<<EXPLANATION>>>
+Enable debug mode in test-listener-live.ts
+
+<<<FILE>>>
+/Users/stuart/repos/clada/use-listener/test-listener-live.ts
+
+<<<SEARCH>>>
+  // Start the listener
+  console.log('Starting listener...');
+  const handle = await startListener({
+    filePath: TEST_FILE,
+    debounceMs: 500,
+    outputFilename: '.my-test-output.txt'
+  });
+<<<REPLACE>>>
+  // Start the listener
+  console.log('Starting listener...');
+  const handle = await startListener({
+    filePath: TEST_FILE,
+    debounceMs: 500,
+    outputFilename: '.my-test-output.txt',
+    debug: true
+  });
+<<<END>>>
+
+This will show you exactly what the orchestrator is returning. If you're still not seeing any output, the issue might be:
+
+1. The SHAM blocks aren't being detected at all by the parser
+2. The parser is silently failing before creating parse errors
+3. The content hash check is preventing reprocessing
+
+You could also temporarily add a console.log at the very start of `processFileChange` to confirm it's being called at all.

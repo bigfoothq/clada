@@ -2,6 +2,7 @@ export interface ListenerConfig {
   filePath: string;
   debounceMs?: number;
   outputFilename?: string;
+  debug?: boolean;
 }
 
 export interface ListenerHandle {
@@ -14,7 +15,8 @@ export interface ListenerState {
   lastExecutedHash: string;
   isProcessing: boolean;
   outputPath: string;
-  actionSchema: Map<string, ActionDefinition>;
+  actionSchema?: Map<string, ActionDefinition>;
+  debug?: boolean;
 }
 
 export interface ActionDefinition {

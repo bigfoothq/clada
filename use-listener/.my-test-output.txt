@@ -1,5 +1,4 @@
 === CLADA RESULTS ===
-rs2 ❌ file_read_numbered /asdf.md - File not found
 === END ===
 
 === OUTPUTS ===

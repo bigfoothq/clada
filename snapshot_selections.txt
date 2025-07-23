@@ -1,176 +1,1026 @@
-=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/test/integration/listener-workflow-v2.test.ts ===
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { readFile, writeFile, mkdir, rm } from 'fs/promises';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { marked } from 'marked';
-import clipboard from 'clipboardy';
+=== START FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts ===
+/**
+ * fs-ops - File system operations executor for clada
+ * 
+ * Handles all file and directory operations from parsed SHAM actions
+ */
 
-import { startListener } from '../../src/listener.js';
-import type { ListenerHandle } from '../../src/types.js';
+import type { CladaAction } from '../../sham-action-parser/src/index.js';
+import { writeFile, mkdir, unlink, rename, readFile } from 'fs/promises';
+import { dirname } from 'path';
+import { formatNodeError } from './formatNodeError.js';
+import { fileExists } from './fileSystemUtils.js';
+import { replaceText } from './replaceText.js';
+import { extractNumberedLines } from './extractNumberedLines.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-interface TestCase {
-  name: string;
-  initialContent: string;
-  newContent: string;
-  expectedPrepended: string;
-  expectedOutput: string;
-  expectedClipboard: string;
+export interface FileOpResult {
+  success: boolean;
+  data?: any;
+  error?: string;
 }
 
-// Parse test cases from markdown
-async function parseTestCases(): Promise<TestCase[]> {
-  const testDataPath = join(__dirname, '../../test-data/integration/listener-workflow-v2.cases.md');
-  const markdown = await readFile(testDataPath, 'utf-8');
-  
-  const tokens = marked.lexer(markdown);
-  const testCases: TestCase[] = [];
-  let currentTest: Partial<TestCase> | null = null;
-  let codeBlockCount = 0;
-  
-  for (const token of tokens) {
-    // Test case name (h3)
-    if (token.type === 'heading' && token.depth === 3) {
-      // Save previous test if complete
-      if (currentTest && currentTest.name && 
-          currentTest.initialContent && 
-          currentTest.newContent && 
-          currentTest.expectedPrepended && 
-          currentTest.expectedOutput && 
-          currentTest.expectedClipboard) {
-        testCases.push(currentTest as TestCase);
-      }
-      
-      // Start new test
-      currentTest = { name: token.text };
-      codeBlockCount = 0;
+export class FileOpError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public path?: string,
+    public operation?: string
+  ) {
+    super(message);
+    this.name = 'FileOpError';
+  }
+}
+
+/**
+ * Execute a file system operation from a parsed SHAM action
+ * Never throws - all errors returned in result
+ */
+export async function executeFileOperation(action: CladaAction): Promise<FileOpResult> {
+  try {
+    const handler = actionHandlers[action.action];
+    
+ 
+    
+    if (!handler) {
+      return {
+        success: false,
+        error: `Unknown action: ${action.action}`
+      };
     }
     
-    // Code blocks - just take them in order, ignoring h4 headers
-    if (token.type === 'code' && currentTest) {
-      const content = token.text;
-      codeBlockCount++;
-      
-      switch (codeBlockCount) {
-        case 1:
-          currentTest.initialContent = content;
-          break;
-        case 2:
-          currentTest.newContent = content;
-          break;
-        case 3:
-          currentTest.expectedPrepended = content;
-          break;
-        case 4:
-          currentTest.expectedOutput = content;
-          break;
-        case 5:
-          currentTest.expectedClipboard = content;
-          break;
+    const result = await handler(action);
+    return result;
+    
+  } catch (error: any) {
+    // This should never happen - handlers should catch their own errors
+    return {
+      success: false,
+      error: `Unexpected error in executeFileOperation: ${error.message}`
+    };
+  }
+}
+
+/**
+ * Handle file_move action - moves/renames a file
+ * Creates parent directories for destination if needed
+ * Overwrites destination if it exists
+ */
+async function handleFileMove(action: CladaAction): Promise<FileOpResult> {
+  const { old_path, new_path } = action.parameters;
+  
+  try {
+    // Pre-flight check for better error messages
+    const sourceExists = await fileExists(old_path);
+    
+    if (!sourceExists) {
+      return {
+        success: false,
+        error: `file_move: Source file not found '${old_path}' (ENOENT)`
+      };
+    }
+    
+    // Check if destination exists (for overwrote flag)
+    const destExists = await fileExists(new_path);
+    
+    // Create parent directories for destination
+    const parentDir = dirname(new_path);
+    await mkdir(parentDir, { recursive: true });
+    
+    // Move the file
+    await rename(old_path, new_path);
+    
+    const result: FileOpResult = {
+      success: true,
+      data: {
+        old_path,
+        new_path
       }
+    };
+    
+    if (destExists) {
+      result.data.overwrote = true;
+    }
+    
+    return result;
+    
+  } catch (error: any) {
+    return {
+      success: false,
+      error: formatNodeError(error, old_path, 'rename', new_path)
+    };
+  }
+}
+
+/**
+ * Handle file_delete action - removes a file
+ */
+async function handleFileDelete(action: CladaAction): Promise<FileOpResult> {
+  const { path } = action.parameters;
+  
+  try {
+    await unlink(path);
+    
+    return {
+      success: true,
+      data: {
+        path
+      }
+    };
+    
+  } catch (error: any) {
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'unlink')
+    };
+  }
+}
+
+/**
+ * Handle file_write action - writes/creates/overwrites a file with content
+ * Automatically creates parent directories if needed
+ */
+async function handleFileWrite(action: CladaAction): Promise<FileOpResult> {
+  const { path, content } = action.parameters;
+  
+  try {
+    // Create parent directories if needed
+    const parentDir = dirname(path);
+    await mkdir(parentDir, { recursive: true });
+    
+    // Write file
+    await writeFile(path, content, 'utf8');
+    const bytesWritten = Buffer.byteLength(content, 'utf8');
+    
+    // Temporary debug for test 004
+    if (path.includes('move-to-existing-file')) {
+      // console.log(`DEBUG: Wrote file ${path}`);
+      const exists = await fileExists(path);
+      // console.log(`DEBUG: File exists after write: ${exists}`);
+    }
+    
+    return {
+      success: true,
+      data: {
+        path,
+        bytesWritten
+      }
+    };
+    
+  } catch (error: any) {
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'open')
+    };
+  }
+}
+
+/**
+ * Handle file_read action - reads file content
+ */
+async function handleFileRead(action: CladaAction): Promise<FileOpResult> {
+  const { path } = action.parameters;
+  
+  try {
+    const content = await readFile(path, 'utf8');
+    
+    return {
+      success: true,
+      data: {
+        path,
+        content
+      }
+    };
+    
+  } catch (error: any) {
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'open')
+    };
+  }
+}
+
+/**
+ * Handle file_read_numbered action - reads file content with line numbers
+ * Returns specified lines with line numbers prepended
+ * If lines parameter is missing, reads all lines
+ * If some lines are out of range, returns available content with error
+ */
+async function handleFileReadNumbered(action: CladaAction): Promise<FileOpResult> {
+  const { path, lines, delimiter = ": " } = action.parameters;
+  
+  try {
+    const content = await readFile(path, 'utf8');
+    
+    // Extract and number the requested lines
+    const { result, outOfRange } = extractNumberedLines(content, lines, delimiter);
+    
+    // If out of range, return error with partial content
+    if (outOfRange) {
+      return {
+        success: false,
+        error: `file_read_numbered: Requested lines ${outOfRange.requested} but file only has ${outOfRange.actual} lines`,
+        data: {
+          path,
+          content: result
+        }
+      };
+    }
+    
+    return {
+      success: true,
+      data: {
+        path,
+        content: result
+      }
+    };
+    
+  } catch (error: any) {
+    // Check if it's our custom validation error
+    if (error.message && error.message.startsWith('Invalid line')) {
+      return {
+        success: false,
+        error: `file_read_numbered: ${error.message}`
+      };
+    }
+    
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'open')
+    };
+  }
+}
+
+/**
+ * Handle file_replace_lines action - replaces specified lines in a file
+ * Supports single line ("4") or range ("23-43") specifications
+ * Preserves line endings and handles edge cases
+ */
+async function handleFileReplaceLines(action: CladaAction): Promise<FileOpResult> {
+  const { path, lines, new_content } = action.parameters;
+  
+  try {
+    // Read existing file content
+    const content = await readFile(path, 'utf8');
+    
+    // Handle empty file edge case
+    if (content === '') {
+      return {
+        success: false,
+        error: `file_replace_lines: Line range ${lines} is out of bounds (file has 0 lines)`
+      };
+    }
+    
+    // Split into lines, preserving empty lines
+    // Check if content ends with a newline
+    const endsWithNewline = content.match(/\r?\n$/);
+    const fileLines = content.split(/\r?\n|\r/);
+    
+    // If the file ends with a newline, split gives us an extra empty element
+    // Remove it for line counting, but remember it existed
+    if (endsWithNewline && fileLines[fileLines.length - 1] === '') {
+      fileLines.pop();
+    }
+    
+    const totalLines = fileLines.length;
+    
+    // Parse line specification
+    let startLine: number;
+    let endLine: number;
+    
+    if (!lines || lines === '') {
+      return {
+        success: false,
+        error: `file_replace_lines: Invalid line specification '${lines}'`
+      };
+    }
+    
+    if (lines.includes('-')) {
+      // Range format: "23-43"
+      const parts = lines.split('-');
+      if (parts.length !== 2) {
+        return {
+          success: false,
+          error: `file_replace_lines: Invalid line specification '${lines}'`
+        };
+      }
+      
+      startLine = parseInt(parts[0], 10);
+      endLine = parseInt(parts[1], 10);
+      
+      if (isNaN(startLine) || isNaN(endLine)) {
+        return {
+          success: false,
+          error: `file_replace_lines: Invalid line specification '${lines}'`
+        };
+      }
+      
+      if (startLine < 1 || endLine < 1) {
+        return {
+          success: false,
+          error: `file_replace_lines: Invalid line specification '${lines}'`
+        };
+      }
+      
+      if (startLine > endLine) {
+        return {
+          success: false,
+          error: `file_replace_lines: Invalid line range '${lines}' (start must be <= end)`
+        };
+      }
+    } else {
+      // Single line format: "4"
+      startLine = parseInt(lines, 10);
+      if (isNaN(startLine) || startLine < 1) {
+        return {
+          success: false,
+          error: `file_replace_lines: Invalid line specification '${lines}'`
+        };
+      }
+      endLine = startLine;
+    }
+    
+ 
+    
+    // Check if lines are out of range
+    if (startLine > totalLines || endLine > totalLines) {
+      return {
+        success: false,
+        error: `file_replace_lines: Line range ${lines} is out of bounds (file has ${totalLines} lines)`
+      };
+    }
+    
+    // Split new content into lines
+    // Empty content should produce one empty line, not zero lines
+    const newLines = new_content.split(/\r?\n|\r/);
+    
+    // Reconstruct the file with replaced lines
+    const resultLines: string[] = [];
+    
+    // Add lines before the replacement range
+    for (let i = 0; i < startLine - 1; i++) {
+      resultLines.push(fileLines[i]);
+    }
+    
+    // Add the new content
+    resultLines.push(...newLines);
+    
+    // Add lines after the replacement range
+    for (let i = endLine; i < totalLines; i++) {
+      resultLines.push(fileLines[i]);
+    }
+    
+    // Join back with newlines
+    let result = resultLines.join('\n');
+    
+    // If the original file ended with a newline, preserve it
+    if (endsWithNewline) {
+      result += '\n';
+    }
+    
+    // Write the file back
+    await writeFile(path, result, 'utf8');
+    
+    const linesReplaced = endLine - startLine + 1;
+    
+    return {
+      success: true,
+      data: {
+        path,
+        lines_replaced: linesReplaced
+      }
+    };
+    
+  } catch (error: any) {
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'open')
+    };
+  }
+}
+
+/**
+ * Handle files_read action - reads multiple files and returns their contents
+ * Parses multi-line paths parameter, one absolute path per line
+ * Returns an array of file contents in the same order as the paths
+ */
+async function handleFilesRead(action: CladaAction): Promise<FileOpResult> {
+  const { paths } = action.parameters;
+  
+  // Parse the multi-line paths string
+  const pathList = paths
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0);  // Remove empty lines
+  
+  if (pathList.length === 0) {
+    return {
+      success: false,
+      error: 'files_read: No paths provided'
+    };
+  }
+  
+  // Read all files, collecting content and errors
+  const results: Array<{ path: string; content?: string; error?: string }> = [];
+  
+  for (const filePath of pathList) {
+    try {
+      const content = await readFile(filePath, 'utf8');
+      results.push({ path: filePath, content });
+    } catch (error: any) {
+      // Collect error for this file
+      const errorMsg = formatNodeError(error, filePath, 'open');
+      results.push({ path: filePath, error: errorMsg });
     }
   }
   
-  // Don't forget the last test case
-  if (currentTest && currentTest.name && 
-      currentTest.initialContent && 
-      currentTest.newContent && 
-      currentTest.expectedPrepended && 
-      currentTest.expectedOutput && 
-      currentTest.expectedClipboard) {
-    testCases.push(currentTest as TestCase);
+  // Check if any files failed to read
+  const failedFiles = results.filter(r => r.error);
+  if (failedFiles.length > 0) {
+    // Return error listing all failed files
+    const errorDetails = failedFiles
+      .map(f => `  ${f.path}: ${f.error}`)
+      .join('\n');
+    return {
+      success: false,
+      error: `files_read: Failed to read ${failedFiles.length} file(s):\n${errorDetails}`
+    };
   }
   
-  return testCases;
-}
-
-// Helper to extract test directory name from test case
-function getTestDir(testCaseName: string): string {
-  const safeName = testCaseName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  return `/tmp/t_listener_${safeName}`;
-}
-
-// Helper to poll for file content change
-async function pollForFileChange(
-  filePath: string,
-  initialContent: string,
-  timeoutMs: number = 5000
-): Promise<string> {
-  const startTime = Date.now();
-  let lastContent = initialContent;
+  // All files read successfully - return contents as array
+  const contents = results.map(r => r.content!);
   
-  while (Date.now() - startTime < timeoutMs) {
-    try {
-      const content = await readFile(filePath, 'utf-8');
-      if (content !== lastContent && content.includes('=== CLADA RESULTS ===')) {
-        return content;
+  return {
+    success: true,
+    data: {
+      paths: pathList,
+      content: contents
+    }
+  };
+}
+
+/**
+ * Handle file_replace_text action - replaces EXACTLY ONE occurrence
+ * Fails if old_text appears 0 or 2+ times
+ */
+async function handleFileReplaceText(action: CladaAction): Promise<FileOpResult> {
+  const { path, old_text, new_text } = action.parameters;
+  
+  // Validate old_text is not empty
+  if (!old_text || old_text.length === 0) {
+    return {
+      success: false,
+      error: 'file_replace_text: old_text cannot be empty'
+    };
+  }
+  
+  try {
+    // Read existing file content
+    const content = await readFile(path, 'utf8');
+    
+    // Count occurrences first
+    let count = 0;
+    let searchIndex = 0;
+    while (true) {
+      const index = content.indexOf(old_text, searchIndex);
+      if (index === -1) break;
+      count++;
+      searchIndex = index + old_text.length;
+    }
+    
+    // Validate exactly one occurrence
+    if (count === 0) {
+      return {
+        success: false,
+        error: `file_replace_text: old_text not found in file`
+      };
+    }
+    if (count > 1) {
+      return {
+        success: false,
+        error: `file_replace_text: old_text appears ${count} times, must appear exactly once`
+      };
+    }
+    
+    // Replace the single occurrence
+    const { result, replacements } = replaceText(content, old_text, new_text, 1);
+    
+    // Write updated content back
+    await writeFile(path, result, 'utf8');
+    
+    return {
+      success: true,
+      data: {
+        path,
+        replacements
       }
-      lastContent = content;
-    } catch {}
-    await new Promise(resolve => setTimeout(resolve, 100));
+    };
+    
+  } catch (error: any) {
+    // Special case for empty old_text validation error
+    if (error.message === 'old_text cannot be empty') {
+      return {
+        success: false,
+        error: 'file_replace_text: old_text cannot be empty'
+      };
+    }
+    
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'open')
+    };
   }
-  throw new Error(`Timeout waiting for file change after ${timeoutMs}ms`);
 }
 
-describe('listener workflow v2', async () => {
-  const testCases = await parseTestCases();
+/**
+ * Handle file_replace_all_text action - replaces all occurrences
+ * If count provided, validates exact match
+ */
+async function handleFileReplaceAllText(action: CladaAction): Promise<FileOpResult> {
+  const { path, old_text, new_text, count } = action.parameters;
   
-  for (const testCase of testCases) {
-    it(testCase.name, async () => {
-      let handle: ListenerHandle | null = null;
-      const testDir = getTestDir(testCase.name);
-      const testFile = join(testDir, 'test.txt');
-      const outputFile = join(testDir, '.clada-output-latest.txt');
+  // Validate old_text is not empty
+  if (!old_text || old_text.length === 0) {
+    return {
+      success: false,
+      error: 'file_replace_all_text: old_text cannot be empty'
+    };
+  }
+  
+  try {
+    // Read existing file content
+    const content = await readFile(path, 'utf8');
+    
+    // If count specified, validate it matches actual occurrences
+    if (count !== undefined) {
+      // Count actual occurrences
+      let actualCount = 0;
+      let searchIndex = 0;
+      while (true) {
+        const index = content.indexOf(old_text, searchIndex);
+        if (index === -1) break;
+        actualCount++;
+        searchIndex = index + old_text.length;
+      }
       
-      try {
-        // Setup
-        await mkdir(testDir, { recursive: true });
-        await writeFile(testFile, testCase.initialContent);
-        
-        // Start listener
-        handle = await startListener({ 
-          filePath: testFile, 
-          debounceMs: 100 
-        });
-        
-        // Wait for initial processing
-        await pollForFileChange(testFile, testCase.initialContent);
-        
-        // Wait for debounce to settle
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // Write new content
-        await writeFile(testFile, testCase.newContent);
-        
-        // Wait for processing to complete
-        await pollForFileChange(testFile, testCase.newContent);
-        
-        // Wait a bit more for clipboard and output file writes
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // Read actual results
-        const actualPrepended = await readFile(testFile, 'utf-8');
-        const actualOutput = await readFile(outputFile, 'utf-8');
-        const actualClipboard = await clipboard.read();
-        
-        // Compare results (exact match)
-        expect(actualPrepended).toBe(testCase.expectedPrepended);
-        expect(actualOutput).toBe(testCase.expectedOutput);
-        expect(actualClipboard).toBe(testCase.expectedClipboard);
-        
-      } finally {
-        // Cleanup
-        if (handle) {
-          await handle.stop();
-        }
-        await rm(testDir, { recursive: true, force: true });
+      if (actualCount !== count) {
+        return {
+          success: false,
+          error: `file_replace_all_text: expected ${count} occurrences but found ${actualCount}`
+        };
       }
-    });
+    }
+    
+    // Replace all occurrences
+    const { result, replacements } = replaceText(content, old_text, new_text);
+    
+    // Write updated content back
+    await writeFile(path, result, 'utf8');
+    
+    return {
+      success: true,
+      data: {
+        path,
+        replacements
+      }
+    };
+    
+  } catch (error: any) {
+    // Special case for empty old_text validation error
+    if (error.message === 'old_text cannot be empty') {
+      return {
+        success: false,
+        error: 'file_replace_all_text: old_text cannot be empty'
+      };
+    }
+    
+    return {
+      success: false,
+      error: formatNodeError(error, path, 'open')
+    };
   }
-});
-=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/test/integration/listener-workflow-v2.test.ts ===
+}
+
+// Internal function stubs for each operation
+
+async function createFile(path: string, content: string): Promise<void> {
+  throw new Error('Not implemented');
+}
+
+ 
+
+async function replaceTextInFile(path: string, oldText: string, newText: string, count?: number): Promise<number> {
+  throw new Error('Not implemented');
+}
+
+async function deleteFile(path: string): Promise<void> {
+  throw new Error('Not implemented');
+}
+
+async function moveFile(oldPath: string, newPath: string): Promise<void> {
+  throw new Error('Not implemented');
+}
+
+async function readFileContent(path: string): Promise<string> {
+  throw new Error('Not implemented');
+}
+
+async function createDirectory(path: string): Promise<void> {
+  throw new Error('Not implemented');
+}
+
+async function deleteDirectory(path: string): Promise<void> {
+  throw new Error('Not implemented');
+}
+
+interface DirEntry {
+  name: string;
+  type: 'file' | 'directory';
+  size: number;
+  modified: Date;
+}
+
+async function listDirectory(path: string): Promise<DirEntry[]> {
+  throw new Error('Not implemented');
+}
+
+interface GrepResult {
+  file: string;
+  line_number: number;
+  line: string;
+}
+
+async function searchFiles(pattern: string, path: string, include?: string): Promise<GrepResult[]> {
+  throw new Error('Not implemented');
+}
+
+async function globFiles(pattern: string, basePath: string): Promise<string[]> {
+  throw new Error('Not implemented');
+}
+
+// Action handler mapping
+const actionHandlers: Record<string, (action: CladaAction) => Promise<FileOpResult>> = {
+  'file_write': handleFileWrite,
+  'file_replace_text': handleFileReplaceText,
+  'file_replace_all_text': handleFileReplaceAllText,
+  'file_delete': handleFileDelete,
+  'file_move': handleFileMove,
+  'file_read': handleFileRead,
+  'files_read': handleFilesRead,
+  'file_read_numbered': handleFileReadNumbered,
+  'file_replace_lines': handleFileReplaceLines,
+  'dir_create': async (action) => {
+    return { success: false, error: 'Not implemented' };
+  },
+  'dir_delete': async (action) => {
+    return { success: false, error: 'Not implemented' };
+  },
+  'ls': async (action) => {
+    return { success: false, error: 'Action not implemented: ls' };
+  },
+  'grep': async (action) => {
+    return { success: false, error: 'Not implemented' };
+  },
+  'glob': async (action) => {
+    return { success: false, error: 'Not implemented' };
+  }
+};
+=== END FILE: /Users/stuart/repos/clada/proj/comp/fs-ops/src/index.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/index.ts ===
+/**
+ * SHAM Action Parser - Parses SHAM blocks into validated clada actions
+ */
+
+import { ParseResult, CladaAction, ParseError, ValidationResult, TransformError, ActionDefinition } from './types.js';
+import { validateShamBlock } from './validateShamBlock.js';
+import { transformToAction } from './transformToAction.js';
+import { parseSham, type Block, type ParseResult as NeslParseResult } from 'nesl-js';
+import { load as loadYaml } from 'js-yaml';
+import { readFile } from 'fs/promises';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+// Re-export types for consumers
+export type { ParseResult, CladaAction, ParseError, ValidationResult, TransformError };
+
+// Cache for action schema
+let actionSchemaCache: Map<string, ActionDefinition> | null = null;
+
+/**
+ * Clear the action schema cache - useful for testing
+ * Forces reload of unified-design.yaml on next parse
+ */
+export function clearActionSchemaCache(): void {
+  actionSchemaCache = null;
+}
+
+/**
+ * Parse SHAM blocks from text into validated clada actions
+ * Processes all blocks, collecting successes and errors
+ */
+export async function parseShamResponse(shamText: string): Promise<ParseResult> {
+  const actions: CladaAction[] = [];
+  const errors: ParseError[] = [];
+
+  // Debug logging for specific test cases
+  // const isDebugging = shamText.includes('move-to-existing-file');
+  // if (isDebugging) {
+  //   console.log('DEBUG parseShamResponse: Input text length:', shamText.length);
+  //   console.log('DEBUG parseShamResponse: Contains SHAM blocks:', shamText.includes('#!SHAM'));
+  //   console.log('DEBUG parseShamResponse: Number of #!SHAM occurrences:', (shamText.match(/#!SHAM/g) || []).length);
+  //   console.log('DEBUG parseShamResponse: Number of #!END_SHAM occurrences:', (shamText.match(/#!END_SHAM/g) || []).length);
+  // }
+
+  // Parse SHAM blocks using nesl-js
+  let parseResult: NeslParseResult;
+  try {
+   
+    parseResult = parseSham(shamText);
+    
+    // if (isDebugging) {
+    //   console.log('DEBUG parseShamResponse: parseSham returned:', parseResult);
+    //   if (parseResult) {
+    //     console.log('DEBUG parseShamResponse: blocks:', parseResult.blocks?.length || 0);
+    //     console.log('DEBUG parseShamResponse: errors:', parseResult.errors?.length || 0);
+    //   }
+    // }
+    
+    // Handle case where parseSham returns undefined or null
+    if (!parseResult) {
+      parseResult = { blocks: [], errors: [] };
+    }
+  } catch (error) {
+    return {
+      actions: [],
+      errors: [{
+        blockId: 'unknown',
+        errorType: 'syntax',
+        message: `Failed to parse SHAM: ${error}`,
+        shamContent: shamText
+      }],
+      summary: {
+        totalBlocks: 0,
+        successCount: 0,
+        errorCount: 1
+      }
+    };
+  }
+
+  // Process syntax errors from nesl-js parser
+  if (parseResult.errors && parseResult.errors.length > 0) {
+    for (const parseError of parseResult.errors) {
+      // Find the block this error belongs to
+      const block = parseResult.blocks?.find(b => b.id === parseError.blockId);
+      
+      errors.push({
+        blockId: parseError.blockId || 'unknown',
+        action: block?.properties?.action,
+        errorType: 'syntax',
+        message: parseError.message,
+        blockStartLine: block?.startLine || parseError.line,
+        shamContent: parseError.context 
+          ? `#!SHAM [@three-char-SHA-256: ${parseError.blockId}]\n${parseError.context}`.trimEnd()
+          : reconstructShamBlock(block || { id: parseError.blockId, properties: {} })
+      });
+    }
+  }
+
+  // Load action schema
+  const actionSchema = await loadActionSchema();
+
+  // Process each SHAM block
+  const blocks = parseResult.blocks || [];
+  
+  // If no blocks found, return empty result
+  if (blocks.length === 0) {
+    return {
+      actions: [],
+      errors: [],
+      summary: {
+        totalBlocks: 0,
+        successCount: 0,
+        errorCount: 0
+      }
+    };
+  }
+  
+  // Track blocks with syntax errors to skip them
+  const blocksWithSyntaxErrors = new Set(
+    parseResult.errors?.map(e => e.blockId) || []
+  );
+  
+  for (const block of blocks) {
+    const blockId = block.id || 'unknown';
+    
+    // Skip blocks that already have syntax errors
+    if (blocksWithSyntaxErrors.has(blockId)) {
+      continue;
+    }
+    
+    try {
+      // Get action type from block
+      const actionType = block.properties?.action;
+      const actionDef = actionType ? actionSchema.get(actionType) : undefined;
+
+ 
+
+      // Validate block
+      const validation = validateShamBlock(block, actionDef ?? null);
+      
+      if (!validation.valid) {
+        errors.push({
+          blockId,
+          action: actionType,
+          errorType: 'validation',
+          message: validation.errors?.[0] || 'Validation failed',
+          blockStartLine: block.startLine,
+          shamContent: reconstructShamBlock(block)
+        });
+        continue;
+      }
+
+      // Transform to action
+      try {
+        const action = transformToAction(block, actionDef!);
+        actions.push(action);
+      } catch (error) {
+        if (error instanceof TransformError) {
+          errors.push({
+            blockId,
+            action: actionType,
+            errorType: 'type',
+            message: error.message,
+            blockStartLine: block.startLine,
+            shamContent: reconstructShamBlock(block)
+          });
+        } else {
+          throw error;
+        }
+      }
+    } catch (error) {
+      errors.push({
+        blockId,
+        action: block.properties?.action,
+        errorType: 'validation',
+        message: `Unexpected error: ${error}`,
+        blockStartLine: block.startLine,
+        shamContent: reconstructShamBlock(block)
+      });
+    }
+  }
+
+  const result = {
+    actions,
+    errors,
+    summary: {
+      totalBlocks: blocks.length,
+      successCount: actions.length,
+      errorCount: errors.length
+    }
+  };
+  return result;
+}
+
+/**
+ * Load and cache action definitions from unified-design.yaml
+ */
+async function loadActionSchema(): Promise<Map<string, ActionDefinition>> {
+ 
+  if (actionSchemaCache) {
+    return actionSchemaCache;
+  }
+
+  // Get the directory of this module
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  
+  // Navigate to project root and find unified-design.yaml
+  const yamlPath = join(__dirname, '../../../../unified-design.yaml');
+  
+  try {
+    // Add timeout to file read operation
+    const yamlContent = await Promise.race([
+      readFile(yamlPath, 'utf8'),
+      new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('YAML read timeout')), 5000)
+      )
+    ]);
+    const design = loadYaml(yamlContent) as any;
+    
+    actionSchemaCache = new Map();
+    
+    // Extract tool definitions
+    if (design.tools) {
+      for (const [toolName, toolDef] of Object.entries(design.tools)) {
+        actionSchemaCache.set(toolName, toolDef as ActionDefinition);
+      }
+    }
+    
+ 
+    
+    return actionSchemaCache;
+  } catch (error) {
+    throw new Error(`Failed to load unified-design.yaml: ${error}`);
+  }
+}
+
+/**
+ * Reconstruct SHAM block text for error context
+ */
+function reconstructShamBlock(block: Block): string {
+  const lines: string[] = [];
+  
+  // Start line
+  lines.push(`#!SHAM [@three-char-SHA-256: ${block.id || 'unknown'}]`);
+  
+  // Properties
+  for (const [key, value] of Object.entries(block.properties || {})) {
+    if (key.startsWith('@')) continue; // Skip annotations
+    
+    if (typeof value === 'string' && value.includes('\n')) {
+      // Multi-line value with heredoc
+      lines.push(`${key} = <<'EOT_SHAM_${block.id}'`);
+      lines.push(value);
+      lines.push(`EOT_SHAM_${block.id}`);
+    } else {
+      // Single line value - use JSON.stringify to handle quotes properly
+      lines.push(`${key} = ${JSON.stringify(value)}`);
+    }
+  }
+  
+  // End line
+  lines.push(`#!END_SHAM_${block.id || 'unknown'}`);
+  
+  return lines.join('\n');
+}
+
+// Re-export functions for consumers
+export { validateShamBlock, transformToAction };
+=== END FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/index.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/types.ts ===
+export interface ParseResult {
+  actions: CladaAction[];
+  errors: ParseError[];
+  summary: {
+    totalBlocks: number;
+    successCount: number;
+    errorCount: number;
+  };
+}
+
+export interface CladaAction {
+  action: string;
+  parameters: Record<string, any>;
+  metadata: {
+    blockId: string;
+    startLine: number;
+    endLine: number;
+  };
+}
+
+export interface ParseError {
+  blockId: string;
+  action?: string;
+  errorType: 'syntax' | 'validation' | 'type';
+  message: string;
+  blockStartLine?: number;
+  shamContent?: string;
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  actionType?: string;
+  errors?: string[];
+}
+
+export class TransformError extends Error {
+  constructor(
+    message: string,
+    public parameterName: string,
+    public expectedType: string,
+    public actualValue: string
+  ) {
+    super(message);
+    this.name = 'TransformError';
+  }
+}
+
+export interface ActionDefinition {
+  type: 'read' | 'write' | 'meta' | 'git' | 'dynamic';
+  description: string;
+  parameters: Record<string, ParameterDef>;
+  returns?: Record<string, any>;
+}
+
+export interface ParameterDef {
+  type: string;
+  required: boolean;
+  format?: string;
+  values?: string[];
+  default?: any;
+}
+=== END FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/types.ts ===
 
 === START FILE: /Users/stuart/repos/clada/proj/comp/listener/test-data/integration/listener-workflow-v2.cases.md ===
 # Listener Workflow Integration Tests v2
@@ -832,7 +1682,731 @@ fn2 ❌ file_replace_text /tmp/t_listener_no_match/readme.md - old_text not foun
 === OUTPUTS ===
 === END ===
 ````
+
+### file-read-formatting
+
+#### Initial Content
+````sh
+Testing file read output formatting.
+````
+
+#### New Content
+````sh
+Testing file read output formatting.
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rf1]
+action = "file_write"
+path = "/tmp/t_listener_read/sample.py"
+content = <<'EOT_SHAM_rf1'
+#!/usr/bin/env python3
+"""Sample Python file for testing."""
+
+def greet(name):
+    """Return a greeting message."""
+    return f"Hello, {name}!"
+
+if __name__ == "__main__":
+    print(greet("World"))
+EOT_SHAM_rf1
+#!END_SHAM_rf1
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rf2]
+action = "file_read"
+path = "/tmp/t_listener_read/sample.py"
+#!END_SHAM_rf2
+```
+````
+
+#### Expected Prepended Results
+````sh
+📋 Copied to clipboard
+
+=== CLADA RESULTS ===
+rf1 ✅ file_write /tmp/t_listener_read/sample.py
+rf2 ✅ file_read /tmp/t_listener_read/sample.py
+=== END ===
+
+Testing file read output formatting.
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rf1]
+action = "file_write"
+path = "/tmp/t_listener_read/sample.py"
+content = <<'EOT_SHAM_rf1'
+#!/usr/bin/env python3
+"""Sample Python file for testing."""
+
+def greet(name):
+    """Return a greeting message."""
+    return f"Hello, {name}!"
+
+if __name__ == "__main__":
+    print(greet("World"))
+EOT_SHAM_rf1
+#!END_SHAM_rf1
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rf2]
+action = "file_read"
+path = "/tmp/t_listener_read/sample.py"
+#!END_SHAM_rf2
+```
+````
+
+#### Expected Output File
+````sh
+=== CLADA RESULTS ===
+rf1 ✅ file_write /tmp/t_listener_read/sample.py
+rf2 ✅ file_read /tmp/t_listener_read/sample.py
+=== END ===
+
+=== OUTPUTS ===
+
+[rf2] file_read:
+=== START FILE: /tmp/t_listener_read/sample.py ===
+#!/usr/bin/env python3
+"""Sample Python file for testing."""
+
+def greet(name):
+    """Return a greeting message."""
+    return f"Hello, {name}!"
+
+if __name__ == "__main__":
+    print(greet("World"))
+=== END FILE: /tmp/t_listener_read/sample.py ===
+=== END ===
+````
+
+#### clipboard
+````sh
+=== CLADA RESULTS ===
+rf1 ✅ file_write /tmp/t_listener_read/sample.py
+rf2 ✅ file_read /tmp/t_listener_read/sample.py
+=== END ===
+
+=== OUTPUTS ===
+
+[rf2] file_read:
+=== START FILE: /tmp/t_listener_read/sample.py ===
+#!/usr/bin/env python3
+"""Sample Python file for testing."""
+
+def greet(name):
+    """Return a greeting message."""
+    return f"Hello, {name}!"
+
+if __name__ == "__main__":
+    print(greet("World"))
+=== END FILE: /tmp/t_listener_read/sample.py ===
+=== END ===
+````
+
+### file-read-numbered-formatting
+
+#### Initial Content
+````sh
+Testing file read numbered output formatting.
+````
+
+#### New Content
+````sh
+Testing file read numbered output formatting.
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rn1]
+action = "file_write"
+path = "/tmp/t_listener_read_num/config.yaml"
+content = <<'EOT_SHAM_rn1'
+# Application Configuration
+app:
+  name: MyApp
+  version: 1.0.0
+  debug: true
+
+database:
+  host: localhost
+  port: 5432
+  name: myapp_db
+  
+logging:
+  level: info
+  file: /var/log/myapp.log
+EOT_SHAM_rn1
+#!END_SHAM_rn1
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rn2]
+action = "file_read_numbered"
+path = "/tmp/t_listener_read_num/config.yaml"
+#!END_SHAM_rn2
+```
+````
+
+#### Expected Prepended Results
+````sh
+📋 Copied to clipboard
+
+=== CLADA RESULTS ===
+rn1 ✅ file_write /tmp/t_listener_read_num/config.yaml
+rn2 ✅ file_read_numbered /tmp/t_listener_read_num/config.yaml
+=== END ===
+
+Testing file read numbered output formatting.
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rn1]
+action = "file_write"
+path = "/tmp/t_listener_read_num/config.yaml"
+content = <<'EOT_SHAM_rn1'
+# Application Configuration
+app:
+  name: MyApp
+  version: 1.0.0
+  debug: true
+
+database:
+  host: localhost
+  port: 5432
+  name: myapp_db
+  
+logging:
+  level: info
+  file: /var/log/myapp.log
+EOT_SHAM_rn1
+#!END_SHAM_rn1
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: rn2]
+action = "file_read_numbered"
+path = "/tmp/t_listener_read_num/config.yaml"
+#!END_SHAM_rn2
+```
+````
+
+#### Expected Output File
+````sh
+=== CLADA RESULTS ===
+rn1 ✅ file_write /tmp/t_listener_read_num/config.yaml
+rn2 ✅ file_read_numbered /tmp/t_listener_read_num/config.yaml
+=== END ===
+
+=== OUTPUTS ===
+
+[rn2] file_read_numbered:
+=== START FILE: [numbered] /tmp/t_listener_read_num/config.yaml ===
+ 1: # Application Configuration
+ 2: app:
+ 3:   name: MyApp
+ 4:   version: 1.0.0
+ 5:   debug: true
+ 6: 
+ 7: database:
+ 8:   host: localhost
+ 9:   port: 5432
+10:   name: myapp_db
+11:   
+12: logging:
+13:   level: info
+14:   file: /var/log/myapp.log
+=== END FILE: [numbered] /tmp/t_listener_read_num/config.yaml ===
+=== END ===
+````
+
+#### clipboard
+````sh
+=== CLADA RESULTS ===
+rn1 ✅ file_write /tmp/t_listener_read_num/config.yaml
+rn2 ✅ file_read_numbered /tmp/t_listener_read_num/config.yaml
+=== END ===
+
+=== OUTPUTS ===
+
+[rn2] file_read_numbered:
+=== START FILE: [numbered] /tmp/t_listener_read_num/config.yaml ===
+ 1: # Application Configuration
+ 2: app:
+ 3:   name: MyApp
+ 4:   version: 1.0.0
+ 5:   debug: true
+ 6: 
+ 7: database:
+ 8:   host: localhost
+ 9:   port: 5432
+10:   name: myapp_db
+11:   
+12: logging:
+13:   level: info
+14:   file: /var/log/myapp.log
+=== END FILE: [numbered] /tmp/t_listener_read_num/config.yaml ===
+=== END ===
+````
+
+### files-read-formatting
+
+#### Initial Content
+````sh
+Testing files read output formatting with multiple files.
+````
+
+#### New Content
+````sh
+Testing files read output formatting with multiple files.
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mr1]
+action = "file_write"
+path = "/tmp/t_listener_multi_read/README.md"
+content = <<'EOT_SHAM_mr1'
+# Project Documentation
+
+This is the main README file.
+
+## Features
+- Feature 1
+- Feature 2
+- Feature 3
+EOT_SHAM_mr1
+#!END_SHAM_mr1
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mr2]
+action = "file_write"
+path = "/tmp/t_listener_multi_read/main.py"
+content = <<'EOT_SHAM_mr2'
+#!/usr/bin/env python3
+
+def main():
+    print("Hello from main!")
+
+if __name__ == "__main__":
+    main()
+EOT_SHAM_mr2
+#!END_SHAM_mr2
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mr3]
+action = "file_write"
+path = "/tmp/t_listener_multi_read/.gitignore"
+content = <<'EOT_SHAM_mr3'
+*.pyc
+__pycache__/
+.env
+venv/
+EOT_SHAM_mr3
+#!END_SHAM_mr3
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mr4]
+action = "files_read"
+paths = <<'EOT_SHAM_mr4'
+/tmp/t_listener_multi_read/README.md
+/tmp/t_listener_multi_read/main.py
+/tmp/t_listener_multi_read/.gitignore
+EOT_SHAM_mr4
+#!END_SHAM_mr4
+```
+````
+
+#### Expected Prepended Results
+````sh
+📋 Copied to clipboard
+
+=== CLADA RESULTS ===
+mr1 ✅ file_write /tmp/t_listener_multi_read/README.md
+mr2 ✅ file_write /tmp/t_listener_multi_read/main.py
+mr3 ✅ file_write /tmp/t_listener_multi_read/.gitignore
+mr4 ✅ files_read (3 files)
+=== END ===
+
+Testing files read output formatting with multiple files.
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mr1]
+action = "file_write"
+path = "/tmp/t_listener_multi_read/README.md"
+content = <<'EOT_SHAM_mr1'
+# Project Documentation
+
+This is the main README file.
+
+## Features
+- Feature 1
+- Feature 2
+- Feature 3
+EOT_SHAM_mr1
+#!END_SHAM_mr1
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mr2]
+action = "file_write"
+path = "/tmp/t_listener_multi_read/main.py"
+content = <<'EOT_SHAM_mr2'
+#!/usr/bin/env python3
+
+def main():
+    print("Hello from main!")
+
+if __name__ == "__main__":
+    main()
+EOT_SHAM_mr2
+#!END_SHAM_mr2
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mr3]
+action = "file_write"
+path = "/tmp/t_listener_multi_read/.gitignore"
+content = <<'EOT_SHAM_mr3'
+*.pyc
+__pycache__/
+.env
+venv/
+EOT_SHAM_mr3
+#!END_SHAM_mr3
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: mr4]
+action = "files_read"
+paths = <<'EOT_SHAM_mr4'
+/tmp/t_listener_multi_read/README.md
+/tmp/t_listener_multi_read/main.py
+/tmp/t_listener_multi_read/.gitignore
+EOT_SHAM_mr4
+#!END_SHAM_mr4
+```
+````
+
+#### Expected Output File
+````sh
+=== CLADA RESULTS ===
+mr1 ✅ file_write /tmp/t_listener_multi_read/README.md
+mr2 ✅ file_write /tmp/t_listener_multi_read/main.py
+mr3 ✅ file_write /tmp/t_listener_multi_read/.gitignore
+mr4 ✅ files_read (3 files)
+=== END ===
+
+=== OUTPUTS ===
+
+[mr4] files_read:
+Reading 3 files:
+- /tmp/t_listener_multi_read/README.md
+- /tmp/t_listener_multi_read/main.py
+- /tmp/t_listener_multi_read/.gitignore
+
+=== START FILE: /tmp/t_listener_multi_read/README.md ===
+# Project Documentation
+
+This is the main README file.
+
+## Features
+- Feature 1
+- Feature 2
+- Feature 3
+=== END FILE: /tmp/t_listener_multi_read/README.md ===
+
+=== START FILE: /tmp/t_listener_multi_read/main.py ===
+#!/usr/bin/env python3
+
+def main():
+    print("Hello from main!")
+
+if __name__ == "__main__":
+    main()
+=== END FILE: /tmp/t_listener_multi_read/main.py ===
+
+=== START FILE: /tmp/t_listener_multi_read/.gitignore ===
+*.pyc
+__pycache__/
+.env
+venv/
+=== END FILE: /tmp/t_listener_multi_read/.gitignore ===
+=== END ===
+````
+
+#### clipboard
+````sh
+=== CLADA RESULTS ===
+mr1 ✅ file_write /tmp/t_listener_multi_read/README.md
+mr2 ✅ file_write /tmp/t_listener_multi_read/main.py
+mr3 ✅ file_write /tmp/t_listener_multi_read/.gitignore
+mr4 ✅ files_read (3 files)
+=== END ===
+
+=== OUTPUTS ===
+
+[mr4] files_read:
+Reading 3 files:
+- /tmp/t_listener_multi_read/README.md
+- /tmp/t_listener_multi_read/main.py
+- /tmp/t_listener_multi_read/.gitignore
+
+=== START FILE: /tmp/t_listener_multi_read/README.md ===
+# Project Documentation
+
+This is the main README file.
+
+## Features
+- Feature 1
+- Feature 2
+- Feature 3
+=== END FILE: /tmp/t_listener_multi_read/README.md ===
+
+=== START FILE: /tmp/t_listener_multi_read/main.py ===
+#!/usr/bin/env python3
+
+def main():
+    print("Hello from main!")
+
+if __name__ == "__main__":
+    main()
+=== END FILE: /tmp/t_listener_multi_read/main.py ===
+
+=== START FILE: /tmp/t_listener_multi_read/.gitignore ===
+*.pyc
+__pycache__/
+.env
+venv/
+=== END FILE: /tmp/t_listener_multi_read/.gitignore ===
+=== END ===
+````
 === END FILE: /Users/stuart/repos/clada/proj/comp/listener/test-data/integration/listener-workflow-v2.cases.md ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/errors.ts ===
+export class ListenerError extends Error {
+  constructor(
+    public code: 'FILE_NOT_FOUND' | 'ACCESS_DENIED' | 'ALREADY_WATCHING',
+    public path: string,
+    message?: string
+  ) {
+    super(message || `listener: ${code} '${path}'`);
+    this.name = 'ListenerError';
+  }
+}
+=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/errors.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/formatters.ts ===
+import type { OrchestratorResult } from '../../orch/src/types.js';
+
+export function formatSummary(orchResult: OrchestratorResult, timestamp: Date): string {
+  const lines = ['', '=== CLADA RESULTS ==='];
+  
+  // Add execution results
+  if (orchResult.results) {
+    for (const result of orchResult.results) {
+      const icon = result.success ? '✅' : '❌';
+      const primaryParam = getPrimaryParamFromResult(result);
+      
+      if (result.success) {
+        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam}`.trim());
+      } else {
+        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam} - ${getErrorSummary(result.error)}`.trim());
+      }
+    }
+  }
+  
+  // Add parse errors
+  if (orchResult.parseErrors) {
+    for (const error of orchResult.parseErrors) {
+      lines.push(`${error.blockId || 'unknown'} ❌ ${error.action || '(parse error)'} - ${error.message}`);
+    }
+  }
+  
+  lines.push('=== END ===', '');
+  return lines.join('\n');
+}
+
+function getPrimaryParamFromResult(result: any): string {
+  if (!result.params) return '';
+  if (result.params.path) return result.params.path;
+  if (result.params.paths) {
+    const paths = result.params.paths.trim().split('\n').filter((p: string) => p.trim());
+    return `(${paths.length} files)`;
+  }
+  if (result.params.pattern) return result.params.pattern;
+  if (result.params.lang) return result.params.lang;
+  if (result.params.old_path) return result.params.old_path;
+  return '';
+}
+
+function getErrorSummary(error?: string): string {
+  if (!error) return 'Unknown error';
+  
+  // Extract key error info
+  if (error.includes('File not found')) return 'File not found';
+  if (error.includes('no such file or directory')) return 'File not found';
+  if (error.includes('Permission denied')) return 'Permission denied';
+  if (error.includes('Output too large')) return error; // Keep full message
+  
+  // For other errors, take first part before details
+  const match = error.match(/^[^:]+:\s*([^'(]+)/);
+  if (match) return match[1].trim();
+  
+  return error.split('\n')[0]; // First line only
+}
+
+/**
+ * Format file read output in a human-readable way
+ */
+function formatFileReadOutput(result: any): string[] {
+  const lines: string[] = [];
+  
+  if (result.action === 'file_read') {
+    // Simple file read - data contains { path, content }
+    const path = result.data.path || result.params?.path || 'unknown';
+    lines.push(`=== START FILE: ${path} ===`);
+    lines.push((result.data.content !== undefined ? result.data.content : result.data) || '[empty file]');
+    lines.push(`=== END FILE: ${path} ===`);
+  } else if (result.action === 'file_read_numbered') {
+    // Numbered file read - data contains { path, content } where content has line numbers
+    const path = result.data.path || result.params?.path || 'unknown';
+    lines.push(`=== START FILE: [numbered] ${path} ===`);
+    lines.push((result.data.content !== undefined ? result.data.content : result.data) || '[empty file]');
+    lines.push(`=== END FILE: [numbered] ${path} ===`);
+  } else if (result.action === 'files_read') {
+    // Multiple files read - data contains { paths: string[], content: string[] }
+    // Each element in content array corresponds to the file at the same index in paths
+    if (result.data.paths && result.data.content) {
+      lines.push(`Reading ${result.data.paths.length} files:`);
+      
+      // List all files first
+      for (const path of result.data.paths) {
+        lines.push(`- ${path}`);
+      }
+      
+      // Add blank line before file contents
+      lines.push('');
+      
+      // Format each file's content with START/END markers
+      for (let i = 0; i < result.data.paths.length; i++) {
+        const path = result.data.paths[i];
+        const content = result.data.content[i];
+        
+        lines.push(`=== START FILE: ${path} ===`);
+        lines.push(content || '[empty file]');
+        lines.push(`=== END FILE: ${path} ===`);
+        
+        // Add blank line between files (except after the last one)
+        if (i < result.data.paths.length - 1) {
+          lines.push('');
+        }
+      }
+    } else {
+      // Fallback for unexpected format
+      lines.push(`Reading 0 files:`);
+    }
+  }
+  
+  return lines;
+}
+
+export function formatFullOutput(orchResult: OrchestratorResult): string {
+  const lines = ['=== CLADA RESULTS ==='];
+  
+  // Add execution results
+  if (orchResult.results) {
+    for (const result of orchResult.results) {
+      const icon = result.success ? '✅' : '❌';
+      const primaryParam = getPrimaryParamFromResult(result);
+      
+      if (result.success) {
+        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam}`.trim());
+      } else {
+        lines.push(`${result.blockId} ${icon} ${result.action} ${primaryParam} - ${getErrorSummary(result.error)}`.trim());
+      }
+    }
+  }
+  
+  // Add parse errors
+  if (orchResult.parseErrors) {
+    for (const error of orchResult.parseErrors) {
+      lines.push(`${error.blockId || 'unknown'} ❌ ${error.action || '(parse error)'} - ${error.message}`);
+    }
+  }
+  
+  lines.push('=== END ===', '', '=== OUTPUTS ===');
+  
+  // Add outputs for successful actions based on output_display rules
+  if (orchResult.results) {
+    for (const result of orchResult.results) {
+      if (result.success && result.data && shouldShowOutput(result.action, result.params)) {
+        const primaryParam = getPrimaryParamFromResult(result);
+        // For file read operations, don't include path in header since it's shown in the formatted output
+        const includeParam = !['file_read', 'file_read_numbered', 'files_read'].includes(result.action);
+        const header = (primaryParam && includeParam)
+          ? `[${result.blockId}] ${result.action} ${primaryParam}:`
+          : `[${result.blockId}] ${result.action}:`;
+        lines.push('', header);
+        
+        // Special formatting for file read operations
+        if (['file_read', 'file_read_numbered', 'files_read'].includes(result.action)) {
+          const formattedOutput = formatFileReadOutput(result);
+          lines.push(...formattedOutput);
+        } else if (typeof result.data === 'string') {
+          lines.push(result.data.trimEnd());
+        } else if (result.data.stdout || result.data.stderr) {
+          if (result.data.stdout) {
+            lines.push(`stdout:\n${result.data.stdout.trimEnd()}`);
+          }
+          if (result.data.stderr) {
+            lines.push(`stderr:\n${result.data.stderr.trimEnd()}`);
+          }
+        } else {
+          lines.push(JSON.stringify(result.data, null, 2));
+        }
+      }
+    }
+  }
+  
+  lines.push('=== END ===');
+  return lines.join('\n');
+}
+
+/**
+ * Check if output should be displayed for an action based on unified-design.yaml rules.
+ * This is a simplified check - the real implementation would load from unified-design.yaml.
+ */
+function shouldShowOutput(action: string, params?: any): boolean {
+  // Actions with output_display: never
+  const neverShowOutput = ['file_write', 'file_replace_text', 'file_replace_all_text', 'file_append', 'file_delete', 'file_move', 'dir_create', 'dir_delete'];
+  if (neverShowOutput.includes(action)) {
+    return false;
+  }
+  
+  // Actions with output_display: always
+  const alwaysShowOutput = ['file_read', 'file_read_numbered', 'files_read', 'ls', 'grep', 'glob'];
+  if (alwaysShowOutput.includes(action)) {
+    return true;
+  }
+  
+  // Actions with output_display: conditional
+  if (action === 'exec') {
+    // Check return_output parameter (default is true)
+    return params?.return_output !== false;
+  }
+  
+  // Default to showing output for unknown actions
+  return true;
+}
+
+ 
+=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/formatters.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/index.ts ===
+export { startListener, stopListener } from './listener.js';
+export type { ListenerConfig, ListenerHandle, ListenerState } from './types.js';
+export { ListenerError } from './errors.js';
+=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/index.ts ===
 
 === START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/listener.ts ===
 import { watchFile, unwatchFile, Stats } from 'fs';
@@ -1041,275 +2615,228 @@ export async function stopListener(handle: ListenerHandle): Promise<void> {
 }
 === END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/listener.ts ===
 
-=== START FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/index.ts ===
-/**
- * SHAM Action Parser - Parses SHAM blocks into validated clada actions
- */
+=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/types.ts ===
+export interface ListenerConfig {
+  filePath: string;
+  debounceMs?: number;
+  outputFilename?: string;
+}
 
-import { ParseResult, CladaAction, ParseError, ValidationResult, TransformError, ActionDefinition } from './types.js';
-import { validateShamBlock } from './validateShamBlock.js';
-import { transformToAction } from './transformToAction.js';
-import { parseSham, type Block, type ParseResult as NeslParseResult } from 'nesl-js';
-import { load as loadYaml } from 'js-yaml';
+export interface ListenerHandle {
+  id: string;
+  filePath: string;
+  stop: () => Promise<void>;
+}
+
+export interface ListenerState {
+  lastExecutedHash: string;
+  isProcessing: boolean;
+  outputPath: string;
+  actionSchema: Map<string, ActionDefinition>;
+}
+
+export interface ActionDefinition {
+  type: 'read' | 'write' | 'meta' | 'git' | 'dynamic';
+  description: string;
+  output_display?: 'always' | 'never' | 'conditional';
+  primary_param?: string;
+  parameters: Record<string, ParameterDef>;
+  returns: Record<string, any>;
+}
+
+export interface ParameterDef {
+  type: string;
+  required: boolean;
+  format?: string;
+  values?: string[];
+  default?: any;
+}
+
+export interface SizeCheckResult {
+  valid: boolean;
+  totalSize: number;
+  errors: any[]; // ExecutionResult[] but avoiding circular dependency
+}
+=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/types.ts ===
+
+=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/unified-design-loader.ts ===
 import { readFile } from 'fs/promises';
+import { parse as parseYaml } from 'js-yaml';
+import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 
-// Re-export types for consumers
-export type { ParseResult, CladaAction, ParseError, ValidationResult, TransformError };
+interface ToolDefinition {
+  output_display?: 'always' | 'never' | 'conditional';
+  parameters?: Record<string, any>;
+}
 
-// Cache for action schema
-let actionSchemaCache: Map<string, ActionDefinition> | null = null;
+interface UnifiedDesign {
+  tools: Record<string, ToolDefinition>;
+}
+
+let cachedDesign: UnifiedDesign | null = null;
 
 /**
- * Clear the action schema cache - useful for testing
- * Forces reload of unified-design.yaml on next parse
+ * Load and cache the unified design configuration.
+ * Returns the parsed unified design object.
  */
-export function clearActionSchemaCache(): void {
-  actionSchemaCache = null;
+export async function loadUnifiedDesign(): Promise<UnifiedDesign> {
+  if (cachedDesign) {
+    return cachedDesign;
+  }
+
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const designPath = join(__dirname, '../../../doc/unified-design.yaml');
+  const content = await readFile(designPath, 'utf-8');
+  cachedDesign = parseYaml(content) as UnifiedDesign;
+  
+  return cachedDesign;
 }
 
 /**
- * Parse SHAM blocks from text into validated clada actions
- * Processes all blocks, collecting successes and errors
+ * Check if output should be displayed for a given action.
+ * Returns true if output should be included in OUTPUTS section.
  */
-export async function parseShamResponse(shamText: string): Promise<ParseResult> {
-  const actions: CladaAction[] = [];
-  const errors: ParseError[] = [];
-
-  // Debug logging for specific test cases
-  // const isDebugging = shamText.includes('move-to-existing-file');
-  // if (isDebugging) {
-  //   console.log('DEBUG parseShamResponse: Input text length:', shamText.length);
-  //   console.log('DEBUG parseShamResponse: Contains SHAM blocks:', shamText.includes('#!SHAM'));
-  //   console.log('DEBUG parseShamResponse: Number of #!SHAM occurrences:', (shamText.match(/#!SHAM/g) || []).length);
-  //   console.log('DEBUG parseShamResponse: Number of #!END_SHAM occurrences:', (shamText.match(/#!END_SHAM/g) || []).length);
-  // }
-
-  // Parse SHAM blocks using nesl-js
-  let parseResult: NeslParseResult;
-  try {
-   
-    parseResult = parseSham(shamText);
-    
-    // if (isDebugging) {
-    //   console.log('DEBUG parseShamResponse: parseSham returned:', parseResult);
-    //   if (parseResult) {
-    //     console.log('DEBUG parseShamResponse: blocks:', parseResult.blocks?.length || 0);
-    //     console.log('DEBUG parseShamResponse: errors:', parseResult.errors?.length || 0);
-    //   }
-    // }
-    
-    // Handle case where parseSham returns undefined or null
-    if (!parseResult) {
-      parseResult = { blocks: [], errors: [] };
-    }
-  } catch (error) {
-    return {
-      actions: [],
-      errors: [{
-        blockId: 'unknown',
-        errorType: 'syntax',
-        message: `Failed to parse SHAM: ${error}`,
-        shamContent: shamText
-      }],
-      summary: {
-        totalBlocks: 0,
-        successCount: 0,
-        errorCount: 1
+export async function shouldDisplayOutput(
+  action: string, 
+  params: Record<string, any> = {}
+): Promise<boolean> {
+  const design = await loadUnifiedDesign();
+  const tool = design.tools[action];
+  
+  if (!tool) {
+    // Unknown tool - default to showing output
+    return true;
+  }
+  
+  const displayRule = tool.output_display || 'always';
+  
+  switch (displayRule) {
+    case 'always':
+      return true;
+    case 'never':
+      return false;
+    case 'conditional':
+      // For exec, check return_output parameter
+      if (action === 'exec') {
+        return params.return_output !== false;
       }
-    };
+      // Default for other conditional actions
+      return true;
+    default:
+      return true;
   }
+}
+=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/unified-design-loader.ts ===
 
-  // Process syntax errors from nesl-js parser
-  if (parseResult.errors && parseResult.errors.length > 0) {
-    for (const parseError of parseResult.errors) {
-      // Find the block this error belongs to
-      const block = parseResult.blocks?.find(b => b.id === parseError.blockId);
-      
-      errors.push({
-        blockId: parseError.blockId || 'unknown',
-        action: block?.properties?.action,
-        errorType: 'syntax',
-        message: parseError.message,
-        blockStartLine: block?.startLine || parseError.line,
-        shamContent: parseError.context 
-          ? `#!SHAM [@three-char-SHA-256: ${parseError.blockId}]\n${parseError.context}`.trimEnd()
-          : reconstructShamBlock(block || { id: parseError.blockId, properties: {} })
-      });
-    }
-  }
+=== START FILE: /Users/stuart/repos/clada/proj/comp/listener/src/utils.ts ===
+import { createHash } from 'node:crypto';
 
-  // Load action schema
-  const actionSchema = await loadActionSchema();
+export function computeContentHash(content: string): string {
+  return createHash('sha256').update(content).digest('hex');
+}
+=== END FILE: /Users/stuart/repos/clada/proj/comp/listener/src/utils.ts ===
 
-  // Process each SHAM block
-  const blocks = parseResult.blocks || [];
-  
-  // If no blocks found, return empty result
-  if (blocks.length === 0) {
-    return {
-      actions: [],
-      errors: [],
-      summary: {
-        totalBlocks: 0,
-        successCount: 0,
-        errorCount: 0
-      }
-    };
-  }
-  
-  // Track blocks with syntax errors to skip them
-  const blocksWithSyntaxErrors = new Set(
-    parseResult.errors?.map(e => e.blockId) || []
-  );
-  
-  for (const block of blocks) {
-    const blockId = block.id || 'unknown';
-    
-    // Skip blocks that already have syntax errors
-    if (blocksWithSyntaxErrors.has(blockId)) {
-      continue;
-    }
-    
-    try {
-      // Get action type from block
-      const actionType = block.properties?.action;
-      const actionDef = actionType ? actionSchema.get(actionType) : undefined;
+=== START FILE: /Users/stuart/repos/clada/replacer/replacer_llm_instructions.md ===
+coding style guide:  TDD.  self documenting code.  every api  function name should make it super obvious who is doing what and why
 
+WOL = "words or less, please"
+
+keep the docs as lean
+
+refactor code to make it smaller whenever possible.  DRY.
+
+IMPORTANT:  do not generate edit instructions unless specifically asked to.  not necessary when just discussing and brainstorming
+
+- all code functions and classes or large (10 lines of code or more?) need code comments to cocnisely and lcearly describe what they're doing and why and how
+
+IMPORTANT: 
+
+whenever you generate new code, use the following format.  dont just generate a standalone artifact.  when generating one or multiple new files, use the OVERWRITE pattern shown below 
+
+For each specific edit that needs to happen, list a brief explanation for the change, list file name, and then explicitly make it clear what the target text is that need to be changed, and then the replacement text is that will replace it. Each of those blocks of text or code need to be explicit verbatim character by character Perfect matches for the intended text.  be sure to put the filenames and expalanations on their own lines for easy human reading even in output format.  like paragraph breaks before and after so thye're on their own lines even when not in code blocks.  use this format below exactly. note that the OVERWRITE style block can be used to create new files and its parent dirs.
+
+make the search find text or code blocks as small as possible to still be unique identifiers for what needs to be changed in the underlying files 
+
+for the file path, use as much of the path that you know of.  should be as specific as you can accurately be.  
+
+make sure that file paths include the current main project dir
+
+<<<EXPLANATION>>>
+
+this is why the change should happen
+
+<<<FILE>>>
+
+package/replacer_demo_src/main.py
+
+<<<SEARCH>>>
+def old_function():
+   x = 1
+   y = 2
+   return x + y
+<<<REPLACE>>>
+def new_function():
+   result = 3
+   return result
+<<<END>>>
+
+
+
+
+<<<EXPLANATION>>>
+
+this is why this change should happen
+
+<<<FILE>>>
+july/coding/bobstuff/react/config/settings.json
+<<<OVERWRITE>>>
+{
+   "debug": true,
+   "port": 8080
+}
+<<<END>>>
+
+NOTE: if you want to remove a section of code, your replace block must contain a blank line and a space:
+
+
+<<<EXPLANATION>>>
+
+remove the search code
+
+<<<FILE>>>
+
+package/replacer_demo_src/main.py
+
+<<<SEARCH>>>
+def old_function():
+   x = 1
+   y = 2
+   return x + y
+<<<REPLACE>>>
  
+<<<END>>>
 
-      // Validate block
-      const validation = validateShamBlock(block, actionDef ?? null);
-      
-      if (!validation.valid) {
-        errors.push({
-          blockId,
-          action: actionType,
-          errorType: 'validation',
-          message: validation.errors?.[0] || 'Validation failed',
-          blockStartLine: block.startLine,
-          shamContent: reconstructShamBlock(block)
-        });
-        continue;
-      }
+see how the REPLACE block can never be totally empty. must contain blank line and whitespace (space(s)) too
 
-      // Transform to action
-      try {
-        const action = transformToAction(block, actionDef!);
-        actions.push(action);
-      } catch (error) {
-        if (error instanceof TransformError) {
-          errors.push({
-            blockId,
-            action: actionType,
-            errorType: 'type',
-            message: error.message,
-            blockStartLine: block.startLine,
-            shamContent: reconstructShamBlock(block)
-          });
-        } else {
-          throw error;
-        }
-      }
-    } catch (error) {
-      errors.push({
-        blockId,
-        action: block.properties?.action,
-        errorType: 'validation',
-        message: `Unexpected error: ${error}`,
-        blockStartLine: block.startLine,
-        shamContent: reconstructShamBlock(block)
-      });
-    }
-  }
+IMPORTANT:  each edit item must list its associated FILE.  each SEARCH/REPLACE or OVERWRITE etc block must be immediately preceeded by the respective file 
 
-  const result = {
-    actions,
-    errors,
-    summary: {
-      totalBlocks: blocks.length,
-      successCount: actions.length,
-      errorCount: errors.length
-    }
-  };
-  return result;
-}
+$$$$$$$$$$$$$
 
-/**
- * Load and cache action definitions from unified-design.yaml
- */
-async function loadActionSchema(): Promise<Map<string, ActionDefinition>> {
- 
-  if (actionSchemaCache) {
-    return actionSchemaCache;
-  }
+Prioritize substance, clarity, and depth. Challenge all my proposals, designs, and conclusions as hypotheses to be tested. Sharpen follow-up questions for precision, surfacing hidden assumptions, trade offs, and failure modes early. Default to terse, logically structured, information-dense responses unless detailed exploration is required. Skip unnecessary praise unless grounded in evidence. Explicitly acknowledge uncertainty when applicable. Always propose at least one alternative framing. Accept critical debate as normal and preferred. Treat all factual claims as provisional unless cited or clearly justified. Cite when appropriate. Acknowledge when claims rely on inference or incomplete information. Favor accuracy over sounding certain.
 
-  // Get the directory of this module
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = dirname(__filename);
-  
-  // Navigate to project root and find unified-design.yaml
-  const yamlPath = join(__dirname, '../../../../unified-design.yaml');
-  
-  try {
-    // Add timeout to file read operation
-    const yamlContent = await Promise.race([
-      readFile(yamlPath, 'utf8'),
-      new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('YAML read timeout')), 5000)
-      )
-    ]);
-    const design = loadYaml(yamlContent) as any;
-    
-    actionSchemaCache = new Map();
-    
-    // Extract tool definitions
-    if (design.tools) {
-      for (const [toolName, toolDef] of Object.entries(design.tools)) {
-        actionSchemaCache.set(toolName, toolDef as ActionDefinition);
-      }
-    }
-    
- 
-    
-    return actionSchemaCache;
-  } catch (error) {
-    throw new Error(`Failed to load unified-design.yaml: ${error}`);
-  }
-}
+check anything online when it feels relevant.  good to compare our thoughts/assumptions with what other people are actually doing and thinking
 
-/**
- * Reconstruct SHAM block text for error context
- */
-function reconstructShamBlock(block: Block): string {
-  const lines: string[] = [];
-  
-  // Start line
-  lines.push(`#!SHAM [@three-char-SHA-256: ${block.id || 'unknown'}]`);
-  
-  // Properties
-  for (const [key, value] of Object.entries(block.properties || {})) {
-    if (key.startsWith('@')) continue; // Skip annotations
-    
-    if (typeof value === 'string' && value.includes('\n')) {
-      // Multi-line value with heredoc
-      lines.push(`${key} = <<'EOT_SHAM_${block.id}'`);
-      lines.push(value);
-      lines.push(`EOT_SHAM_${block.id}`);
-    } else {
-      // Single line value - use JSON.stringify to handle quotes properly
-      lines.push(`${key} = ${JSON.stringify(value)}`);
-    }
-  }
-  
-  // End line
-  lines.push(`#!END_SHAM_${block.id || 'unknown'}`);
-  
-  return lines.join('\n');
-}
+when asked to share your thoughts (like if user says "wdyt"), then walk it out and talk it out gradually, incrementally, slowly, and thoughtfully.  challenge me so we can succeed overall
 
-// Re-export functions for consumers
-export { validateShamBlock, transformToAction };
-=== END FILE: /Users/stuart/repos/clada/proj/comp/sham-action-parser/src/index.ts ===
+dont fall into the trap of equating "implementation" with "low-level".  implementation decisions can be high-level when they affect the system's fundamental behavior
+
+IMPORTANT EDIT INSTRUCTIONS NOTE:
+
+- always use full absolute file paths for edit instructions
+
+- to delete a file, share bash commands with the user in your response.  do not use edit instructions to delete a file
+
+
+=== END FILE: /Users/stuart/repos/clada/replacer/replacer_llm_instructions.md ===
 

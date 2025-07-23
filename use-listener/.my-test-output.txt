@@ -1,12 +1,6 @@
 === CLADA RESULTS ===
-rs2 ✅ file_read_numbered /Users/stuart/repos/clada/use-listener/test-files/ham.md
+rs2 ❌ file_read_numbered - Missing required parameter: path
 === END ===
 
 === OUTPUTS ===
-
-[rs2] file_read_numbered /Users/stuart/repos/clada/use-listener/test-files/ham.md:
-{
-  "path": "/Users/stuart/repos/clada/use-listener/test-files/ham.md",
-  "content": " 1: \n 2: The Tragedy of Hamlet, Prince of Denmark\n 3: Shakespeare homepage | Hamlet | Entire play\n 4: ACT I\n 5: SCENE I. Elsinore. A platform before the castle.\n 6: FRANCISCO at his post. Enter to him BERNARDO\n 7: BERNARDO\n 8: Who's there?\n 9: FRANCISCO\n10: Nay, answer me: stand, and unfold yourself.\n11: BERNARDO\n12: Long live the king!\n13: FRANCISCO\n14: Bernardo?\n15: BERNARDO\n16: He.\n17: FRANCISCO\n18: You come most carefully upon your hour.\n19: BERNARDO\n20: 'Tis now struck twelve; get thee to bed, Francisco.\n21: FRANCISCO\n22: For this relief much thanks: 'tis bitter cold,\n23: And I am sick at heart.\n24: BERNARDO\n25: Have you had quiet guard?\n26: FRANCISCO\n27: Not a mouse stirring.\n28: BERNARDO\n29: Well, good night.\n30: If you do meet Horatio and Marcellus,\n31: The rivals of my watch, bid them make haste.\n32: FRANCISCO\n33: I think I hear them. Stand, ho! Who's there?\n34: Enter HORATIO and MARCELLUS\n35: \n36: HORATIO\n37: Friends to this ground.\n38: MARCELLUS\n39: And liegemen to the Dane.\n40: FRANCISCO\n41: Give you good night.\n42: MARCELLUS\n43: O, farewell, honest soldier:\n44: Who hath relieved you?\n45: FRANCISCO\n46: Bernardo has my place.\n47: Give you good night.\n48: Exit"
-}
 === END ===

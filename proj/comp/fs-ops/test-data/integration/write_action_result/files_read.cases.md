@@ -44,7 +44,11 @@ EOT_SHAM_rm4
       "/tmp/t_read-multiple-files/files-read-test/file2.txt",
       "/tmp/t_read-multiple-files/files-read-test/subdir/file3.txt"
     ],
-    "content": "=== /tmp/t_read-multiple-files/files-read-test/file1.txt ===\nContent of file 1\n\n=== /tmp/t_read-multiple-files/files-read-test/file2.txt ===\nContent of file 2\n\n=== /tmp/t_read-multiple-files/files-read-test/subdir/file3.txt ===\nContent of file 3 in subdirectory"
+    "content": [
+      "Content of file 1",
+      "Content of file 2",
+      "Content of file 3 in subdirectory"
+    ]
   }
 }
 ```
@@ -85,7 +89,10 @@ EOT_SHAM_el3
       "/tmp/t_read-with-empty-lines/files-read-empty-lines/first.txt",
       "/tmp/t_read-with-empty-lines/files-read-empty-lines/second.txt"
     ],
-    "content": "=== /tmp/t_read-with-empty-lines/files-read-empty-lines/first.txt ===\nFirst file\n\n=== /tmp/t_read-with-empty-lines/files-read-empty-lines/second.txt ===\nSecond file"
+    "content": [
+      "First file",
+      "Second file"
+    ]
   }
 }
 ```
@@ -161,10 +168,8 @@ paths = "/tmp/t_read-single-file/files-read-single/only.txt"
 {
   "success": true,
   "data": {
-    "paths": [
-      "/tmp/t_read-single-file/files-read-single/only.txt"
-    ],
-    "content": "=== /tmp/t_read-single-file/files-read-single/only.txt ===\nOnly file content"
+    "paths": ["/tmp/t_read-single-file/files-read-single/only.txt"],
+    "content": ["Only file content"]
   }
 }
 ```
@@ -207,7 +212,10 @@ EOT_SHAM_sc3
       "/tmp/t_read-files-with-special-content/files-read-special/quotes.txt",
       "/tmp/t_read-files-with-special-content/files-read-special/multiline.txt"
     ],
-    "content": "=== /tmp/t_read-files-with-special-content/files-read-special/quotes.txt ===\nFile with \"quotes\" and 'apostrophes'\n\n=== /tmp/t_read-files-with-special-content/files-read-special/multiline.txt ===\nLine 1\nLine 2\nLine 3"
+    "content": [
+      "File with \"quotes\" and 'apostrophes'",
+      "Line 1\nLine 2\nLine 3"
+    ]
   }
 }
 ```

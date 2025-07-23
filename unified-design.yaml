@@ -190,7 +190,9 @@ tools:
       }
     returns: {
       success: boolean, 
-      content?: string,  # Files concatenated with headers like "=== /path/to/file.txt ==="
+      data?: {                          # i guess this is formatted wrong... 
+        paths: array, content: array
+        },
       error?: string
     }  
     example: |

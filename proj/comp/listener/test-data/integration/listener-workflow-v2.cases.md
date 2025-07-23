@@ -195,7 +195,7 @@ content = "missing closing quote
 📋 Copied to clipboard
 
 === CLADA RESULTS ===
-bad ❌ file_write - Unclosed quoted string
+bad ❌ file_write ERROR: Unclosed quoted string (line 4)
 === END ===
 
 Testing parse errors.
@@ -212,7 +212,7 @@ content = "missing closing quote
 #### Expected Output File
 ````sh
 === CLADA RESULTS ===
-bad ❌ file_write - Unclosed quoted string
+bad ❌ file_write ERROR: Unclosed quoted string (line 4)
 === END ===
 
 === OUTPUTS ===
@@ -222,7 +222,7 @@ bad ❌ file_write - Unclosed quoted string
 #### clipboard
 ````sh
 === CLADA RESULTS ===
-bad ❌ file_write - Unclosed quoted string
+bad ❌ file_write ERROR: Unclosed quoted string (line 4)
 === END ===
 
 === OUTPUTS ===
@@ -741,7 +741,7 @@ rf2 ✅ file_read /tmp/t_listener_read/sample.py
 
 === OUTPUTS ===
 
-[rf2] file_read /tmp/t_listener_read/sample.py:
+[rf2] file_read:
 === START FILE: /tmp/t_listener_read/sample.py ===
 #!/usr/bin/env python3
 """Sample Python file for testing."""
@@ -765,7 +765,7 @@ rf2 ✅ file_read /tmp/t_listener_read/sample.py
 
 === OUTPUTS ===
 
-[rf2] file_read /tmp/t_listener_read/sample.py:
+[rf2] file_read:
 === START FILE: /tmp/t_listener_read/sample.py ===
 #!/usr/bin/env python3
 """Sample Python file for testing."""
@@ -902,7 +902,7 @@ rn2 ✅ file_read_numbered /tmp/t_listener_read_num/config.yaml
 
 === OUTPUTS ===
 
-[rn2] file_read_numbered /tmp/t_listener_read_num/config.yaml:
+[rn2] file_read_numbered:
 === START FILE: [numbered] /tmp/t_listener_read_num/config.yaml ===
  1: # Application Configuration
  2: app:
@@ -1073,7 +1073,7 @@ mr4 ✅ files_read (3 files)
 
 === OUTPUTS ===
 
-[mr4] files_read (3 files):
+[mr4] files_read:
 Reading 3 files:
 - /tmp/t_listener_multi_read/README.md
 - /tmp/t_listener_multi_read/main.py
@@ -1120,7 +1120,7 @@ mr4 ✅ files_read (3 files)
 
 === OUTPUTS ===
 
-[mr4] files_read (3 files):
+[mr4] files_read:
 Reading 3 files:
 - /tmp/t_listener_multi_read/README.md
 - /tmp/t_listener_multi_read/main.py
@@ -1153,5 +1153,104 @@ __pycache__/
 .env
 venv/
 === END FILE: /tmp/t_listener_multi_read/.gitignore ===
+=== END ===
+````
+
+### listener-parsing-errors
+
+#### Initial Content
+````sh
+Testing multiple parse error types.
+````
+
+#### New Content
+````sh
+Testing multiple parse error types.
+
+```sh sham
+#!SHAM [@three-char-SHA-256: pe1]
+action = "file_write"
+path = "/tmp/t_parse_errors/test1.txt"
+content = "missing closing quote
+#!END_SHAM_pe1
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: pe2]
+action := "file_read"
+path = "/tmp/t_parse_errors/test2.txt"
+#!END_SHAM_pe2
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: pe3]
+just some random text without assignment
+#!END_SHAM_pe3
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: pe4]
+action = "file_write"
+path = <<EOT_SHAM_pe4
+/tmp/test.txt
+EOT_SHAM_pe4
+#!END_SHAM_pe4
+```
+
+```sh sham
+#!SHAM [@three-char-SHA-256: pe5]
+action = "exec"
+lang = "bash"
+code = "echo 'test'" extra stuff
+#!END_SHAM_pe5
+```
+````
+
+#### Expected Prepended Results
+````sh
+📋 Copied to clipboard
+
+=== CLADA RESULTS ===
+pe1 ❌ file_write ERROR: Unclosed quoted string (line 4)
+pe2 ❌ -          ERROR: Invalid assignment operator ':=' - only '=' is allowed (line 12)
+pe3 ❌ -          ERROR: Invalid line format in block 'pe3': not a valid key-value assignment or empty line (line 19)
+pe4 ❌ file_write ERROR: 3 syntax errors (line 25)
+                    - Value must be a quoted string or heredoc
+                    - Invalid line format in block 'pe4': not a valid key-value assignment or empty line (2 occurrences)
+pe5 ❌ exec       ERROR: Unexpected content after quoted value (line 34)
+=== END ===
+
+Testing multiple parse error types.
+````
+
+#### Expected Output File
+````sh
+=== CLADA RESULTS ===
+pe1 ❌ file_write ERROR: Unclosed quoted string (line 4)
+pe2 ❌ -          ERROR: Invalid assignment operator ':=' - only '=' is allowed (line 12)
+pe3 ❌ -          ERROR: Invalid line format in block 'pe3': not a valid key-value assignment or empty line (line 19)
+pe4 ❌ file_write ERROR: 3 syntax errors (line 25)
+                    - Value must be a quoted string or heredoc
+                    - Invalid line format in block 'pe4': not a valid key-value assignment or empty line (2 occurrences)
+pe5 ❌ exec       ERROR: Unexpected content after quoted value (line 34)
+=== END ===
+
+=== OUTPUTS ===
+=== END ===
+````
+
+#### Expected Clipboard
+````sh
+=== CLADA RESULTS ===
+pe1 ❌ file_write ERROR: Unclosed quoted string (line 4)
+pe2 ❌ -          ERROR: Invalid assignment operator ':=' - only '=' is allowed (line 12)
+pe3 ❌ -          ERROR: Invalid line format in block 'pe3': not a valid key-value assignment or empty line (line 19)
+pe4 ❌ file_write ERROR: 3 syntax errors (line 25)
+                    - Value must be a quoted string or heredoc
+                    - Invalid line format in block 'pe4': not a valid key-value assignment or empty line (2 occurrences)
+pe5 ❌ exec       ERROR: Unexpected content after quoted value (line 34)
+=== END ===
+
+=== OUTPUTS ===
 === END ===
 ````
